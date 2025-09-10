@@ -4,6 +4,7 @@
 AI Image Generation API 主启动文件
 """
 
+import os
 import uvicorn
 from config import AppConfig, APIConfig
 import traceback
