@@ -1,6 +1,6 @@
-# Tasks目录清理工具
+# Tasks目录清理工具 (Render部署版本)
 
-这个工具用于定期清理tasks目录中的旧文件和文件夹，以节省磁盘空间。
+这个工具用于定期清理tasks目录中的旧文件夹，以节省磁盘空间。
 
 ## 清理规则
 
@@ -8,7 +8,38 @@
 2. **有watermark.md但无original.md的文件夹**：如果文件夹创建时间超过28天，则删除整个文件夹
 3. **有original.md的文件夹**：如果文件夹创建时间超过365天，则删除整个文件夹
 
-## 使用方法
+## Render部署配置
+
+### 1. 配置文件 (render.yaml)
+
+```yaml
+services:
+  # 主Web服务
+  - type: web
+    name: ai-image-api
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python run.py"
+
+  # 定时清理任务
+  - type: cron
+    name: cleanup-tasks
+    plan: free
+    # 每天凌晨2点执行（可以根据需要调整时间）
+    schedule: "0 2 * * *"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python cleanup_scheduler.py"
+```
+
+### 2. 部署步骤
+
+1. 将 `render.yaml` 文件添加到您的项目根目录
+2. 推送到GitHub仓库
+3. 在Render控制台中连接您的GitHub仓库
+4. Render会自动检测到两个服务并部署它们
+
+## 本地使用方法
 
 ### 试运行模式（推荐首次使用）
 ```bash
@@ -25,22 +56,18 @@ python cleanup_scheduler.py
 python cleanup_scheduler.py --tasks-dir /path/to/your/tasks
 ```
 
-## 设置定时任务
-
-### Windows任务计划程序
-1. 打开"任务计划程序"
-2. 创建基本任务
-3. 设置触发器为每天执行
-4. 操作设置为启动程序：`python`
-5. 添加参数：`cleanup_scheduler.py`
-
-### Linux/macOS Cron任务
-添加到crontab中：
+### 试运行模式并指定目录路径
 ```bash
-# 每天凌晨2点执行清理
-0 2 * * * cd /path/to/your/project && python cleanup_scheduler.py
+python cleanup_scheduler.py --tasks-dir /path/to/your/tasks --dry-run
 ```
 
 ## 日志文件
 
 清理操作的日志保存在 `logs/cleanup.log` 文件中。
+
+## 注意事项
+
+1. 请确保您的Render账户有足够的权限来部署cron jobs
+2. 免费计划的cron jobs有执行频率限制
+3. 建议先在本地测试清理规则，确保符合您的预期
+4. 定期检查日志文件以监控清理任务的执行情况
