@@ -23,6 +23,7 @@ python-multipart>=0.0.5
 google-genai>=0.5.0
 replicate
 fal-client>=0.1.0
+fal>=0.1.0
 
 # 数值计算
 numpy>=1.21.0
