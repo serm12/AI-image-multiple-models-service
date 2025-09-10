@@ -4,8 +4,8 @@
 定期清理tasks目录中的文件夹
 根据规则：
 1. 如果文件夹里面没有watermark.md和original.md文件，则删除7天前的所有文件夹。
-2. 如果文件夹里面有watermark.md而没有original.md则删除28天前的所有文件。
-3. 如果文件夹里面有original.md则删除365天前的所有文件。
+2. 如果文件夹里面有watermark.md而没有original.md则删除28天前的所有文件夹。
+3. 如果文件夹里面有original.md则删除365天前的所有文件夹。
 """
 
 import os
@@ -18,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/cleanup.log'),
+        logging.FileHandler('logs/cleanup.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -78,45 +78,21 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
             else:
                 return ("keep", f"保留文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前，未到7天)")
                 
-        # 规则2: 如果文件夹里面有watermark.md而没有original.md则删除28天前的所有文件
+        # 规则2: 如果文件夹里面有watermark.md而没有original.md则删除28天前的所有文件夹
         elif has_watermark and not has_original:
-            # 删除文件夹中28天前的文件
-            deleted_files = 0
-            for item in os.listdir(folder_path):
-                item_path = os.path.join(folder_path, item)
-                if os.path.isfile(item_path):
-                    file_age = get_file_age_days(item_path)
-                    if file_age > 28:
-                        try:
-                            os.remove(item_path)
-                            deleted_files += 1
-                        except Exception as e:
-                            logger.error(f"删除文件 {item} 时出错: {e}")
-            
-            if deleted_files > 0:
-                return ("clean_files", f"清理文件夹 {folder_name} 中 {deleted_files} 个文件 (有watermark.md无original.md，28天前)")
+            if folder_age > 28:
+                shutil.rmtree(folder_path)
+                return ("delete_folder", f"删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
             else:
-                return ("keep", f"保留文件夹 {folder_name} (有watermark.md无original.md，未到28天)")
+                return ("keep", f"保留文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前，未到28天)")
                 
-        # 规则3: 如果文件夹里面有original.md则删除365天前的所有文件
+        # 规则3: 如果文件夹里面有original.md则删除365天前的所有文件夹
         elif has_original:
-            # 删除文件夹中365天前的文件
-            deleted_files = 0
-            for item in os.listdir(folder_path):
-                item_path = os.path.join(folder_path, item)
-                if os.path.isfile(item_path):
-                    file_age = get_file_age_days(item_path)
-                    if file_age > 365:
-                        try:
-                            os.remove(item_path)
-                            deleted_files += 1
-                        except Exception as e:
-                            logger.error(f"删除文件 {item} 时出错: {e}")
-            
-            if deleted_files > 0:
-                return ("clean_files", f"清理文件夹 {folder_name} 中 {deleted_files} 个文件 (有original.md，365天前)")
+            if folder_age > 365:
+                shutil.rmtree(folder_path)
+                return ("delete_folder", f"删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
             else:
-                return ("keep", f"保留文件夹 {folder_name} (有original.md，未到365天)")
+                return ("keep", f"保留文件夹 {folder_name} (有original.md，{folder_age}天前，未到365天)")
                 
     except Exception as e:
         logger.error(f"处理文件夹 {folder_path} 时出错: {e}")
@@ -140,7 +116,6 @@ def cleanup_tasks_folder(tasks_dir="tasks"):
     
     results = {
         "delete_folder": 0,
-        "clean_files": 0,
         "keep": 0,
         "skip": 0,
         "error": 0
@@ -162,7 +137,6 @@ def cleanup_tasks_folder(tasks_dir="tasks"):
     
     logger.info("清理完成统计:")
     logger.info(f"  删除的文件夹: {results['delete_folder']}")
-    logger.info(f"  清理了文件的文件夹: {results['clean_files']}")
     logger.info(f"  保留的文件夹: {results['keep']}")
     logger.info(f"  跳过的项目: {results['skip']}")
     logger.info(f"  错误数量: {results['error']}")
