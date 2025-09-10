@@ -1,0 +1,14 @@
+# Environments
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Task-generated files
+/tasks/*
+!/tasks/.gitkeep
+
+# Logs
+/logs/
