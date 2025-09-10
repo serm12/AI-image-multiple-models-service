@@ -24,7 +24,7 @@ class TaskStatus(str, Enum):
 class AsyncTaskManager:
     """异步任务管理器"""
     
-    def __init__(self, max_concurrent: int = 2):
+    def __init__(self, max_concurrent: int = 1):
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.tasks: Dict[str, Dict[str, Any]] = {}
@@ -174,4 +174,4 @@ async def test_task_manager():
     print(f"✅ 系统统计: {stats}")
 
 if __name__ == "__main__":
-    asyncio.run(test_task_manager()) 
+    asyncio.run(test_task_manager())

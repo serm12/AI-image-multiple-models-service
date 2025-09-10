@@ -167,7 +167,7 @@ async def generate_image_async(
     sequential_image_generation: str = Form("disabled"),
     files: list[UploadFile] = File([])
 ):
-    """异步图像生成API - 立即返回任务ID，支持20个并发处理"""
+    """异步图像生成API - 立即返回任务ID，支持1个并发处理"""
     
     # -- 参数兼容性处理 --
     # 1. model_version: 前端发送此参数，但后端使用 flux_model_variant。我们固定为 pro。
@@ -275,7 +275,7 @@ async def generate_image_async(
             "status_url": f"/task-status/{task_id}",
             "created_at": timestamp,
             "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,  # 返回使用的API服务提供商
-            "concurrent_improvement": "支持20个并发处理，不会阻塞其他请求"
+            "concurrent_improvement": "支持1个并发处理，内存优化版本"
         })
         
     except Exception as e:
@@ -643,7 +643,7 @@ async def get_system_stats():
     stats = task_manager.get_statistics()
     return JSONResponse({
         "message": "AI Image Generation API - 异步并发统计",
-        "concurrent_capacity": "20个同时处理",
+        "concurrent_capacity": "1个同时处理",
         "performance_improvement": "2000%+ 相比阻塞版本",
         "api_version": "2.0.0",
         "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,  # 返回当前使用的API服务提供商
