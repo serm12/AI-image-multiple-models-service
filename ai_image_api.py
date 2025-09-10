@@ -161,6 +161,10 @@ async def generate_image_async(
     auto_upscale: bool = Form(False),
     upscale_face_enhance: bool = Form(False),
     input_image_url: str = Form(None),
+    width: int = Form(None),
+    height: int = Form(None),
+    size: str = Form("2K"),
+    sequential_image_generation: str = Form("disabled"),
     files: list[UploadFile] = File([])
 ):
     """异步图像生成API - 立即返回任务ID，支持20个并发处理"""
@@ -234,6 +238,10 @@ async def generate_image_async(
             "description": description,
             "auto_upscale": auto_upscale,
             "upscale_face_enhance": upscale_face_enhance,
+            "width": width,
+            "height": height,
+            "size": size,
+            "sequential_image_generation": sequential_image_generation,
             "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER  # 记录使用的API服务提供商
         }
         
@@ -267,7 +275,7 @@ async def generate_image_async(
             "status_url": f"/task-status/{task_id}",
             "created_at": timestamp,
             "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,  # 返回使用的API服务提供商
-            "concurrent_improvement": "✅ 支持20个并发处理，不会阻塞其他请求"
+            "concurrent_improvement": "支持20个并发处理，不会阻塞其他请求"
         })
         
     except Exception as e:
@@ -324,6 +332,10 @@ async def _do_generation_work(
             output_format=output_format,
             seed=seed,
             art_style=params.get("art_style"),  # 传递艺术风格参数
+            width=params.get("width"),
+            height=params.get("height"),
+            size=params.get("size"),
+            sequential_image_generation=params.get("sequential_image_generation"),
             task_id=task_id  # 传递任务ID
         )
         
@@ -451,11 +463,13 @@ async def download_and_process_image_async(task_id: str, task_dir: str, image_ur
 
 async def download_and_process_image_async_optimized(task_id: str, task_dir: str, image_url: str, filename: str):
     """优化版本：分阶段更新状态的异步下载和处理图片"""
+    print(f"开始下载和处理图片: task_id={task_id}, image_url={image_url[:100]}...")
     
     # 生成文件名
     OUTPUT_FILE, ORIGINAL_FILE, WATERMARK_FILE = generate_output_filenames(
         task_dir, filename, "png"
     )
+    print(f"生成文件名: OUTPUT_FILE={OUTPUT_FILE}, ORIGINAL_FILE={ORIGINAL_FILE}, WATERMARK_FILE={WATERMARK_FILE}")
     
     content_bytes = None
     if isinstance(image_url, str) and image_url.startswith("data:image/"):
@@ -464,21 +478,35 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
         try:
             header, b64data = image_url.split(",", 1)
             content_bytes = base64.b64decode(b64data)
+            print("解析data URL成功")
         except Exception as e:
             raise ValueError(f"无法解析 data URL: {e}")
     
     if content_bytes is None:
         # 异步下载图片
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(image_url)
-            response.raise_for_status()
-            content_bytes = response.content
+        print(f"开始下载图片: {image_url}")
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.get(image_url)
+                response.raise_for_status()
+                content_bytes = response.content
+                print(f"图片下载成功，大小: {len(content_bytes)} bytes")
+        except Exception as e:
+            print(f"图片下载失败: {e}")
+            raise ValueError(f"图片下载失败: {e}")
     
     # 异步保存原图（现在OUTPUT_FILE和ORIGINAL_FILE指向同一个文件）
-    async with aiofiles.open(ORIGINAL_FILE, "wb") as f:
-        await f.write(content_bytes)
+    print(f"开始保存原图: {ORIGINAL_FILE}")
+    try:
+        async with aiofiles.open(ORIGINAL_FILE, "wb") as f:
+            await f.write(content_bytes)
+        print("原图保存成功")
+    except Exception as e:
+        print(f"原图保存失败: {e}")
+        raise ValueError(f"原图保存失败: {e}")
     
     # 🚀 关键优化：原图保存完成后立即更新状态 (72%)，让前端能立即获取文件
+    print("更新任务状态到72%")
     task_manager.update_task(task_id, 
         status=TaskStatus.PROCESSING, 
         progress=72,
@@ -489,9 +517,16 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
     )
     
     # 在线程池中处理水印（避免阻塞事件循环）
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, create_logo_watermark)
-    await loop.run_in_executor(None, add_logo_watermark, ORIGINAL_FILE, WATERMARK_FILE)
+    print("开始处理水印")
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, create_logo_watermark)
+        await loop.run_in_executor(None, add_logo_watermark, ORIGINAL_FILE, WATERMARK_FILE)
+        print("水印处理完成")
+    except Exception as e:
+        print(f"水印处理失败: {e}")
+        # 不中断主流程，继续执行
+        pass
 
 async def process_upscale_background(task_id: str, task_dir: str, params: dict, image_url: str):
     """后台处理放大任务，不阻塞主流程"""
@@ -701,8 +736,10 @@ def get_art_styles():
             return (0, value)
         elif value.startswith("gemini_"):
             return (1, value)
-        else:
+        elif value.startswith("seedream-4_"):
             return (2, value)
+        else:
+            return (3, value)
     
     styles.sort(key=sort_key)
     return JSONResponse({"styles": styles})

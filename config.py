@@ -28,7 +28,10 @@ class APIConfig:
     # OpenRouter 配置（用于生图流程）
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     
-    # API服务提供商选择：'flux_bfl'、'flux_replicate'、'gemini_google'、'gemini_replicate' 或 'gemini_openrouter'
+    # Fal.ai 配置
+    FAL_API_KEY = os.getenv("FAL_API_KEY")
+    
+    # API服务提供商选择：'flux_bfl'、'flux_replicate'、'gemini_google'、'gemini_replicate'、'gemini_openrouter'、'seedream-4_replicate' 或 'seedream-4_fal'
     IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "flux_bfl")  # 默认使用BFL
     
     # 验证环境变量和API密钥
@@ -44,6 +47,10 @@ class APIConfig:
         raise ValueError("REPLICATE_API_TOKEN not found in .env file or environment variables")
     if IMAGE_GENERATION_PROVIDER == "gemini_openrouter" and not OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY not found in .env file or environment variables")
+    if IMAGE_GENERATION_PROVIDER == "seedream-4_replicate" and not REPLICATE_API_TOKEN:
+        raise ValueError("REPLICATE_API_TOKEN not found in .env file or environment variables")
+    if IMAGE_GENERATION_PROVIDER == "seedream-4_fal" and not FAL_API_KEY:
+        raise ValueError("FAL_API_KEY not found in .env file or environment variables")
 
 # 目录配置
 class DirectoryConfig:
@@ -173,6 +180,12 @@ class ArtStyleEnum(str, Enum):
     gemini_acrylic = "gemini_acrylic"
     gemini_watercolor = "gemini_watercolor"
 
+    # Seedream-4 Replicate 风格
+    seedream_4_realistic = "seedream-4_realistic"
+
+    # Seedream-4 Fal.ai 风格
+    seedream_4_fal_realistic = "seedream-4_fal_realistic"
+
 
 # 风格提示词映射
 STYLE_PROMPTS = {
@@ -206,6 +219,12 @@ STYLE_PROMPTS = {
     ArtStyleEnum.gemini_thick_paint_portrait: "thick paint portrait style, heavy impasto technique, precise facial feature preservation, accurate character likeness, detailed facial anatomy, thick paint texture while maintaining facial accuracy, layered paint application with careful attention to facial details, portrait-focused thick paint work, dimensional character portraiture, facial feature emphasis, authentic character representation, sculptural paint work on facial features, rich color depth in skin tones, dramatic lighting that enhances facial structure, painterly portrait technique, thick paint medium optimized for character accuracy, detailed facial rendering with impasto texture, portrait-quality thick paint illustration, character-focused dimensional artwork, ",
     ArtStyleEnum.gemini_acrylic: "acrylic painting style, vibrant acrylic colors, bold brushstrokes, matte finish, contemporary acrylic art, bright pigments, modern acrylic technique, plastic paint medium, quick-drying paint, colorful acrylic artwork, abstract acrylic style, expressive acrylic brushwork, contemporary art style, acrylic on canvas, vivid color palette, modern painting technique, artistic acrylic expression, bold color application, acrylic paint texture, contemporary acrylic masterpiece, ",
     ArtStyleEnum.gemini_watercolor: "watercolor painting style, soft watercolor washes, translucent layers, paper texture, watercolor bloom effects, delicate brush strokes, flowing watercolor technique, transparent pigments, aquarelle style, wet-on-wet technique, watercolor gradients, soft color transitions, artistic watercolor expression, traditional watercolor method, gentle color blending, watercolor paper texture, ethereal watercolor effects, fluid paint application, watercolor transparency, dreamy watercolor atmosphere, ",
+    
+    # Seedream-4 风格提示词
+    ArtStyleEnum.seedream_4_realistic: "",
+
+    # Seedream-4 Fal.ai 风格提示词
+    ArtStyleEnum.seedream_4_fal_realistic: "",
     
 
 }
@@ -242,6 +261,12 @@ STYLE_DESCRIPTIONS = {
     "gemini_digital_paint_glossy": "Gemini数字绘画高光风格 - 光滑数字绘画技法，专注面部特征",
     "gemini_acrylic": "Gemini丙烯画风格 - 鲜艳的丙烯颜色，现代绘画技法",
     "gemini_watercolor": "Gemini水彩风格 - 柔和水彩洗染效果，透明层次",
+    
+    # Seedream-4 风格描述
+    "seedream-4_realistic": "Seedream4写实风格 - 保持真实感，不添加艺术效果",
+
+    # Seedream-4 Fal.ai 风格描述
+    "seedream-4_fal_realistic": "Seedream4 (Fal.ai) 写实风格 - 保持真实感，不添加艺术效果",
     
 }
 

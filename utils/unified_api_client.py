@@ -22,6 +22,8 @@ class UnifiedAPIClient:
         self._gemini_client = None
         self._gemini_replicate_client = None
         self._openrouter_client = None
+        self._seedream_4_replicate_client = None
+        self._seedream_4_fal_client = None
     
     def _get_flux_client(self):
         """延迟加载Flux客户端"""
@@ -50,9 +52,24 @@ class UnifiedAPIClient:
             from .gemini_openrouter_client import GeminiOpenRouterClient
             self._openrouter_client = GeminiOpenRouterClient(self.openrouter_api_key)
         return self._openrouter_client
+
+    def _get_seedream_4_replicate_client(self):
+        """延迟加载Seedream4 Replicate客户端"""
+        if self._seedream_4_replicate_client is None and self.api_provider == "seedream-4_replicate":
+            from .seedream4_replicate_client import Seedream4ReplicateClient
+            self._seedream_4_replicate_client = Seedream4ReplicateClient(self.replicate_token)
+        return self._seedream_4_replicate_client
+
+    def _get_seedream_4_fal_client(self):
+        """延迟加载Seedream4 Fal.ai客户端"""
+        if self._seedream_4_fal_client is None and self.api_provider == "seedream-4_fal":
+            from .seedream4_fal_client import Seedream4FalClient
+            self._seedream_4_fal_client = Seedream4FalClient()
+        return self._seedream_4_fal_client
         
     async def generate_image(self, prompt, input_image_paths=None, input_image_url=None, 
-                           flux_model_variant=None, aspect_ratio=None, output_format=None, seed=None, art_style=None, task_id=None):
+                           flux_model_variant=None, aspect_ratio=None, output_format=None, seed=None, art_style=None, 
+                           width=None, height=None, size=None, sequential_image_generation=None, task_id=None):
         """
         统一的图像生成接口 - 路由分发器
         
@@ -83,6 +100,16 @@ class UnifiedAPIClient:
             # 路由到OpenRouter客户端
             return await self._generate_with_gemini_openrouter(
                 prompt, input_image_paths, input_image_url, seed, art_style, task_id
+            )
+        elif self.api_provider == "seedream-4_replicate":
+            # 路由到Seedream4 Replicate客户端
+            return await self._generate_with_seedream_4_replicate(
+                prompt, input_image_paths, seed, art_style, width, height, size, sequential_image_generation
+            )
+        elif self.api_provider == "seedream-4_fal":
+            # 路由到Seedream4 Fal.ai客户端
+            return await self._generate_with_seedream_4_fal(
+                prompt, input_image_paths, seed, art_style, aspect_ratio
             )
         elif self.api_provider in ["flux_bfl", "flux_replicate", "flux_fireworks"]:
             # 路由到Flux客户端
@@ -178,6 +205,55 @@ class UnifiedAPIClient:
                 
         except Exception as e:
             raise ValueError(f"OpenRouter API调用失败: {e}")
+
+    async def _generate_with_seedream_4_replicate(self, prompt, input_image_paths=None, seed=None, art_style=None, width=None, height=None, size=None, sequential_image_generation=None):
+        """使用Seedream4 Replicate API生成图像"""
+        try:
+            client = self._get_seedream_4_replicate_client()
+            if not client:
+                raise ValueError("Seedream4 Replicate客户端未正确初始化")
+            
+            if not art_style:
+                art_style = "seedream-4_realistic"
+            
+            result = await client.generate_image(
+                prompt=prompt,
+                input_image_paths=input_image_paths,
+                art_style=art_style,
+                seed=seed,
+                width=width,
+                height=height,
+                size=size,
+                sequential_image_generation=sequential_image_generation
+            )
+            
+            return result
+                
+        except Exception as e:
+            raise ValueError(f"Seedream4 Replicate API调用失败: {e}")
+
+    async def _generate_with_seedream_4_fal(self, prompt, input_image_paths=None, seed=None, art_style=None, aspect_ratio=None):
+        """使用Seedream4 Fal.ai API生成图像"""
+        try:
+            client = self._get_seedream_4_fal_client()
+            if not client:
+                raise ValueError("Seedream4 Fal.ai客户端未正确初始化")
+            
+            if not art_style:
+                art_style = "seedream-4_fal_realistic"
+            
+            result = await client.generate_image(
+                prompt=prompt,
+                input_image_paths=input_image_paths,
+                art_style=art_style,
+                seed=seed,
+                aspect_ratio=aspect_ratio
+            )
+            
+            return result
+                
+        except Exception as e:
+            raise ValueError(f"Seedream4 Fal.ai API调用失败: {e}")
 
 # 导出实例
 api_client = UnifiedAPIClient()
