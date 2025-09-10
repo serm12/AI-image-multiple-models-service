@@ -25,6 +25,14 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# 全局变量，用于控制是否为试运行模式
+DRY_RUN_MODE = False
+
+def set_dry_run_mode(dry_run):
+    """设置试运行模式"""
+    global DRY_RUN_MODE
+    DRY_RUN_MODE = dry_run
+
 def get_file_age_days(file_path):
     """
     获取文件的年龄（天数）
@@ -73,24 +81,33 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
         # 规则1: 如果文件夹里面没有watermark.md和original.md文件，则删除7天前的所有文件夹
         if not has_watermark and not has_original:
             if folder_age > 7:
-                shutil.rmtree(folder_path)
-                return ("delete_folder", f"删除文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前)")
+                if DRY_RUN_MODE:
+                    return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前)")
+                else:
+                    shutil.rmtree(folder_path)
+                    return ("delete_folder", f"删除文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前，未到7天)")
                 
         # 规则2: 如果文件夹里面有watermark.md而没有original.md则删除28天前的所有文件夹
         elif has_watermark and not has_original:
             if folder_age > 28:
-                shutil.rmtree(folder_path)
-                return ("delete_folder", f"删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
+                if DRY_RUN_MODE:
+                    return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
+                else:
+                    shutil.rmtree(folder_path)
+                    return ("delete_folder", f"删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前，未到28天)")
                 
         # 规则3: 如果文件夹里面有original.md则删除365天前的所有文件夹
         elif has_original:
             if folder_age > 365:
-                shutil.rmtree(folder_path)
-                return ("delete_folder", f"删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
+                if DRY_RUN_MODE:
+                    return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
+                else:
+                    shutil.rmtree(folder_path)
+                    return ("delete_folder", f"删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (有original.md，{folder_age}天前，未到365天)")
                 
@@ -142,5 +159,5 @@ def cleanup_tasks_folder(tasks_dir="tasks"):
     logger.info(f"  错误数量: {results['error']}")
 
 if __name__ == "__main__":
-    # 执行清理任务
+    # 如果直接运行此脚本，则执行一次清理
     cleanup_tasks_folder("tasks")

@@ -35,7 +35,9 @@ def main():
     
     try:
         # 延迟导入，确保路径已正确设置
-        from utils.cleanup_tasks import cleanup_tasks_folder
+        from utils.cleanup_tasks import cleanup_tasks_folder, set_dry_run_mode
+        # 设置试运行模式
+        set_dry_run_mode(args.dry_run)
         cleanup_tasks_folder(args.tasks_dir)
         print("清理任务执行完成。")
     except Exception as e:

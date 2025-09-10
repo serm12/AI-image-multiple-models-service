@@ -1,0 +1,35 @@
+# Render部署配置文件
+# 包含Web服务和定时清理任务
+
+services:
+  # 主Web服务
+  - type: web
+    name: ai-image-api
+    env: python
+    plan: free
+    # 构建命令
+    buildCommand: "pip install -r requirements.txt"
+    # 启动命令
+    startCommand: "python run.py"
+    # 环境变量（根据需要调整）
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        value: 8000
+
+  # 定时清理任务
+  - type: cron
+    name: cleanup-tasks
+    plan: free
+    # 每天凌晨2点执行（可以根据需要调整时间）
+    schedule: "0 2 * * *"
+    # 构建命令
+    buildCommand: "pip install -r requirements.txt"
+    # 执行清理脚本
+    startCommand: "python cleanup_scheduler.py"
+
+# 如果您需要数据库或其他服务，可以在这里添加
+# databases:
+#   - name: your-database
+#     plan: free
