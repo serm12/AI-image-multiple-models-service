@@ -12,6 +12,23 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+# 应用配置
+class AppConfig:
+    DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+    MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
+
+# 算法配置
+class AlgorithmConfig:
+    # 文件名算法因数：当前年份 * ALGORITHM_FACTOR
+    ALGORITHM_FACTOR = int(os.getenv("ALGORITHM_FACTOR", "6987"))
+    
+    @classmethod
+    def get_algorithm_value(cls):
+        """获取算法值：当前年份 * 算法因数"""
+        from datetime import datetime
+        current_year = datetime.now().year
+        return current_year * cls.ALGORITHM_FACTOR
 # API配置
 class APIConfig:
     # Replicate 配置（用于生图流程或者放大流程...等其他流程）
@@ -89,6 +106,13 @@ class WatermarkConfig:
     DEFAULT_PADDING = 10  # 水印文字内边距（像素）
     DEFAULT_BLEND_MODE = "screen"  # 水印混合模式: "normal", "screen", "multiply", "overlay"
     DEFAULT_RESIZE_SCALE = 0.8  # 加水印后图片缩放比例（0.5 = 50%）
+    
+    @classmethod
+    def get_resize_scale(cls):
+        """根据当前模型动态获取缩放比例"""
+        if APIConfig.IMAGE_GENERATION_PROVIDER in ["seedream-4_replicate", "seedream-4_fal"]:
+            return 0.6
+        return cls.DEFAULT_RESIZE_SCALE
     
     # 增强防护配置
     ENABLE_RANDOM_PATTERNS = True  # 启用随机模式
@@ -269,23 +293,6 @@ STYLE_DESCRIPTIONS = {
     "seedream-4_fal_realistic": "Seedream4 (Fal.ai) 写实风格 - 保持真实感，不添加艺术效果",
     
 }
-
-# 算法配置
-class AlgorithmConfig:
-    # 文件名算法因数：当前年份 * ALGORITHM_FACTOR
-    ALGORITHM_FACTOR = int(os.getenv("ALGORITHM_FACTOR", "6987"))
-    
-    @classmethod
-    def get_algorithm_value(cls):
-        """获取算法值：当前年份 * 算法因数"""
-        from datetime import datetime
-        current_year = datetime.now().year
-        return current_year * cls.ALGORITHM_FACTOR
-
-# 应用配置
-class AppConfig:
-    DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
     
 # 初始化配置
 def initialize_config():

@@ -10,6 +10,7 @@ import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
+from config import AppConfig
 
 class TaskStatus(str, Enum):
     """任务状态枚举"""
@@ -24,7 +25,7 @@ class TaskStatus(str, Enum):
 class AsyncTaskManager:
     """异步任务管理器"""
     
-    def __init__(self, max_concurrent: int = 1):
+    def __init__(self, max_concurrent: int = AppConfig.MAX_CONCURRENT_TASKS):
         self.max_concurrent = max_concurrent
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.tasks: Dict[str, Dict[str, Any]] = {}
@@ -134,7 +135,7 @@ class AsyncTaskManager:
         return len(to_remove)
 
 # 全局任务管理器实例
-task_manager = AsyncTaskManager(max_concurrent=1)
+task_manager = AsyncTaskManager(max_concurrent=AppConfig.MAX_CONCURRENT_TASKS)
 
 # 辅助函数
 async def create_and_run_task(task_id: str, coro, **task_kwargs):

@@ -114,7 +114,7 @@ def add_text_watermark(
     angle = angle or WatermarkConfig.DEFAULT_ANGLE
     step = step or WatermarkConfig.DEFAULT_STEP
     blend_mode = blend_mode or WatermarkConfig.DEFAULT_BLEND_MODE
-    resize_scale = resize_scale or WatermarkConfig.DEFAULT_RESIZE_SCALE
+    resize_scale = resize_scale or WatermarkConfig.get_resize_scale()
     image = Image.open(input_path).convert("RGBA")
     width, height = image.size
     watermark = Image.new("RGBA", (width, height), (0, 0, 0, 0))
@@ -339,7 +339,7 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     step = step or WatermarkConfig.DEFAULT_STEP
     angle = angle or WatermarkConfig.DEFAULT_ANGLE
     blend_mode = blend_mode or WatermarkConfig.DEFAULT_BLEND_MODE
-    resize_scale = resize_scale or WatermarkConfig.DEFAULT_RESIZE_SCALE
+    resize_scale = resize_scale or WatermarkConfig.get_resize_scale()
     
     image = Image.open(input_image_path).convert("RGBA")
     logo = Image.open(logo_path).convert("RGBA")

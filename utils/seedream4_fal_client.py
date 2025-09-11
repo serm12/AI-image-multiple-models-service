@@ -112,7 +112,10 @@ class Seedream4FalClient:
                     print(f"上传本地图片: {image_path}")
                     url = await self._upload_local_image(image_path)
                     processed_image_urls.append(url)
-                    print(f"上传完成: {url}")
+                    if url.startswith("data:"):
+                        print(f"上传完成 (base64): data:image/...({len(url)} chars)")
+                    else:
+                        print(f"上传完成: {url}")
                 elif image_path.startswith(("http://", "https://")):
                     # 已经是URL，直接使用
                     processed_image_urls.append(image_path)
