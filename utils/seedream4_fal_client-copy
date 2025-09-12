@@ -8,7 +8,6 @@ from config import APIConfig
 import fal
 import httpx
 import base64
-from fal.toolkit import File
 
 class Seedream4FalClient:
     """Seedream-4 Fal.ai API客户端"""
@@ -48,30 +47,44 @@ class Seedream4FalClient:
         if not os.path.exists(image_path):
             raise ValueError(f"Image file not found: {image_path}")
         
-        # 使用fal.toolkit.File.from_path上传图片到fal.ai
-        try:
-            print(f"使用fal.toolkit.File上传图片: {image_path}")
-            # 使用fal_v3仓库并提供默认的请求上下文以避免警告
-            file_obj = File.from_path(
-                image_path, 
-                repository="fal_v3"
-            )
-            return file_obj.url
-        except Exception as e:
-            print(f"fal.toolkit.File上传失败: {e}, 尝试使用base64编码")
-            import base64
-            import mimetypes
-            
-            # 获取文件的MIME类型
-            mime_type, _ = mimetypes.guess_type(image_path)
-            if not mime_type:
-                mime_type = "image/jpeg"
-            
-            # 读取文件并转换为base64
+        # 直接使用HTTP上传图片到fal.ai
+        return await self._upload_image_via_http(image_path)
+
+    async def _upload_image_via_http(self, image_path):
+        """
+        通过HTTP上传图片到fal.ai
+        """
+        # 直接使用HTTP上传方法
+        url = "https://upload.fal.ai/upload"
+        headers = {
+            "Authorization": f"Key {self.api_key}",
+            "Accept": "application/json"
+        }
+        
+        async with httpx.AsyncClient() as client:
             with open(image_path, "rb") as f:
-                image_data = f.read()
-                b64_img = base64.b64encode(image_data).decode("utf-8")
-                return f"data:{mime_type};base64,{b64_img}"
+                files = {"file": f}
+                try:
+                    response = await client.post(url, files=files, headers=headers)
+                    response.raise_for_status()
+                    result = response.json()
+                    return result["url"]
+                except Exception as e:
+                    # 如果上传失败，尝试将图片转换为base64编码直接传递
+                    print(f"HTTP上传失败: {e}, 尝试使用base64编码")
+                    import base64
+                    import mimetypes
+                    
+                    # 获取文件的MIME类型
+                    mime_type, _ = mimetypes.guess_type(image_path)
+                    if not mime_type:
+                        mime_type = "image/jpeg"
+                    
+                    # 读取文件并转换为base64
+                    with open(image_path, "rb") as f:
+                        image_data = f.read()
+                        b64_img = base64.b64encode(image_data).decode("utf-8")
+                        return f"data:{mime_type};base64,{b64_img}"
 
     async def generate_image(self, prompt, input_image_paths=None, seed=None, art_style=None, aspect_ratio="1:1", **kwargs):
         """
