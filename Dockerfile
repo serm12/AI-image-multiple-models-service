@@ -37,7 +37,7 @@ WORKDIR /app
 # 复制项目文件
 COPY ai_image_api.py config.py core.py run.py ./
 COPY utils/ ./utils/
-COPY fonts/ ./fonts/
+COPY assets/ ./assets/
 COPY scripts/ ./scripts/
 
 # 创建数据和日志目录

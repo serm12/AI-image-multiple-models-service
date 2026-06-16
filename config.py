@@ -117,7 +117,7 @@ class APIConfig:
 class DirectoryConfig:
     # 生产环境目录
     TASKS_DIR = "tasks"  # 生产API调用的输出目录
-    FONTS_DIR = "fonts"
+    ASSETS_DIR = "assets"
     
     # 测试相关目录
     TEST_INPUT_DIR = "input_image"      # 测试输入图片目录
@@ -127,7 +127,7 @@ class DirectoryConfig:
     def ensure_directories(cls):
         """确保所有必要目录存在"""
         os.makedirs(cls.TASKS_DIR, exist_ok=True)
-        os.makedirs(cls.FONTS_DIR, exist_ok=True)
+        os.makedirs(cls.ASSETS_DIR, exist_ok=True)
     
     @classmethod
     def ensure_test_directories(cls):
@@ -168,7 +168,7 @@ class AspectRatioEnum(str, Enum):
 # 水印配置
 class WatermarkConfig:
     DEFAULT_TEXT = "Paintingify"
-    DEFAULT_FONT_PATH = "fonts/holidayvibesfreeregular-wppxv.ttf"
+    DEFAULT_FONT_PATH = "assets/holidayvibesfreeregular-wppxv.ttf"
     DEFAULT_FONT_SIZE = 48
     DEFAULT_COLOR = (255, 255, 255, 140)
     DEFAULT_ANGLE = 30
@@ -189,10 +189,10 @@ class WatermarkConfig:
     RANDOM_OPACITY_RANGE = 30
     MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]
 
-    LOGO_PATH = "fonts/logo_watermark.png"
+    LOGO_PATH = "assets/logo_watermark.png"
 
     CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
-    CORNER_LABEL_FONT_PATH = "fonts/arial.ttf"
+    CORNER_LABEL_FONT_PATH = "assets/arial.ttf"
     CORNER_LABEL_FONT_SIZE = 18
     CORNER_LABEL_PADDING = 8
     CORNER_LABEL_MARGIN = 12
@@ -202,7 +202,7 @@ class WatermarkConfig:
     CORNER_LABEL_BORDER_WIDTH = 1
     CORNER_LABEL_CORNER_RADIUS = 6
 
-    BRAND_LOGO_PATH = "fonts/logo_brand.png"
+    BRAND_LOGO_PATH = "assets/logo_brand.png"
     BRAND_LOGO_MARGIN = 20
     BRAND_LOGO_SCALE = 0.30
     BRAND_LOGO_MIN_SIZE = 80
