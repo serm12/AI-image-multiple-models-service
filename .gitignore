@@ -2,6 +2,11 @@
 .env
 .env.*
 
+# Virtual environments
+venv/
+.venv/
+.venv-linux/
+
 # Python cache
 __pycache__/
 *.pyc

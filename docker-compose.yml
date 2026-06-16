@@ -1,0 +1,46 @@
+# Docker Compose 配置
+# 使用方法:
+#   1. 复制 .env 文件: cp env.example .env (填入你的 API Key)
+#   2. 启动服务: docker compose up -d
+#   3. 查看日志: docker compose logs -f
+#   4. 停止服务: docker compose down
+
+services:
+  ai-image-api:
+    build: .
+    container_name: ai-image-api
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - PORT=8001
+      - DEBUG=false
+    volumes:
+      # 持久化任务输出（重启不丢失）
+      - ./tasks:/app/tasks
+      # 持久化日志
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/providers')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # 定时清理任务（每天凌晨2点）
+  cleanup:
+    build: .
+    container_name: ai-image-cleanup
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TASKS_DIR=/app/tasks
+    volumes:
+      - ./tasks:/app/tasks
+      - ./logs:/app/logs
+    entrypoint: ["python", "scripts/cleanup_scheduler.py", "--loop", "--interval", "86400"]
+    # 或者用 cron 方式（取消下面注释，注释掉上面的 entrypoint）
+    # entrypoint: ["/bin/sh", "-c", "while true; do python scripts/cleanup_scheduler.py; sleep 86400; done"]

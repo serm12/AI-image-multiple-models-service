@@ -1,5 +1,6 @@
 import os
 import json
+from contextlib import ExitStack
 import requests
 import replicate
 from datetime import datetime
@@ -21,20 +22,20 @@ def validate_upscale_params(model: str, scale: int, face_enhance: bool) -> tuple
     
     return True, ""
 
-def build_upscale_input_params(input_image_path: str, model: str, scale: int, face_enhance: bool) -> dict:
+def build_upscale_input_params(input_file, model: str, scale: int, face_enhance: bool) -> dict:
     """构建放大输入参数"""
     input_params = {}
     
     # 不同模型使用不同的参数名称
     if model == "gfpgan":
-        input_params["img"] = open(input_image_path, "rb")
+        input_params["img"] = input_file
     elif model == "upscaler":
         # google/upscaler 模型使用不同的参数
-        input_params["image"] = open(input_image_path, "rb")
+        input_params["image"] = input_file
         input_params["upscale_factor"] = f"x{scale}"
         input_params["compression_quality"] = 100
     else:
-        input_params["image"] = open(input_image_path, "rb")
+        input_params["image"] = input_file
         input_params["scale"] = scale
     
     # 只有real-esrgan模型支持face_enhance参数
@@ -77,97 +78,98 @@ async def upscale_image_with_replicate(
     print(f"🔄 开始放大图片，模型: {model}, 倍数: {scale}x, 面部增强: {face_enhance}")
     
     try:
-        # 构建输入参数
-        input_params = build_upscale_input_params(input_image_path, model, scale, face_enhance)
-        
-        # 使用replicate.Client()获取完整的预测信息
-        try:
-            # 创建replicate客户端
-            client = replicate.Client()
-            
-            # 异步运行阻塞的 create 和 wait
-            def run_prediction():
-                prediction = client.predictions.create(
-                    version=UPSCALE_MODELS[model],
+        with ExitStack() as stack:
+            input_file = stack.enter_context(open(input_image_path, "rb"))
+            input_params = build_upscale_input_params(input_file, model, scale, face_enhance)
+
+            # 使用replicate.Client()获取完整的预测信息
+            try:
+                # 创建replicate客户端
+                client = replicate.Client()
+                
+                # 异步运行阻塞的 create 和 wait
+                def run_prediction():
+                    prediction = client.predictions.create(
+                        version=UPSCALE_MODELS[model],
+                        input=input_params
+                    )
+                    print(f"📥 收到放大预测响应，ID: {prediction.id}")
+                    print(f"预测状态: {prediction.status}")
+                    
+                    # 等待预测完成
+                    print("⏳ 等待放大预测完成...")
+                    prediction.wait()
+                    print(f"✅ 放大预测完成，最终状态: {prediction.status}")
+                    return prediction
+
+                prediction = await asyncio.to_thread(run_prediction)
+                
+                # 获取完整的预测信息
+                full_response = prediction.dict()
+                print(f"📄 获取到完整放大预测信息，ID: {prediction.id}")
+                
+                # 获取图片URL
+                output_url = str(prediction.output)
+                print("最终放大图片URL:", output_url)
+                
+                result_data = {
+                    "output_url": output_url,
+                    "full_response": full_response,
+                    "prediction_id": prediction.id,
+                    "success": True
+                }
+                
+                return True, "放大成功", result_data
+                
+            except Exception as e:
+                print(f"⚠️ 使用client.predictions.create()失败: {e}")
+                print("🔄 回退到replicate.run()方法...")
+                
+                # 回退到原来的方法 - 同样异步化
+                output_url = await asyncio.to_thread(
+                    replicate.run,
+                    UPSCALE_MODELS[model],
                     input=input_params
                 )
-                print(f"📥 收到放大预测响应，ID: {prediction.id}")
-                print(f"预测状态: {prediction.status}")
                 
-                # 等待预测完成
-                print("⏳ 等待放大预测完成...")
-                prediction.wait()
-                print(f"✅ 放大预测完成，最终状态: {prediction.status}")
-                return prediction
-
-            prediction = await asyncio.to_thread(run_prediction)
-            
-            # 获取完整的预测信息
-            full_response = prediction.dict()
-            print(f"📄 获取到完整放大预测信息，ID: {prediction.id}")
-            
-            # 获取图片URL
-            output_url = str(prediction.output)
-            print("最终放大图片URL:", output_url)
-            
-            result_data = {
-                "output_url": output_url,
-                "full_response": full_response,
-                "prediction_id": prediction.id,
-                "success": True
-            }
-            
-            return True, "放大成功", result_data
-            
-        except Exception as e:
-            print(f"⚠️ 使用client.predictions.create()失败: {e}")
-            print("🔄 回退到replicate.run()方法...")
-            
-            # 回退到原来的方法 - 同样异步化
-            output_url = await asyncio.to_thread(
-                replicate.run,
-                UPSCALE_MODELS[model],
-                input=input_params
-            )
-            
-            # 创建基本响应记录
-            full_response = {
-                "completed_at": datetime.now().isoformat(),
-                "created_at": datetime.now().isoformat(),
-                "data_removed": False,
-                "error": None,
-                "id": None,
-                "input": {
-                    "model": model,
-                    "scale": scale,
-                    "face_enhance": face_enhance
-                },
-                "logs": f"Using {model} model with scale {scale}x",
-                "metrics": {
-                    "image_count": 1,
-                    "predict_time": 0,
-                    "total_time": 0
-                },
-                "output": output_url,
-                "started_at": datetime.now().isoformat(),
-                "status": "succeeded",
-                "urls": {
-                    "stream": "",
-                    "cancel": "",
-                    "get": "",
-                    "web": ""
-                },
-                "version": "hidden"
-            }
-            
-            result_data = {
-                "output_url": output_url,
-                "full_response": full_response,
-                "prediction_id": None,
-                "success": True
-            }
-            
-            return True, "放大成功（回退模式）", result_data
+                # 创建基本响应记录
+                full_response = {
+                    "completed_at": datetime.now().isoformat(),
+                    "created_at": datetime.now().isoformat(),
+                    "data_removed": False,
+                    "error": None,
+                    "id": None,
+                    "input": {
+                        "model": model,
+                        "scale": scale,
+                        "face_enhance": face_enhance
+                    },
+                    "logs": f"Using {model} model with scale {scale}x",
+                    "metrics": {
+                        "image_count": 1,
+                        "predict_time": 0,
+                        "total_time": 0
+                    },
+                    "output": output_url,
+                    "started_at": datetime.now().isoformat(),
+                    "status": "succeeded",
+                    "urls": {
+                        "stream": "",
+                        "cancel": "",
+                        "get": "",
+                        "web": ""
+                    },
+                    "version": "hidden"
+                }
+                
+                result_data = {
+                    "output_url": output_url,
+                    "full_response": full_response,
+                    "prediction_id": None,
+                    "success": True
+                }
+                
+                return True, "放大成功（回退模式）", result_data
             
     except Exception as e:
         error_msg = f"放大图片时出错: {str(e)}"
@@ -177,7 +179,7 @@ async def upscale_image_with_replicate(
 def download_upscaled_image(output_url: str, output_path: str) -> bool:
     """下载放大后的图片"""
     try:
-        response = requests.get(output_url)
+        response = requests.get(output_url, timeout=60)
         if response.status_code == 200:
             with open(output_path, "wb") as f:
                 f.write(response.content)

@@ -33,12 +33,13 @@ class AsyncTaskManager:
     
     def create_task(self, task_id: str, **kwargs) -> Dict[str, Any]:
         """创建新任务"""
+        current_timestamp = time.time()
         task_info = {
             "task_id": task_id,
             "status": TaskStatus.SUBMITTED,
             "progress": 0,
-            "created_at": datetime.now().isoformat(),
-            "updated_at": datetime.now().isoformat(),
+            "created_at": current_timestamp,  # 改用 Unix 时间戳，避免 ISO 字符串转换开销
+            "updated_at": current_timestamp,
             "error": None,
             "prediction_id": None,
             "result": None,
@@ -53,7 +54,7 @@ class AsyncTaskManager:
             return False
         
         self.tasks[task_id].update(updates)
-        self.tasks[task_id]["updated_at"] = datetime.now().isoformat()
+        self.tasks[task_id]["updated_at"] = time.time()  # 改用 Unix 时间戳
         return True
     
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
@@ -65,8 +66,8 @@ class AsyncTaskManager:
         self.update_task(task_id, status=TaskStatus.FAILED, error=error)
     
     def set_task_completed(self, task_id: str, result: Any = None):
-        """设置任务完成"""
-        self.update_task(task_id, status=TaskStatus.COMPLETED, progress=100, result=result)
+        """设置任务完成（同时记录完成时间戳用于快速清理）"""
+        self.update_task(task_id, status=TaskStatus.COMPLETED, progress=100, result=result, completed_at=time.time())
     
     async def execute_with_concurrency_limit(self, task_id: str, coro):
         """带并发限制执行任务"""
@@ -119,13 +120,14 @@ class AsyncTaskManager:
         return False
     
     def cleanup_old_tasks(self, max_age_hours: int = 24):
-        """清理旧任务"""
+        """清理旧任务（优化：直接用时间戳比较，避免字符串解析）"""
         current_time = time.time()
         cutoff_time = current_time - (max_age_hours * 3600)
         
         to_remove = []
         for task_id, task_info in self.tasks.items():
-            created_timestamp = datetime.fromisoformat(task_info["created_at"]).timestamp()
+            # 直接用时间戳比较（已改为存储时间戳，避免 fromisoformat 开销）
+            created_timestamp = task_info["created_at"]
             if created_timestamp < cutoff_time and task_info["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
                 to_remove.append(task_id)
         

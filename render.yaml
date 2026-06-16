@@ -27,7 +27,7 @@ services:
     # 构建命令
     buildCommand: "pip install -r requirements.txt"
     # 执行清理脚本
-    startCommand: "python cleanup_scheduler.py"
+    startCommand: "python scripts/cleanup_scheduler.py"
 
 # 如果您需要数据库或其他服务，可以在这里添加
 # databases:

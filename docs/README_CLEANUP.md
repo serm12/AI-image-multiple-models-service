@@ -29,7 +29,7 @@ services:
     # 每天凌晨2点执行（可以根据需要调整时间）
     schedule: "0 2 * * *"
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python cleanup_scheduler.py"
+    startCommand: "python scripts/cleanup_scheduler.py"
 ```
 
 ### 2. 部署步骤
@@ -43,22 +43,22 @@ services:
 
 ### 试运行模式（推荐首次使用）
 ```bash
-python cleanup_scheduler.py --dry-run
+python scripts/cleanup_scheduler.py --dry-run
 ```
 
 ### 实际执行清理
 ```bash
-python cleanup_scheduler.py
+python scripts/cleanup_scheduler.py
 ```
 
 ### 指定tasks目录路径
 ```bash
-python cleanup_scheduler.py --tasks-dir /path/to/your/tasks
+python scripts/cleanup_scheduler.py --tasks-dir /path/to/your/tasks
 ```
 
 ### 试运行模式并指定目录路径
 ```bash
-python cleanup_scheduler.py --tasks-dir /path/to/your/tasks --dry-run
+python scripts/cleanup_scheduler.py --tasks-dir /path/to/your/tasks --dry-run
 ```
 
 ## 日志文件

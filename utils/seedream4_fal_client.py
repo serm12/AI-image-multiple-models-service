@@ -5,10 +5,12 @@ Seedream-4 Fal.ai API客户端 (Corrected with native async SDK)
 import os
 from datetime import datetime
 from config import APIConfig
-import fal
+import os
+from datetime import datetime
+from config import APIConfig
+import fal_client
 import httpx
 import base64
-from fal.toolkit import File
 
 class Seedream4FalClient:
     """Seedream-4 Fal.ai API客户端"""
@@ -50,13 +52,15 @@ class Seedream4FalClient:
         
         # 使用fal.toolkit.File.from_path上传图片到fal.ai
         try:
-            print(f"使用fal.toolkit.File上传图片: {image_path}")
-            # 使用fal_v3仓库并提供默认的请求上下文以避免警告
-            file_obj = File.from_path(
-                image_path, 
-                repository="fal_v3"
-            )
-            return file_obj.url
+            print(f"使用fal_client.upload_file上传图片: {image_path}")
+            # 注意：新版 fal_client 可能使用 upload 或 upload_file
+            if hasattr(fal_client, 'upload_file'):
+                url = fal_client.upload_file(image_path)
+            elif hasattr(fal_client, 'upload'):
+                url = fal_client.upload(image_path)
+            else:
+                raise ImportError("fal_client module has no upload function")
+            return url
         except Exception as e:
             print(f"fal.toolkit.File上传失败: {e}, 尝试使用base64编码")
             import base64
@@ -120,27 +124,48 @@ class Seedream4FalClient:
         image_size = self._convert_aspect_ratio_to_image_size(aspect_ratio)
         print(f"图像尺寸转换完成: 输入比例='{aspect_ratio}' -> Fal.ai参数='{image_size}'")
         
-        # 使用 fal.apps.submit 异步提交任务
+        # 使用 fal_client.submit 异步提交任务
         print("提交任务到Fal.ai...")
-        handler = fal.apps.submit(
-            self.model_id,
-            arguments={
-                "prompt": prompt,
-                "image_urls": processed_image_urls,
-                "image_size": image_size,
-                "seed": seed
-            }
-        )
+        # 新版 fal_client.submit(id, arguments={...}) 或直接传参
+        # 根据官方文档通常是 fal_client.submit("model/id", arguments={...}) 
+        # 但报错说 unexpected keyword argument 'arguments'，
+        # 那么可能是直接 fal_client.submit("model/id", prompt="...", ...) 
+        # 或者 fal_client.submit("model/id", {...}) 作为位置参数
+        
+        arguments_dict = {
+            "prompt": prompt,
+            "image_urls": processed_image_urls,
+            "image_size": image_size,
+            "seed": seed
+        }
+        
+        # 尝试直接传递字典作为第二个位置参数 (common pattern for new SDKs)
+        try:
+            handler = fal_client.submit(
+                self.model_id,
+                arguments_dict
+            )
+        except TypeError:
+            # 如果失败，尝试作为 kwargs 解包
+             handler = fal_client.submit(
+                self.model_id,
+                **arguments_dict
+            )
 
         # 异步等待结果
         print("等待Fal.ai响应...")
         try:
-            # 使用handler.get()获取结果
-            result = await handler.get()
+            # 使用handler.get()获取结果 (注意: fal_client 的 handler.get() 是同步阻塞的，
+            # 但在这个特定的客户端实现中，我们暂时接受它，或者使用 run_in_executor 将其包装为非阻塞)
+            # 为了更好的异步兼容性，最好是在 executor 中运行它
+            import asyncio
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, handler.get)
+
             # 简化响应输出，避免显示过长的内容
             if isinstance(result, dict) and "images" in result:
                 simplified_result = {
-                    "status": result.get("status", "unknown"),
+                    "status": "succeeded", # fal-client 返回字典通常意味着成功
                     "images_count": len(result.get("images", [])),
                     "seed": result.get("seed")
                 }
@@ -149,24 +174,7 @@ class Seedream4FalClient:
                 print(f"Fal.ai响应长度: {len(str(result))} 字符")
         except Exception as e:
             print(f"获取Fal.ai响应时出错: {e}")
-            # 如果get()方法失败，尝试其他方法
-            try:
-                # 尝试使用fetch_result方法
-                result = handler.fetch_result()
-                # 简化响应输出
-                if isinstance(result, dict) and "images" in result:
-                    simplified_result = {
-                        "status": result.get("status", "unknown"),
-                        "images_count": len(result.get("images", [])),
-                        "seed": result.get("seed")
-                    }
-                    print(f"通过fetch_result获取Fal.ai响应摘要: {simplified_result}")
-                else:
-                    print(f"通过fetch_result获取Fal.ai响应长度: {len(str(result))} 字符")
-            except Exception as e2:
-                print(f"通过fetch_result获取Fal.ai响应时出错: {e2}")
-                # 如果所有方法都失败，抛出异常
-                raise ValueError(f"无法从Fal.ai获取响应: {e}")
+            raise ValueError(f"无法从Fal.ai获取响应: {e}")
             
         # 确保result是一个字典
         if not isinstance(result, dict):

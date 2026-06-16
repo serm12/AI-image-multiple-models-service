@@ -15,6 +15,7 @@ load_dotenv()
 # 应用配置
 class AppConfig:
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+    PORT = int(os.getenv("PORT", "8001"))
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
 
@@ -47,27 +48,70 @@ class APIConfig:
     
     # Fal.ai 配置
     FAL_API_KEY = os.getenv("FAL_API_KEY")
+    if FAL_API_KEY:
+        os.environ["FAL_KEY"] = FAL_API_KEY
+
+    # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
+    AIAPIROUTE_API_KEY = os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY")
+    AIAPIROUTE_BASE_URL = os.getenv("AIAPIROUTE_BASE_URL") or os.getenv("SUB2API_BASE_URL", "https://aiapiroute.com")
+    AIAPIROUTE_GPT_IMAGE1_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE1_MODEL", "gpt-image-1")
+    AIAPIROUTE_GPT_IMAGE15_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE15_MODEL", "gpt-image-1.5")
+    AIAPIROUTE_GPT_IMAGE2_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE2_MODEL", "gpt-image-2")
+    AIAPIROUTE_GPT_IMAGE2_RESOLUTION = os.getenv("AIAPIROUTE_GPT_IMAGE2_RESOLUTION", "1K")
+    AIAPIROUTE_GPT_IMAGE2_QUALITY = os.getenv("AIAPIROUTE_GPT_IMAGE2_QUALITY", "")
+    AIAPIROUTE_GPT_IMAGE2_STREAM = os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "true").lower() == "true"
+    AIAPIROUTE_TIMEOUT_SECONDS = int(os.getenv("AIAPIROUTE_TIMEOUT_SECONDS", os.getenv("SUB2API_TIMEOUT_SECONDS", "300")))
     
-    # API服务提供商选择：'flux_bfl'、'flux_replicate'、'gemini_google'、'gemini_replicate'、'gemini_openrouter'、'seedream-4_replicate' 或 'seedream-4_fal'
+    # API服务提供商选择：'flux_bfl'、'flux_replicate'、'gemini-nanobanana_google'、'gemini-nanobanana_replicate'、'gemini-nanobanana_openrouter'、'seedream-4_replicate'、'seedream-4_fal' 或 aiapiroute_* provider
     IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "flux_bfl")  # 默认使用BFL
     
-    # 验证环境变量和API密钥
-    if IMAGE_GENERATION_PROVIDER == "flux_replicate" and not REPLICATE_API_TOKEN:
-        raise ValueError("REPLICATE_API_TOKEN not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "flux_bfl" and not BFL_API_KEY:
-        raise ValueError("BFL_API_KEY not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "flux_fireworks" and not FIREWORKS_API_KEY:
-        raise ValueError("FIREWORKS_API_KEY not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "gemini_google" and not GOOGLE_GEMINI_API_KEY:
-        raise ValueError("GOOGLE_GEMINI_API_KEY not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "gemini_replicate" and not REPLICATE_API_TOKEN:
-        raise ValueError("REPLICATE_API_TOKEN not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "gemini_openrouter" and not OPENROUTER_API_KEY:
-        raise ValueError("OPENROUTER_API_KEY not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "seedream-4_replicate" and not REPLICATE_API_TOKEN:
-        raise ValueError("REPLICATE_API_TOKEN not found in .env file or environment variables")
-    if IMAGE_GENERATION_PROVIDER == "seedream-4_fal" and not FAL_API_KEY:
-        raise ValueError("FAL_API_KEY not found in .env file or environment variables")
+    # 所有支持的服务提供商
+    ALL_PROVIDERS = [
+        "flux_bfl", "flux_replicate", "flux_fireworks",
+        "gemini-nanobanana_google", "gemini-nanobanana_replicate", "gemini-nanobanana_openrouter",
+        "seedream-4_replicate", "seedream-4_fal",
+        "aiapiroute_gpt-image-1", "aiapiroute_gpt-image-1.5", "aiapiroute_gpt-image-2",
+    ]
+
+    AIAPIROUTE_PROVIDER_MODEL_MAP = {
+        "aiapiroute_gpt-image-1": AIAPIROUTE_GPT_IMAGE1_MODEL,
+        "aiapiroute_gpt-image-1.5": AIAPIROUTE_GPT_IMAGE15_MODEL,
+        "aiapiroute_gpt-image-2": AIAPIROUTE_GPT_IMAGE2_MODEL,
+    }
+
+    # Provider 所需 API Key 属性名的映射
+    _PROVIDER_KEY_MAP = {
+        "flux_bfl":                    "BFL_API_KEY",
+        "flux_replicate":              "REPLICATE_API_TOKEN",
+        "flux_fireworks":              "FIREWORKS_API_KEY",
+        "gemini-nanobanana_google":    "GOOGLE_GEMINI_API_KEY",
+        "gemini-nanobanana_replicate": "REPLICATE_API_TOKEN",
+        "gemini-nanobanana_openrouter":"OPENROUTER_API_KEY",
+        "seedream-4_replicate":        "REPLICATE_API_TOKEN",
+        "seedream-4_fal":              "FAL_API_KEY",
+        "aiapiroute_gpt-image-1":      "AIAPIROUTE_API_KEY",
+        "aiapiroute_gpt-image-1.5":    "AIAPIROUTE_API_KEY",
+        "aiapiroute_gpt-image-2":      "AIAPIROUTE_API_KEY",
+    }
+
+    @classmethod
+    def validate_provider(cls, provider: str):
+        """运行时校验指定服务商是否已配置 API Key，未配置时抛出 ValueError"""
+        if provider not in cls.ALL_PROVIDERS:
+            raise ValueError(f"不支持的服务提供商: {provider}，可选: {cls.ALL_PROVIDERS}")
+        key_name = cls._PROVIDER_KEY_MAP.get(provider)
+        if key_name and not getattr(cls, key_name, None):
+            raise ValueError(f"使用 {provider} 需要设置环境变量 {key_name}")
+
+    @classmethod
+    def get_available_providers(cls) -> list:
+        """返回所有已配置 API Key 的服务提供商列表"""
+        result = []
+        for p in cls.ALL_PROVIDERS:
+            key_name = cls._PROVIDER_KEY_MAP.get(p)
+            configured = bool(getattr(cls, key_name, None)) if key_name else True
+            result.append({"provider": p, "configured": configured, "is_default": p == cls.IMAGE_GENERATION_PROVIDER})
+        return result
 
 # 目录配置
 class DirectoryConfig:
@@ -95,59 +139,13 @@ class DirectoryConfig:
         print(f"   📄 输出目录: {cls.TEST_OUTPUT_DIR} (生成的图片)")
         print(f"   🔧 生产目录: {cls.TASKS_DIR} (API调用输出)")
 
-# 水印配置
-class WatermarkConfig:
-    DEFAULT_TEXT = "Paintingify"  # 从硬编码中提取出来
-    DEFAULT_FONT_PATH = "fonts/holidayvibesfreeregular-wppxv.ttf"
-    DEFAULT_FONT_SIZE = 48
-    DEFAULT_COLOR = (255, 255, 255, 140)  # 降低透明度配合小字体
-    DEFAULT_ANGLE = 30  # 水印文字旋转角度（度）
-    DEFAULT_STEP = 120  # 减小间距，增加密度
-    DEFAULT_PADDING = 10  # 水印文字内边距（像素）
-    DEFAULT_BLEND_MODE = "screen"  # 水印混合模式: "normal", "screen", "multiply", "overlay"
-    DEFAULT_RESIZE_SCALE = 0.8  # 加水印后图片缩放比例（0.5 = 50%）
-    
-    @classmethod
-    def get_resize_scale(cls):
-        """根据当前模型动态获取缩放比例"""
-        if APIConfig.IMAGE_GENERATION_PROVIDER in ["seedream-4_replicate", "seedream-4_fal"]:
-            return 0.6
-        return cls.DEFAULT_RESIZE_SCALE
-    
-    # 增强防护配置
-    ENABLE_RANDOM_PATTERNS = True  # 启用随机模式
-    RANDOM_ANGLE_RANGE = 25  # 角度随机范围（±15度）
-    RANDOM_SIZE_RANGE = 0.2  # 尺寸随机范围（±20%）
-    RANDOM_OPACITY_RANGE = 30  # 透明度随机范围（±30）
-    MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]  # 多种混合模式
-    
-    LOGO_PATH = "fonts/logo_watermark.png"
-    
-    # 左上角标识配置
-    CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
-    CORNER_LABEL_FONT_PATH = "fonts/arial.ttf"  # 左上角标识专用字体，区别于水印字体
-    CORNER_LABEL_FONT_SIZE = 18
-    CORNER_LABEL_PADDING = 8
-    CORNER_LABEL_MARGIN = 12
-    CORNER_LABEL_TEXT_COLOR = (255, 255, 255, 500)  # 半透明白色文字
-    CORNER_LABEL_BG_COLOR = None  # 无背景色
-    CORNER_LABEL_BORDER_COLOR = (255, 255, 255, 500)  # 半透明白色边框
-    CORNER_LABEL_BORDER_WIDTH = 1
-    CORNER_LABEL_CORNER_RADIUS = 6  # 圆角半径
-    
-    # 右下角品牌logo配置
-    BRAND_LOGO_PATH = "fonts/logo_brand.png"
-    BRAND_LOGO_MARGIN = 20  # 距离右下角的边距
-    BRAND_LOGO_SCALE = 0.30  # logo相对于图片宽度的比例（30%）
-    BRAND_LOGO_MIN_SIZE = 80   # logo最小尺寸（像素）
-    BRAND_LOGO_MAX_SIZE = 400  # logo最大尺寸（像素）
-    BRAND_LOGO_OPACITY = 0.8   # logo透明度（0-1之间）
 
 # 支持的模型版本
 class FluxModelEnum(str, Enum):
     max = "black-forest-labs/flux-kontext-max"
     pro = "black-forest-labs/flux-kontext-pro"
     dev = "black-forest-labs/flux-kontext-dev"
+
 
 # 官方支持的 aspect_ratio 选项
 class AspectRatioEnum(str, Enum):
@@ -165,6 +163,52 @@ class AspectRatioEnum(str, Enum):
     ratio_9_21 = "9:21"
     ratio_2_1 = "2:1"
     ratio_1_2 = "1:2"
+
+
+# 水印配置
+class WatermarkConfig:
+    DEFAULT_TEXT = "Paintingify"
+    DEFAULT_FONT_PATH = "fonts/holidayvibesfreeregular-wppxv.ttf"
+    DEFAULT_FONT_SIZE = 48
+    DEFAULT_COLOR = (255, 255, 255, 140)
+    DEFAULT_ANGLE = 30
+    DEFAULT_STEP = 120
+    DEFAULT_PADDING = 10
+    DEFAULT_BLEND_MODE = "screen"
+    DEFAULT_RESIZE_SCALE = 0.8
+
+    @classmethod
+    def get_resize_scale(cls):
+        if APIConfig.IMAGE_GENERATION_PROVIDER in ["seedream-4_replicate", "seedream-4_fal"]:
+            return 0.6
+        return cls.DEFAULT_RESIZE_SCALE
+
+    ENABLE_RANDOM_PATTERNS = True
+    RANDOM_ANGLE_RANGE = 25
+    RANDOM_SIZE_RANGE = 0.2
+    RANDOM_OPACITY_RANGE = 30
+    MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]
+
+    LOGO_PATH = "fonts/logo_watermark.png"
+
+    CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
+    CORNER_LABEL_FONT_PATH = "fonts/arial.ttf"
+    CORNER_LABEL_FONT_SIZE = 18
+    CORNER_LABEL_PADDING = 8
+    CORNER_LABEL_MARGIN = 12
+    CORNER_LABEL_TEXT_COLOR = (255, 255, 255, 500)
+    CORNER_LABEL_BG_COLOR = None
+    CORNER_LABEL_BORDER_COLOR = (255, 255, 255, 500)
+    CORNER_LABEL_BORDER_WIDTH = 1
+    CORNER_LABEL_CORNER_RADIUS = 6
+
+    BRAND_LOGO_PATH = "fonts/logo_brand.png"
+    BRAND_LOGO_MARGIN = 20
+    BRAND_LOGO_SCALE = 0.30
+    BRAND_LOGO_MIN_SIZE = 80
+    BRAND_LOGO_MAX_SIZE = 400
+    BRAND_LOGO_OPACITY = 0.8
+
 
 # 图片格式选项
 class OutputFormatEnum(str, Enum):
@@ -303,3 +347,4 @@ def initialize_config():
 def initialize_test_config():
     """初始化测试配置，确保测试目录存在"""
     DirectoryConfig.ensure_test_directories()
+
