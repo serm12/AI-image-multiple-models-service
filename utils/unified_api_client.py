@@ -127,7 +127,7 @@ class UnifiedAPIClient:
             )
         elif effective_provider == "seedream-4_replicate":
             return await self._generate_with_seedream_4_replicate(
-                prompt, input_image_paths, seed, art_style, width, height, size, sequential_image_generation
+                prompt, input_image_paths, seed, art_style, width, height, size, aspect_ratio, sequential_image_generation
             )
         elif effective_provider == "seedream-4_fal":
             return await self._generate_with_seedream_4_fal(
@@ -208,7 +208,7 @@ class UnifiedAPIClient:
         except Exception as e:
             raise ValueError(f"OpenRouter API调用失败: {e}")
 
-    async def _generate_with_seedream_4_replicate(self, prompt, input_image_paths=None, seed=None, art_style=None, width=None, height=None, size=None, sequential_image_generation=None):
+    async def _generate_with_seedream_4_replicate(self, prompt, input_image_paths=None, seed=None, art_style=None, width=None, height=None, size=None, aspect_ratio=None, sequential_image_generation=None):
         """使用Seedream4 Replicate API生成图像"""
         try:
             client = self._get_seedream_4_replicate_client()
@@ -222,6 +222,7 @@ class UnifiedAPIClient:
                 width=width,
                 height=height,
                 size=size,
+                aspect_ratio=getattr(aspect_ratio, "value", aspect_ratio),
                 sequential_image_generation=sequential_image_generation
             )
             return result

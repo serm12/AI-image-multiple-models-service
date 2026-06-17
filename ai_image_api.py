@@ -283,6 +283,7 @@ async def generate_image_async(
     effective_provider = (provider_value or "").strip() or APIConfig.IMAGE_GENERATION_PROVIDER
     try:
         APIConfig.validate_provider(effective_provider)
+        APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     
@@ -421,6 +422,12 @@ async def generate_image_async(
 async def get_providers():
     """返回所有 provider 及其是否已配置 API Key。"""
     return JSONResponse({"providers": APIConfig.get_available_providers()})
+
+
+@app.get("/provider-options")
+async def get_provider_options():
+    """返回 provider 与 aspect_ratio 等测试参数的对应关系。"""
+    return JSONResponse({"providers": APIConfig.get_provider_options()})
 
 async def process_generation_background(
     task_id: str, task_dir: str, prompt: str, input_image_paths: list[str],

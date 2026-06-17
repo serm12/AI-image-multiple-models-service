@@ -87,6 +87,24 @@ class APIConfig:
         "aiapiroute_gpt-image-2": AIAPIROUTE_GPT_IMAGE2_MODEL,
     }
 
+    STANDARD_ASPECT_RATIOS = [
+        "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21", "2:1", "1:2"
+    ]
+
+    PROVIDER_ASPECT_RATIO_MAP = {
+        "flux_bfl": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+        "flux_replicate": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+        "flux_fireworks": STANDARD_ASPECT_RATIOS,
+        "gemini-nanobanana_google": [],
+        "gemini-nanobanana_replicate": [],
+        "gemini-nanobanana_openrouter": [],
+        "seedream-4_replicate": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21"],
+        "seedream-4_fal": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
+        "aiapiroute_gpt-image-1": STANDARD_ASPECT_RATIOS,
+        "aiapiroute_gpt-image-1.5": STANDARD_ASPECT_RATIOS,
+        "aiapiroute_gpt-image-2": STANDARD_ASPECT_RATIOS,
+    }
+
     # Provider 所需 API Key 属性名的映射
     _PROVIDER_KEY_MAP = {
         "flux_bfl":                    "BFL_API_KEY",
@@ -110,6 +128,29 @@ class APIConfig:
         key_name = cls._PROVIDER_KEY_MAP.get(provider)
         if key_name and not getattr(cls, key_name, None):
             raise ValueError(f"使用 {provider} 需要设置环境变量 {key_name}")
+
+    @classmethod
+    def validate_aspect_ratio(cls, provider: str, aspect_ratio: str):
+        """校验 provider 是否支持指定 aspect_ratio；空列表表示该 provider 不使用此参数。"""
+        ratio_value = getattr(aspect_ratio, "value", aspect_ratio)
+        supported_ratios = cls.PROVIDER_ASPECT_RATIO_MAP.get(provider, [])
+        if not supported_ratios:
+            return
+        if ratio_value not in supported_ratios:
+            raise ValueError(f"{provider} 不支持 aspect_ratio={ratio_value}，可选: {supported_ratios}")
+
+    @classmethod
+    def get_provider_options(cls) -> dict:
+        """返回每个 provider 支持的测试参数，用于 Swagger/前端选择联动。"""
+        return {
+            provider: {
+                "configured": next((item["configured"] for item in cls.get_available_providers() if item["provider"] == provider), False),
+                "is_default": provider == cls.IMAGE_GENERATION_PROVIDER,
+                "aspect_ratios": cls.PROVIDER_ASPECT_RATIO_MAP.get(provider, []),
+                "uses_aspect_ratio": bool(cls.PROVIDER_ASPECT_RATIO_MAP.get(provider, [])),
+            }
+            for provider in cls.ALL_PROVIDERS
+        }
 
     @classmethod
     def get_available_providers(cls) -> list:
