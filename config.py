@@ -70,54 +70,80 @@ class APIConfig:
     AIAPIROUTE_GPT_IMAGE2_STREAM = os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "true").lower() == "true"
     AIAPIROUTE_TIMEOUT_SECONDS = int(os.getenv("AIAPIROUTE_TIMEOUT_SECONDS", os.getenv("SUB2API_TIMEOUT_SECONDS", "300")))
     
-    # API服务提供商选择：'flux_bfl'、'flux_replicate'、'gemini-nanobanana_google'、'gemini-nanobanana_replicate'、'gemini-nanobanana_openrouter'、'seedream-4_replicate'、'seedream-4_fal' 或 aiapiroute_* provider
-    IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "flux_bfl")  # 默认使用BFL
-    
-    # 所有支持的服务提供商
-    ALL_PROVIDERS = [
-        "flux_bfl", "flux_replicate", "flux_fireworks",
-        "gemini-nanobanana_google", "gemini-nanobanana_replicate", "gemini-nanobanana_openrouter",
-        "seedream-4_replicate", "seedream-4_fal",
-        "aiapiroute_gpt-image-1", "aiapiroute_gpt-image-1.5", "aiapiroute_gpt-image-2",
-    ]
-
-    AIAPIROUTE_PROVIDER_MODEL_MAP = {
-        "aiapiroute_gpt-image-1": AIAPIROUTE_GPT_IMAGE1_MODEL,
-        "aiapiroute_gpt-image-1.5": AIAPIROUTE_GPT_IMAGE15_MODEL,
-        "aiapiroute_gpt-image-2": AIAPIROUTE_GPT_IMAGE2_MODEL,
-    }
-
     STANDARD_ASPECT_RATIOS = [
         "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21", "2:1", "1:2"
     ]
 
-    PROVIDER_ASPECT_RATIO_MAP = {
-        "flux_bfl": ["match_input_image", *STANDARD_ASPECT_RATIOS],
-        "flux_replicate": ["match_input_image", *STANDARD_ASPECT_RATIOS],
-        "flux_fireworks": STANDARD_ASPECT_RATIOS,
-        "gemini-nanobanana_google": [],
-        "gemini-nanobanana_replicate": [],
-        "gemini-nanobanana_openrouter": [],
-        "seedream-4_replicate": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21"],
-        "seedream-4_fal": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-        "aiapiroute_gpt-image-1": STANDARD_ASPECT_RATIOS,
-        "aiapiroute_gpt-image-1.5": STANDARD_ASPECT_RATIOS,
-        "aiapiroute_gpt-image-2": STANDARD_ASPECT_RATIOS,
+    PROVIDERS = {
+        "flux_bfl": {
+            "label": "BFL API (Flux)",
+            "key": "BFL_API_KEY",
+            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+        },
+        "flux_replicate": {
+            "label": "Replicate API (Flux)",
+            "key": "REPLICATE_API_TOKEN",
+            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+        },
+        "flux_fireworks": {
+            "label": "Fireworks API (Flux)",
+            "key": "FIREWORKS_API_KEY",
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+        },
+        "gemini-nanobanana_google": {
+            "label": "Google Gemini API (Nano-Banana)",
+            "key": "GOOGLE_GEMINI_API_KEY",
+            "aspect_ratios": [],
+        },
+        "gemini-nanobanana_replicate": {
+            "label": "Replicate API (Nano-Banana)",
+            "key": "REPLICATE_API_TOKEN",
+            "aspect_ratios": [],
+        },
+        "gemini-nanobanana_openrouter": {
+            "label": "OpenRouter API (Nano-Banana)",
+            "key": "OPENROUTER_API_KEY",
+            "aspect_ratios": [],
+        },
+        "seedream-4_replicate": {
+            "label": "Replicate API (Seedream-4)",
+            "key": "REPLICATE_API_TOKEN",
+            "aspect_ratios": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21"],
+        },
+        "seedream-4_fal": {
+            "label": "fal.ai API (Seedream-4)",
+            "key": "FAL_API_KEY",
+            "aspect_ratios": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
+        },
+        "aiapiroute_gpt-image-1": {
+            "label": "aiapiroute/Sub2API gpt-image-1",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE1_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+        },
+        "aiapiroute_gpt-image-1.5": {
+            "label": "aiapiroute/Sub2API gpt-image-1.5",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE15_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+        },
+        "aiapiroute_gpt-image-2": {
+            "label": "aiapiroute/Sub2API gpt-image-2",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE2_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+        },
     }
 
-    # Provider 所需 API Key 属性名的映射
-    _PROVIDER_KEY_MAP = {
-        "flux_bfl":                    "BFL_API_KEY",
-        "flux_replicate":              "REPLICATE_API_TOKEN",
-        "flux_fireworks":              "FIREWORKS_API_KEY",
-        "gemini-nanobanana_google":    "GOOGLE_GEMINI_API_KEY",
-        "gemini-nanobanana_replicate": "REPLICATE_API_TOKEN",
-        "gemini-nanobanana_openrouter":"OPENROUTER_API_KEY",
-        "seedream-4_replicate":        "REPLICATE_API_TOKEN",
-        "seedream-4_fal":              "FAL_API_KEY",
-        "aiapiroute_gpt-image-1":      "AIAPIROUTE_API_KEY",
-        "aiapiroute_gpt-image-1.5":    "AIAPIROUTE_API_KEY",
-        "aiapiroute_gpt-image-2":      "AIAPIROUTE_API_KEY",
+    ALL_PROVIDERS = list(PROVIDERS.keys())
+    AIAPIROUTE_PROVIDER_MODEL_MAP = {
+        provider: config["model"]
+        for provider, config in PROVIDERS.items()
+        if "model" in config
+    }
+    PROVIDER_ASPECT_RATIO_MAP = {
+        provider: config.get("aspect_ratios", [])
+        for provider, config in PROVIDERS.items()
     }
 
     @classmethod
@@ -125,7 +151,7 @@ class APIConfig:
         """运行时校验指定服务商是否已配置 API Key，未配置时抛出 ValueError"""
         if provider not in cls.ALL_PROVIDERS:
             raise ValueError(f"不支持的服务提供商: {provider}，可选: {cls.ALL_PROVIDERS}")
-        key_name = cls._PROVIDER_KEY_MAP.get(provider)
+        key_name = cls.PROVIDERS[provider].get("key")
         if key_name and not getattr(cls, key_name, None):
             raise ValueError(f"使用 {provider} 需要设置环境变量 {key_name}")
 
@@ -144,22 +170,29 @@ class APIConfig:
         """返回每个 provider 支持的测试参数，用于 Swagger/前端选择联动。"""
         return {
             provider: {
-                "configured": next((item["configured"] for item in cls.get_available_providers() if item["provider"] == provider), False),
-                "is_default": provider == cls.IMAGE_GENERATION_PROVIDER,
-                "aspect_ratios": cls.PROVIDER_ASPECT_RATIO_MAP.get(provider, []),
-                "uses_aspect_ratio": bool(cls.PROVIDER_ASPECT_RATIO_MAP.get(provider, [])),
+                "label": config.get("label", provider),
+                "configured": bool(getattr(cls, config.get("key"), None)) if config.get("key") else True,
+                "is_default": False,
+                "aspect_ratios": config.get("aspect_ratios", []),
+                "uses_aspect_ratio": bool(config.get("aspect_ratios", [])),
+                **({"model": config["model"]} if "model" in config else {}),
             }
-            for provider in cls.ALL_PROVIDERS
+            for provider, config in cls.PROVIDERS.items()
         }
 
     @classmethod
     def get_available_providers(cls) -> list:
         """返回所有已配置 API Key 的服务提供商列表"""
         result = []
-        for p in cls.ALL_PROVIDERS:
-            key_name = cls._PROVIDER_KEY_MAP.get(p)
+        for p, config in cls.PROVIDERS.items():
+            key_name = config.get("key")
             configured = bool(getattr(cls, key_name, None)) if key_name else True
-            result.append({"provider": p, "configured": configured, "is_default": p == cls.IMAGE_GENERATION_PROVIDER})
+            result.append({
+                "provider": p,
+                "label": config.get("label", p),
+                "configured": configured,
+                "is_default": False,
+            })
         return result
 
 
@@ -242,8 +275,6 @@ class WatermarkConfig:
 
     @classmethod
     def get_resize_scale(cls):
-        if APIConfig.IMAGE_GENERATION_PROVIDER in ["seedream-4_replicate", "seedream-4_fal"]:
-            return 0.6
         return cls.DEFAULT_RESIZE_SCALE
 
     ENABLE_RANDOM_PATTERNS = True
@@ -405,7 +436,8 @@ STYLE_DESCRIPTIONS = {
 def initialize_config():
     """初始化配置，确保必要的目录存在"""
     DirectoryConfig.ensure_directories()
-    os.environ["REPLICATE_API_TOKEN"] = APIConfig.REPLICATE_API_TOKEN
+    if APIConfig.REPLICATE_API_TOKEN:
+        os.environ["REPLICATE_API_TOKEN"] = APIConfig.REPLICATE_API_TOKEN
 
 def initialize_test_config():
     """初始化测试配置，确保测试目录存在"""

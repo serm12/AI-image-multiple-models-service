@@ -11,13 +11,10 @@ from config import APIConfig
 class UnifiedAPIClient:
     """统一API客户端，负责路由分发到具体的API客户端。
 
-    支持 per-request provider 覆盖：在调用 generate_image() 时传入 provider 参数，
-    可在不重启服务的情况下切换到任意已配置的服务商。
+    在调用 generate_image() 时必须传入 provider 参数，服务会按请求路由到对应服务商。
     """
 
     def __init__(self, bfl_api_key=None, replicate_token=None, gemini_api_key=None, openrouter_api_key=None, aiapiroute_api_key=None):
-        # 默认 provider（来自环境变量），可被每次请求的 provider 参数覆盖
-        self.default_provider = APIConfig.IMAGE_GENERATION_PROVIDER
         self.bfl_api_key = bfl_api_key or APIConfig.BFL_API_KEY
         self.replicate_token = replicate_token or APIConfig.REPLICATE_API_TOKEN
         self.gemini_api_key = gemini_api_key or APIConfig.GOOGLE_GEMINI_API_KEY
@@ -36,7 +33,7 @@ class UnifiedAPIClient:
     # ---- 向后兼容属性 ----
     @property
     def api_provider(self):
-        return self.default_provider
+        return None
 
     # ---- 延迟加载各客户端（按需初始化，不再依赖 provider 条件） ----
 
@@ -103,14 +100,14 @@ class UnifiedAPIClient:
             width / height / size: Seedream 尺寸参数
             sequential_image_generation: Seedream 顺序生成参数
             task_id: 任务ID（OpenRouter 需要）
-            provider: 覆盖默认服务提供商，可选值见 APIConfig.ALL_PROVIDERS。
-                      不传则使用 .env 中的 IMAGE_GENERATION_PROVIDER。
+            provider: 服务提供商，可选值见 APIConfig.ALL_PROVIDERS。必须传入。
 
         Returns:
             dict: 生成结果
         """
-        # 确定本次请求实际使用的 provider，并做运行时校验
-        effective_provider = provider or self.default_provider
+        if not provider:
+            raise ValueError("provider 是必填参数，可选值见 /provider-options")
+        effective_provider = provider
         APIConfig.validate_provider(effective_provider)
 
         if effective_provider == "gemini-nanobanana_google":

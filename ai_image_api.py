@@ -157,22 +157,11 @@ async def health_check():
     return JSONResponse({
         "status": "ok",
         "version": app.version,
-        "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,
         "configured_providers": len([p for p in APIConfig.get_available_providers() if p["configured"]]),
     })
 
 # 设置环境变量
 os.environ["REPLICATE_API_TOKEN"] = APIConfig.REPLICATE_API_TOKEN
-
-# 轻量提示：根据API服务提供商打印相关信息
-if APIConfig.IMAGE_GENERATION_PROVIDER == "flux_bfl" and not APIConfig.BFL_API_KEY:
-    print("⚠️ 未检测到 BFL_API_KEY，生图调用将失败，请在 .env 中设置 BFL_API_KEY")
-elif APIConfig.IMAGE_GENERATION_PROVIDER == "flux_replicate" and not APIConfig.REPLICATE_API_TOKEN:
-    print("⚠️ 未检测到 REPLICATE_API_TOKEN，生图调用将失败，请在 .env 中设置 REPLICATE_API_TOKEN")
-elif APIConfig.IMAGE_GENERATION_PROVIDER == "gemini-nanobanana_google" and not APIConfig.GOOGLE_GEMINI_API_KEY:
-    print("⚠️ 未检测到 GOOGLE_GEMINI_API_KEY，生图调用将失败，请在 .env 中设置 GOOGLE_GEMINI_API_KEY")
-elif APIConfig.IMAGE_GENERATION_PROVIDER == "gemini-nanobanana_replicate" and not APIConfig.REPLICATE_API_TOKEN:
-    print("⚠️ 未检测到 REPLICATE_API_TOKEN，生图调用将失败，请在 .env 中设置 REPLICATE_API_TOKEN")
 
 # 种子管理函数 - 从tasks目录读取
 def get_last_seed_from_tasks():
@@ -254,7 +243,7 @@ def get_all_seeds_from_tasks():
 
 @app.post("/generate-async/")
 async def generate_image_async(
-    provider: ProviderEnum | None = Form(None),  # 覆盖默认服务提供商；Swagger 中显示为下拉选择
+    provider: ProviderEnum = Form(...),  # 必选服务提供商；Swagger 中显示为下拉选择
     prompt: str = Form(...),
     aspect_ratio: AspectRatioEnum = Form(AspectRatioEnum.ratio_3_4),
     output_format: OutputFormatEnum = Form(OutputFormatEnum.png),
@@ -280,7 +269,7 @@ async def generate_image_async(
 
     # 2. provider: 确定本次请求实际使用的服务商并做运行时校验
     provider_value = provider.value if isinstance(provider, ProviderEnum) else provider
-    effective_provider = (provider_value or "").strip() or APIConfig.IMAGE_GENERATION_PROVIDER
+    effective_provider = (provider_value or "").strip()
     try:
         APIConfig.validate_provider(effective_provider)
         APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
@@ -382,6 +371,7 @@ async def generate_image_async(
         task_manager.create_task(
             task_id,
             prompt=final_prompt,
+            api_provider=effective_provider,
             flux_model_variant=flux_model_variant.value,
             estimated_time="60-180秒"
         )
@@ -488,7 +478,7 @@ async def _do_generation_work(
         
         # 处理seed逻辑差异 - Gemini不返回实际使用的seed
         extracted_seed = result.get("extracted_seed")
-        if (provider or APIConfig.IMAGE_GENERATION_PROVIDER) in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
+        if provider in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
             # Gemini自己生成seed，我们记录用户输入的seed
             extracted_seed = seed
         
@@ -747,7 +737,7 @@ async def get_task_status_async(task_id: str):
         "updated_at": ts_to_iso(task_info["updated_at"]),
         "error": task_info.get("error"),
         "prediction_id": task_info.get("prediction_id"),  # 当前任务的ID
-        "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER  # 返回使用的API服务提供商
+        "api_provider": task_info.get("api_provider")
     }
     # 检查是否有文件
     # 任务已完成时直接用内存缓存，避免每次轮询都 os.listdir
@@ -780,7 +770,6 @@ async def get_system_stats():
         "concurrent_capacity": "1个同时处理",
         "performance_improvement": "2000%+ 相比阻塞版本",
         "api_version": "2.0.0",
-        "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,  # 返回当前使用的API服务提供商
         **stats
     })
 
@@ -996,7 +985,7 @@ def list_all_tasks():
                         "extracted_seed": response.get('extracted_seed'),
                         "output_files_count": len(output_files),
                         "status": response.get('status', 'unknown'),
-                        "api_provider": params.get('api_provider', APIConfig.IMAGE_GENERATION_PROVIDER)
+                        "api_provider": params.get('api_provider')
                     })
         
         # 按时间倒序排列
@@ -1176,7 +1165,7 @@ def get_token_usage():
         })
 
 # 根据API服务提供商提供特定的端点
-if APIConfig.IMAGE_GENERATION_PROVIDER == "flux_bfl":
+if "flux_bfl" in APIConfig.ALL_PROVIDERS:
     @app.post("/resume-bfl/{task_id}")
     async def resume_bfl(task_id: str):
         """根据保存的 bfl_polling_url 继续轮询并把图片落地（断点续跑）。"""
