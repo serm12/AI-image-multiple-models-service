@@ -23,7 +23,7 @@ services:
       # 持久化日志
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/providers')"]
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen(f'http://localhost:{os.getenv(\"PORT\", \"8001\")}/health')"]
       interval: 30s
       timeout: 10s
       start_period: 15s

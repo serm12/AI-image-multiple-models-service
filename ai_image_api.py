@@ -5,8 +5,9 @@ import json
 import asyncio
 import aiofiles
 import httpx
+from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, Form, Request
+from fastapi import FastAPI, File, UploadFile, Form, Request, Depends, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from datetime import datetime
 
@@ -39,6 +40,7 @@ from utils.unified_api_client import api_client
 _watermark_logo_created: bool = False
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
+_UPLOAD_CHUNK_SIZE = 1024 * 1024
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -90,6 +92,74 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _get_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token.strip()
+
+
+async def require_admin_api_key(request: Request):
+    """Protect administrative endpoints when ADMIN_API_KEY is configured."""
+    if not AppConfig.ADMIN_API_KEY:
+        return
+    provided_key = request.headers.get("x-api-key") or _get_bearer_token(request.headers.get("authorization"))
+    if provided_key != AppConfig.ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing admin API key")
+
+
+def _safe_upload_filename(filename: str | None) -> str:
+    safe_name = os.path.basename(filename or "upload")
+    return safe_name or "upload"
+
+
+async def save_validated_upload(file: UploadFile, destination: str) -> int:
+    """Validate and save an uploaded image without loading the whole file into memory."""
+    content_type = (file.content_type or "").split(";", 1)[0].strip().lower()
+    if content_type not in AppConfig.ALLOWED_UPLOAD_CONTENT_TYPES:
+        raise ValueError(f"不支持的文件类型: {file.content_type or 'unknown'}")
+
+    max_bytes = AppConfig.MAX_UPLOAD_FILE_MB * 1024 * 1024
+    total_bytes = 0
+    async with aiofiles.open(destination, "wb") as f:
+        while True:
+            chunk = await file.read(_UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            total_bytes += len(chunk)
+            if total_bytes > max_bytes:
+                raise ValueError(f"文件过大，单文件不能超过 {AppConfig.MAX_UPLOAD_FILE_MB}MB")
+            await f.write(chunk)
+    return total_bytes
+
+
+def resolve_task_file_path(task_id: str, filename: str) -> str | None:
+    task_dir = Path(DirectoryConfig.TASKS_DIR, task_id).resolve()
+    file_path = Path(task_dir, filename).resolve()
+    try:
+        file_path.relative_to(task_dir)
+    except ValueError:
+        return None
+    return str(file_path)
+
+
+@app.get("/")
+async def root():
+    return JSONResponse({"service": "AI Image Generation API", "status": "ok", "docs": "/docs"})
+
+
+@app.get("/health")
+async def health_check():
+    return JSONResponse({
+        "status": "ok",
+        "version": app.version,
+        "api_provider": APIConfig.IMAGE_GENERATION_PROVIDER,
+        "configured_providers": len([p for p in APIConfig.get_available_providers() if p["configured"]]),
+    })
 
 # 设置环境变量
 os.environ["REPLICATE_API_TOKEN"] = APIConfig.REPLICATE_API_TOKEN
@@ -230,12 +300,12 @@ async def generate_image_async(
         
         # 2. 异步保存上传文件（可选）
         if files:
+            if len(files) > AppConfig.MAX_UPLOAD_FILES:
+                raise ValueError(f"最多只能上传 {AppConfig.MAX_UPLOAD_FILES} 个文件")
             for file in files:
-                input_filename = file.filename
+                input_filename = _safe_upload_filename(file.filename)
                 input_image_path = os.path.join(task_dir, input_filename)
-                async with aiofiles.open(input_image_path, "wb") as f:
-                    content = await file.read()
-                    await f.write(content)
+                await save_validated_upload(file, input_image_path)
                 input_image_paths.append(input_image_path)
                 input_filenames.append(input_filename)
         
@@ -693,7 +763,7 @@ async def get_task_status_async(task_id: str):
     
     return JSONResponse(response_data)
 
-@app.get("/system-stats")
+@app.get("/system-stats", dependencies=[Depends(require_admin_api_key)])
 async def get_system_stats():
     """获取系统统计信息"""
     stats = task_manager.get_statistics()
@@ -710,10 +780,9 @@ async def get_system_stats():
 
 @app.get("/taskfile/{task_id}/{filename}")
 def get_task_file(task_id: str, filename: str, request: Request):
-    task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
-    file_path = os.path.join(task_dir, filename)
+    file_path = resolve_task_file_path(task_id, filename)
     
-    if os.path.exists(file_path):
+    if file_path and os.path.exists(file_path):
         # 跳过每次访问都写日志的同步 IO 操作，改为仅记录在内存中
         # 如需完整日志，建议用异步日志系统
 
@@ -880,7 +949,7 @@ async def check_photo(
             status_code=500,
         )
 
-@app.get("/tasks/")
+@app.get("/tasks/", dependencies=[Depends(require_admin_api_key)])
 def list_all_tasks():
     """列出所有任务"""
     try:
@@ -953,10 +1022,9 @@ async def upscale_image(
         task_id, task_dir, timestamp = generate_task_dir(DirectoryConfig.TASKS_DIR)
 
         # 异步保存上传图片
-        input_image_path = os.path.join(task_dir, file.filename)
-        content = await file.read()
-        async with aiofiles.open(input_image_path, "wb") as f:
-            await f.write(content)
+        input_filename = _safe_upload_filename(file.filename)
+        input_image_path = os.path.join(task_dir, input_filename)
+        await save_validated_upload(file, input_image_path)
 
         # 调用放大工具模块
         success, message, result_data = await upscale_image_with_replicate(
@@ -972,7 +1040,7 @@ async def upscale_image(
         prediction_id = result_data.get("prediction_id")
         
         # 生成输出文件名
-        output_filename = generate_upscale_filename(file.filename, scale)
+        output_filename = generate_upscale_filename(input_filename, scale)
         output_path = os.path.join(task_dir, output_filename)
         
         # 下载图片
@@ -982,7 +1050,7 @@ async def upscale_image(
             # 保存任务信息
             save_upscale_task_info(
                 task_dir, task_id, timestamp, model, scale, 
-                face_enhance, file.filename, full_response
+                face_enhance, input_filename, full_response
             )
             
             # 创建定位文件夹
@@ -990,7 +1058,7 @@ async def upscale_image(
             
             return JSONResponse({
                 "task_id": task_id,
-                "original_image": f"/taskfile/{task_id}/{file.filename}",
+                "original_image": f"/taskfile/{task_id}/{input_filename}",
                 "upscaled_image": f"/taskfile/{task_id}/{output_filename}",
                 "model": model,
                 "scale": scale,
@@ -1049,7 +1117,7 @@ def get_task_info(task_id: str):
     except Exception as e:
         return JSONResponse({"error": f"读取任务信息失败: {str(e)}"}, status_code=500)
 
-@app.get("/token-usage/")
+@app.get("/token-usage/", dependencies=[Depends(require_admin_api_key)])
 def get_token_usage():
     """获取Gemini Token使用记录"""
     import json

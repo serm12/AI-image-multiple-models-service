@@ -18,6 +18,14 @@ class AppConfig:
     PORT = int(os.getenv("PORT", "8001"))
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
+    ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
+    MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "4"))
+    MAX_UPLOAD_FILE_MB = int(os.getenv("MAX_UPLOAD_FILE_MB", "20"))
+    ALLOWED_UPLOAD_CONTENT_TYPES = {
+        item.strip().lower()
+        for item in os.getenv("ALLOWED_UPLOAD_CONTENT_TYPES", "image/jpeg,image/png,image/webp").split(",")
+        if item.strip()
+    }
 
 # 算法配置
 class AlgorithmConfig:
