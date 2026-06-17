@@ -121,6 +121,20 @@ class APIConfig:
             result.append({"provider": p, "configured": configured, "is_default": p == cls.IMAGE_GENERATION_PROVIDER})
         return result
 
+
+class ProviderEnum(str, Enum):
+    flux_bfl = "flux_bfl"
+    flux_replicate = "flux_replicate"
+    flux_fireworks = "flux_fireworks"
+    gemini_nanobanana_google = "gemini-nanobanana_google"
+    gemini_nanobanana_replicate = "gemini-nanobanana_replicate"
+    gemini_nanobanana_openrouter = "gemini-nanobanana_openrouter"
+    seedream_4_replicate = "seedream-4_replicate"
+    seedream_4_fal = "seedream-4_fal"
+    aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
+    aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
+    aiapiroute_gpt_image_2 = "aiapiroute_gpt-image-2"
+
 # 目录配置
 class DirectoryConfig:
     # 生产环境目录

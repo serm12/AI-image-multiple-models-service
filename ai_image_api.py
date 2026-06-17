@@ -14,7 +14,7 @@ from datetime import datetime
 # 导入配置和核心模块
 from config import (
     initialize_config, DirectoryConfig, APIConfig, AppConfig,
-    FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum,
+    FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum, ProviderEnum,
     STYLE_PROMPTS
 )
 from core import get_style_description, create_response_record
@@ -254,6 +254,7 @@ def get_all_seeds_from_tasks():
 
 @app.post("/generate-async/")
 async def generate_image_async(
+    provider: ProviderEnum | None = Form(None),  # 覆盖默认服务提供商；Swagger 中显示为下拉选择
     prompt: str = Form(...),
     aspect_ratio: AspectRatioEnum = Form(AspectRatioEnum.ratio_3_4),
     output_format: OutputFormatEnum = Form(OutputFormatEnum.png),
@@ -268,7 +269,6 @@ async def generate_image_async(
     height: int = Form(None),
     size: str = Form("2K"),
     sequential_image_generation: str = Form("disabled"),
-    provider: str = Form(None),  # 覆盖默认服务提供商，空字符串等同于 None
     enable_human_check: bool = Form(False),  # 是否开启真人检测，True时上传图片必须包含清晰人脸
     files: list[UploadFile] = File([])
 ):
@@ -279,7 +279,8 @@ async def generate_image_async(
     flux_model_variant = FluxModelEnum.pro
 
     # 2. provider: 确定本次请求实际使用的服务商并做运行时校验
-    effective_provider = (provider or "").strip() or APIConfig.IMAGE_GENERATION_PROVIDER
+    provider_value = provider.value if isinstance(provider, ProviderEnum) else provider
+    effective_provider = (provider_value or "").strip() or APIConfig.IMAGE_GENERATION_PROVIDER
     try:
         APIConfig.validate_provider(effective_provider)
     except ValueError as e:
