@@ -78,42 +78,50 @@ class APIConfig:
         "flux_bfl": {
             "label": "BFL API (Flux)",
             "key": "BFL_API_KEY",
-            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            # Source: https://docs.bfl.ai/api-reference/models/edit-or-create-an-image-with-flux1-kontext-[pro]
         },
         "flux_replicate": {
             "label": "Replicate API (Flux)",
             "key": "REPLICATE_API_TOKEN",
             "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+            # Source: https://replicate.com/black-forest-labs/flux-kontext-pro/api/schema
         },
         "flux_fireworks": {
             "label": "Fireworks API (Flux)",
             "key": "FIREWORKS_API_KEY",
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            # Source: https://docs.fireworks.ai/api-reference/generate-or-edit-image-using-flux-kontext.md
         },
         "gemini-nanobanana_google": {
             "label": "Google Gemini API (Nano-Banana)",
             "key": "GOOGLE_GEMINI_API_KEY",
-            "aspect_ratios": [],
+            "aspect_ratios": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            # Source: https://ai.google.dev/gemini-api/docs/image-generation
         },
         "gemini-nanobanana_replicate": {
             "label": "Replicate API (Nano-Banana)",
             "key": "REPLICATE_API_TOKEN",
-            "aspect_ratios": [],
+            "aspect_ratios": ["match_input_image", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            # Source: https://replicate.com/google/nano-banana/api/schema
         },
         "gemini-nanobanana_openrouter": {
             "label": "OpenRouter API (Nano-Banana)",
             "key": "OPENROUTER_API_KEY",
-            "aspect_ratios": [],
+            "aspect_ratios": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            # Source: https://openrouter.ai/docs/features/multimodal/images
         },
         "seedream-4_replicate": {
             "label": "Replicate API (Seedream-4)",
             "key": "REPLICATE_API_TOKEN",
-            "aspect_ratios": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21"],
+            "aspect_ratios": ["match_input_image", "1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3", "21:9"],
+            # Source: https://replicate.com/bytedance/seedream-4/api/schema
         },
         "seedream-4_fal": {
             "label": "fal.ai API (Seedream-4)",
             "key": "FAL_API_KEY",
-            "aspect_ratios": ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
+            "aspect_ratios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
+            # Source: https://fal.ai/models/fal-ai/bytedance/seedream/v4/edit/api
         },
         "aiapiroute_gpt-image-1": {
             "label": "aiapiroute/Sub2API gpt-image-1",
