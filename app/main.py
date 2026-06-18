@@ -4,14 +4,13 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 
 from app.core.config import APIConfig, AppConfig, initialize_config
+from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.routers.api import router as api_router
 from app.services.async_task_manager import task_manager
 from app.services.runtime_state import clear_http_clients, set_http_clients
-
-
-API_VERSION = "2.0.0"
 
 
 initialize_config()
@@ -49,10 +48,31 @@ async def app_lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Image Generation API",
-    description="AI图像生成API服务 - 支持多种模型，异步高并发处理，支持20个并发能力",
-    version=API_VERSION,
+    description=(
+        "AI图像生成API服务 - 支持多种模型，异步高并发处理，支持20个并发能力\n\n"
+        f"版本: {APP_VERSION}\n\n"
+        f"发布日期: {APP_RELEASE_DATE}"
+    ),
+    version=APP_VERSION,
     lifespan=app_lifespan,
 )
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-release-date"] = APP_RELEASE_DATE
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 app.add_middleware(
     CORSMiddleware,

@@ -6,11 +6,12 @@ AI Image Generation API 主启动文件
 
 import uvicorn
 from app.core.config import AppConfig, APIConfig
+from app.core.version import APP_RELEASE_DATE, APP_VERSION
 import traceback
 
 if __name__ == "__main__":
     try:
-        print(f"启动AI图像生成API服务")
+        print(f"启动AI图像生成API服务 v{APP_VERSION} ({APP_RELEASE_DATE})")
         configured_providers = [p for p in APIConfig.get_available_providers() if p["configured"]]
 
         print("提示信息:")

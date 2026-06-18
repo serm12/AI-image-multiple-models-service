@@ -38,6 +38,7 @@ def main() -> int:
 
     add("root", "get", "/", {200})
     add("health", "get", "/health", {200})
+    add("version", "get", "/version", {200})
     add("providers", "get", "/providers", {200})
     add("provider options", "get", "/provider-options", {200})
     add("styles", "get", "/styles/", {200})

@@ -15,6 +15,10 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # ========== 运行阶段 ==========
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.title="AI Image Generation API" \
+      org.opencontainers.image.version="2.1.0" \
+      org.opencontainers.image.created="2026-06-18"
+
 # 安装运行时依赖
 # libgl1, libglib2.0-0: opencv-headless 运行需要
 # libmagic1: python-magic 运行需要（保留以防未来使用）
@@ -36,6 +40,7 @@ WORKDIR /app
 
 # 复制项目文件
 COPY app/ ./app/
+COPY VERSION ./VERSION
 COPY assets/ ./assets/
 COPY scripts/ ./scripts/
 

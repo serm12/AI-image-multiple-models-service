@@ -12,6 +12,7 @@ from app.core.config import (
     FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum, ProviderEnum,
     STYLE_PROMPTS
 )
+from app.core.version import APP_VERSION, get_version_info
 from app.services.style_catalog import build_art_styles_response
 from app.services.task_query_service import (
     get_task_detail,
@@ -48,22 +49,31 @@ from app.services.runtime_state import get_http_client, get_long_http_client
 _watermark_logo_created: bool = False
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
-API_VERSION = "2.0.0"
 router = APIRouter()
 
 
 @router.get("/")
 async def root():
-    return JSONResponse({"service": "AI Image Generation API", "status": "ok", "docs": "/docs"})
+    return JSONResponse({
+        "service": "AI Image Generation API",
+        "status": "ok",
+        **get_version_info(),
+        "docs": "/docs",
+    })
 
 
 @router.get("/health")
 async def health_check():
     return JSONResponse({
         "status": "ok",
-        "version": API_VERSION,
+        **get_version_info(),
         "configured_providers": len([p for p in APIConfig.get_available_providers() if p["configured"]]),
     })
+
+
+@router.get("/version")
+async def get_version():
+    return JSONResponse(get_version_info())
 
 # ==================== 异步高并发端点 ====================
 
@@ -601,7 +611,8 @@ async def get_system_stats():
         "message": "AI Image Generation API - 异步并发统计",
         "concurrent_capacity": "1个同时处理",
         "performance_improvement": "2000%+ 相比阻塞版本",
-        "api_version": "2.0.0",
+        "api_version": APP_VERSION,
+        "release_date": get_version_info()["release_date"],
         **stats
     })
 
