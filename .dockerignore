@@ -15,8 +15,12 @@ venv/
 
 # Git
 .git/
+.github/
 .gitignore
 .gitattributes
+
+# Agent/local metadata
+.claude/
 
 # 运行时数据（通过 volume 挂载，不需要打进镜像）
 tasks/
@@ -35,5 +39,5 @@ README_CLEANUP.md
 
 # 其他部署配置
 render.yaml
-start_wsl.bat
-start_wsl.sh
+scripts/start_wsl.bat
+scripts/start_wsl.sh
