@@ -47,11 +47,10 @@ async def app_lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="AI Image Generation API",
+    title=f"AI Image Generation API v{APP_VERSION} ({APP_RELEASE_DATE})",
     description=(
-        "AI图像生成API服务 - 支持多种模型，异步高并发处理，支持20个并发能力\n\n"
-        f"版本: {APP_VERSION}\n\n"
-        f"发布日期: {APP_RELEASE_DATE}"
+        "AI图像生成API服务 - 支持多种模型，异步高并发处理，支持20个并发能力 "
+        f"(版本: {APP_VERSION}, 发布日期: {APP_RELEASE_DATE})"
     ),
     version=APP_VERSION,
     lifespan=app_lifespan,

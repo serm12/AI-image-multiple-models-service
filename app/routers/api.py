@@ -136,8 +136,9 @@ async def generate_image_async(
                 input_image_paths.append(input_image_path)
                 input_filenames.append(input_filename)
         
-        # 允许仅传 URL 情况（无文件）
-        if not input_image_paths and not input_image_url:
+        # aiapiroute GPT-image 系列支持纯文生图；其他 provider 仍要求文件或 URL 输入。
+        allows_text_to_image = effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP
+        if not input_image_paths and not input_image_url and not allows_text_to_image:
             raise ValueError("必须提供 files 或 input_image_url 其中之一")
         
         # 2.5. 真人检测（仅当 enable_human_check=True 且有本地文件时执行）
