@@ -17,7 +17,7 @@ sys.path.insert(0, project_root)
 def run_cleanup(tasks_dir: str, dry_run: bool):
     """执行一次清理"""
     try:
-        from utils.cleanup_tasks import cleanup_tasks_folder, set_dry_run_mode
+        from app.utils.cleanup_tasks import cleanup_tasks_folder, set_dry_run_mode
         set_dry_run_mode(dry_run)
         cleanup_tasks_folder(tasks_dir)
         print("清理任务执行完成。")

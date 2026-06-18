@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-工具模块包
+应用底层工具包
 
-这个包包含了所有用于Flux Kontext AI图像生成API的工具模块：
-- utils_upscale: 图像放大功能
-- utils_task: 任务管理功能  
-- utils_watermark: 水印功能
+这个包只保留应用底层通用工具和脚本依赖：
+- upscale_utils: 图像放大工具
+- task_utils: 任务文件工具
+- watermark_utils: 水印工具
+- cleanup_tasks: 任务目录清理工具
+
+应用服务位于 app/services，外部 provider 客户端位于 app/clients。
 """
 
 __version__ = "1.0.0"
 __author__ = "AI-replicate Team"
 
 # 导出主要功能
-from .utils_upscale import (
+from .upscale_utils import (
     upscale_image_with_replicate,
     download_upscaled_image,
     generate_upscale_filename,
@@ -24,27 +27,17 @@ from .utils_upscale import (
     build_upscale_input_params
 )
 
-from .utils_task import (
+from .task_utils import (
     generate_task_dir,
     save_params,
     generate_output_filenames
 )
 
-from .utils_watermark import (
+from .watermark_utils import (
     create_logo_watermark,
     add_logo_watermark,
     add_corner_label
 )
-
-# 异步组件
-from .async_task_manager import task_manager, TaskStatus, get_task_status, get_system_stats
-
-# 统一API客户端
-from .unified_api_client import api_client
-
-
-
-
 
 __all__ = [
     # 放大功能
@@ -66,15 +59,4 @@ __all__ = [
     'create_logo_watermark',
     'add_logo_watermark',
     'add_corner_label',
-    
-    # 异步组件
-    'task_manager',
-    'TaskStatus',
-    'get_task_status',
-    'get_system_stats',
-    
-    # 统一API客户端
-    'api_client',
-    
-    
 ] 

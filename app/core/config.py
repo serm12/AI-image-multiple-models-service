@@ -65,14 +65,22 @@ class APIConfig:
     AIAPIROUTE_GPT_IMAGE1_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE1_MODEL", "gpt-image-1")
     AIAPIROUTE_GPT_IMAGE15_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE15_MODEL", "gpt-image-1.5")
     AIAPIROUTE_GPT_IMAGE2_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE2_MODEL", "gpt-image-2")
-    AIAPIROUTE_GPT_IMAGE2_RESOLUTION = os.getenv("AIAPIROUTE_GPT_IMAGE2_RESOLUTION", "1K")
-    AIAPIROUTE_GPT_IMAGE2_QUALITY = os.getenv("AIAPIROUTE_GPT_IMAGE2_QUALITY", "")
-    AIAPIROUTE_GPT_IMAGE2_STREAM = os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "true").lower() == "true"
+    AIAPIROUTE_IMAGE_RESOLUTION = os.getenv("AIAPIROUTE_IMAGE_RESOLUTION", os.getenv("AIAPIROUTE_GPT_IMAGE2_RESOLUTION", "1K"))
+    AIAPIROUTE_IMAGE_QUALITY = os.getenv("AIAPIROUTE_IMAGE_QUALITY", os.getenv("AIAPIROUTE_GPT_IMAGE2_QUALITY", ""))
+    AIAPIROUTE_IMAGE_STREAM = os.getenv("AIAPIROUTE_IMAGE_STREAM", os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "true")).lower() == "true"
     AIAPIROUTE_TIMEOUT_SECONDS = int(os.getenv("AIAPIROUTE_TIMEOUT_SECONDS", os.getenv("SUB2API_TIMEOUT_SECONDS", "300")))
     
+    # 宽高比从宽到窄，横竖配对紧邻
     STANDARD_ASPECT_RATIOS = [
-        "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4", "21:9", "9:21", "2:1", "1:2"
+        "1:1",
+        "21:9", "9:21",
+        "16:9", "9:16",
+        "2:1", "1:2",
+        "3:2", "2:3",
+        "4:3", "3:4",
+        "4:5", "5:4",
     ]
+    AIAPIROUTE_IMAGE_SIZES = ["1K", "2K", "4K", "auto"]
 
     PROVIDERS = {
         "flux_bfl": {
@@ -84,7 +92,7 @@ class APIConfig:
         "flux_replicate": {
             "label": "Replicate API (Flux)",
             "key": "REPLICATE_API_TOKEN",
-            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],  # match_input_image: 输出图片尺寸自动匹配输入图片尺寸，仅支持图生图场景
             # Source: https://replicate.com/black-forest-labs/flux-kontext-pro/api/schema
         },
         "flux_fireworks": {
@@ -128,18 +136,21 @@ class APIConfig:
             "key": "AIAPIROUTE_API_KEY",
             "model": AIAPIROUTE_GPT_IMAGE1_MODEL,
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
         "aiapiroute_gpt-image-1.5": {
             "label": "aiapiroute/Sub2API gpt-image-1.5",
             "key": "AIAPIROUTE_API_KEY",
             "model": AIAPIROUTE_GPT_IMAGE15_MODEL,
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
         "aiapiroute_gpt-image-2": {
             "label": "aiapiroute/Sub2API gpt-image-2",
             "key": "AIAPIROUTE_API_KEY",
             "model": AIAPIROUTE_GPT_IMAGE2_MODEL,
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
     }
 
@@ -183,6 +194,8 @@ class APIConfig:
                 "is_default": False,
                 "aspect_ratios": config.get("aspect_ratios", []),
                 "uses_aspect_ratio": bool(config.get("aspect_ratios", [])),
+                "sizes": config.get("sizes", []),
+                "uses_size": bool(config.get("sizes", [])),
                 **({"model": config["model"]} if "model" in config else {}),
             }
             for provider, config in cls.PROVIDERS.items()

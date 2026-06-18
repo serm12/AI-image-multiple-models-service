@@ -4,10 +4,10 @@ Seedream-4 Fal.ai API客户端 (Corrected with native async SDK)
 
 import os
 from datetime import datetime
-from config import APIConfig
+from app.core.config import APIConfig
 import os
 from datetime import datetime
-from config import APIConfig
+from app.core.config import APIConfig
 import fal_client
 import httpx
 import base64

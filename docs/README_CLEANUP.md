@@ -20,7 +20,7 @@ services:
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python run.py"
+    startCommand: "python -m app.run"
 
   # 定时清理任务
   - type: cron

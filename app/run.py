@@ -5,7 +5,7 @@ AI Image Generation API 主启动文件
 """
 
 import uvicorn
-from config import AppConfig, APIConfig
+from app.core.config import AppConfig, APIConfig
 import traceback
 
 if __name__ == "__main__":
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         print("=" * 50)
         
         uvicorn.run(
-            "ai_image_api:app",
+            "app.main:app",
             host="0.0.0.0",
             port=AppConfig.PORT,
             reload=AppConfig.DEBUG,
@@ -38,4 +38,3 @@ if __name__ == "__main__":
     except Exception as e:
         print("Error during startup:")
         print(traceback.format_exc())
-

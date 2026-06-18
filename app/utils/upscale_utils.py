@@ -195,7 +195,7 @@ def download_upscaled_image(output_url: str, output_path: str) -> bool:
 def generate_upscale_filename(original_filename: str, scale: int) -> str:
     """生成放大后的文件名"""
     # 从配置中获取算法值
-    from config import AlgorithmConfig
+    from app.core.config import AlgorithmConfig
     algorithm_value = AlgorithmConfig.get_algorithm_value()
     
     filename_without_ext = os.path.splitext(original_filename)[0]

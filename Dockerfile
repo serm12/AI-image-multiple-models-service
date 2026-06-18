@@ -35,8 +35,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 
 # 复制项目文件
-COPY ai_image_api.py config.py core.py run.py ./
-COPY utils/ ./utils/
+COPY app/ ./app/
 COPY assets/ ./assets/
 COPY scripts/ ./scripts/
 
@@ -53,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD python -c "import os, urllib.request; urllib.request.urlopen(f'http://localhost:{os.getenv(\"PORT\", \"8001\")}/health')" || exit 1
 
 # 启动服务
-CMD ["python", "run.py"]
+CMD ["python", "-m", "app.run"]

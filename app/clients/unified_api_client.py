@@ -5,7 +5,7 @@
 支持Flux和Gemini API的路由分发，支持 per-request provider 动态切换
 """
 import asyncio
-from config import APIConfig
+from app.core.config import APIConfig
 
 
 class UnifiedAPIClient:
@@ -75,8 +75,8 @@ class UnifiedAPIClient:
 
     def _get_aiapiroute_client(self, model: str):
         if model not in self._aiapiroute_clients:
-            from .aiapiroute_gpt_image2_client import AIApiRouteGPTImage2Client
-            self._aiapiroute_clients[model] = AIApiRouteGPTImage2Client(self.aiapiroute_api_key, model=model)
+            from .aiapiroute_gpt_image2_client import AIApiRouteGPTImageClient
+            self._aiapiroute_clients[model] = AIApiRouteGPTImageClient(self.aiapiroute_api_key, model=model)
         return self._aiapiroute_clients[model]
 
     # ---- 核心路由方法 ----

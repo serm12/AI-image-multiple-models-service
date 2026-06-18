@@ -12,7 +12,7 @@ from datetime import datetime
 from PIL import Image
 import io
 import replicate
-from config import APIConfig, ArtStyleEnum
+from app.core.config import APIConfig, ArtStyleEnum
 
 class GeminiReplicateClient:
     """Gemini Replicate API客户端"""

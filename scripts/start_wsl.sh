@@ -46,4 +46,4 @@ else
 fi
 
 echo "[5/5] Starting API service..."
-python run.py
+python -m app.run

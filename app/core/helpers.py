@@ -6,7 +6,7 @@
 """
 
 from datetime import datetime
-from config import STYLE_DESCRIPTIONS
+from app.core.config import STYLE_DESCRIPTIONS
 
 def get_style_description(style_value: str) -> str:
     """获取风格描述"""

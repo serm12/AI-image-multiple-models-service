@@ -10,7 +10,7 @@ import time
 from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
-from config import AppConfig
+from app.core.config import AppConfig
 
 class TaskStatus(str, Enum):
     """任务状态枚举"""

@@ -3,7 +3,7 @@ import math
 import os
 import numpy as np
 import random
-from config import WatermarkConfig
+from app.core.config import WatermarkConfig
 
 # 添加logo缓存
 _logo_cache = {}

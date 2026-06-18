@@ -26,7 +26,7 @@ def generate_output_filenames(task_dir, input_image_filename, output_format):
     base_name = os.path.splitext(input_image_filename)[0]
     
     # 从配置中获取算法值
-    from config import AlgorithmConfig
+    from app.core.config import AlgorithmConfig
     algorithm_value = AlgorithmConfig.get_algorithm_value()
     
     # 生成原图文件名：output_cropped_original_算法值.png

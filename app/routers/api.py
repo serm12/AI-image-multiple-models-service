@@ -1,26 +1,33 @@
 import os
 # import replicate  # 移除：生图流程改为统一API客户端
-import re
 import json
 import asyncio
 import aiofiles
-import httpx
-from pathlib import Path
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, Form, Request, Depends, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
-from datetime import datetime
+from fastapi import APIRouter, File, UploadFile, Form, Request, Depends
+from fastapi.responses import JSONResponse
 
 # 导入配置和核心模块
-from config import (
-    initialize_config, DirectoryConfig, APIConfig, AppConfig,
+from app.core.config import (
+    DirectoryConfig, APIConfig, AppConfig,
     FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum, ProviderEnum,
     STYLE_PROMPTS
 )
-from core import get_style_description, create_response_record
-from utils.utils_watermark import create_logo_watermark, add_logo_watermark
-from utils.utils_task import generate_task_dir, save_params, generate_output_filenames
-from utils.utils_upscale import (
+from app.services.style_catalog import build_art_styles_response
+from app.services.task_query_service import (
+    get_task_detail,
+    get_token_usage_summary,
+    list_task_summaries,
+)
+from app.services.security import require_admin_api_key
+from app.services.seed_history import get_all_seeds_from_tasks, get_last_seed_from_tasks
+from app.services.task_files import (
+    resolve_task_file_path,
+    safe_upload_filename,
+    save_validated_upload,
+)
+from app.services.watermark_service import create_logo_watermark, add_logo_watermark
+from app.services.task_storage import generate_task_dir, save_params, generate_output_filenames
+from app.services.upscale_service import (
     upscale_image_with_replicate, 
     download_upscaled_image, 
     generate_upscale_filename,
@@ -28,220 +35,39 @@ from utils.utils_upscale import (
     create_upscale_lookup_folder,
     get_upscale_models_info
 )
-from utils.face_detection import contains_human
+from app.services.face_detection import contains_human
 
 # 异步组件导入
-from utils.async_task_manager import task_manager, TaskStatus
+from app.services.async_task_manager import task_manager, TaskStatus
 
 # 导入统一API客户端
-from utils.unified_api_client import api_client
+from app.clients.unified_api_client import api_client
+from app.services.runtime_state import get_http_client, get_long_http_client
 
 # 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
 _watermark_logo_created: bool = False
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
-_UPLOAD_CHUNK_SIZE = 1024 * 1024
-
-from fastapi.middleware.cors import CORSMiddleware
-
-# 初始化配置
-initialize_config()
+API_VERSION = "2.0.0"
+router = APIRouter()
 
 
-async def _periodic_task_cleanup():
-    """每 5 分钟清理一次超过 24 小时的已完成/失败任务，防止内存持续增长"""
-    while True:
-        try:
-            await asyncio.sleep(300)  # 缩短为 5 分钟，更及时清理
-            removed = task_manager.cleanup_old_tasks(max_age_hours=24)
-            if removed:
-                print(f"🧹 定期清理：已移除 {removed} 个过期任务记录")
-        except Exception as e:
-            # 不让清理任务程序崩溃，睡会继续运行
-            print(f"⚠️ 任务清理出错: {e}")
-            continue
-
-
-@asynccontextmanager
-async def app_lifespan(app: FastAPI):
-    # 配置 HTTP 连接池：keepalive 连接数=10，总连接数=20（支持并发）
-    limits = httpx.Limits(max_keepalive_connections=10, max_connections=20)
-    app.state.http_client = httpx.AsyncClient(timeout=60.0, limits=limits)
-    app.state.long_http_client = httpx.AsyncClient(timeout=300.0, limits=limits)
-    cleanup_task = asyncio.create_task(_periodic_task_cleanup())
-    try:
-        yield
-    finally:
-        cleanup_task.cancel()
-        await app.state.http_client.aclose()
-        await app.state.long_http_client.aclose()
-
-
-app = FastAPI(
-    title="AI Image Generation API",
-    description="AI图像生成API服务 - 支持多种模型，异步高并发处理，支持20个并发能力",
-    version="2.0.0",
-    lifespan=app_lifespan
-)
-
-# 添加CORS中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=AppConfig.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-def _get_bearer_token(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        return None
-    return token.strip()
-
-
-async def require_admin_api_key(request: Request):
-    """Protect administrative endpoints when ADMIN_API_KEY is configured."""
-    if not AppConfig.ADMIN_API_KEY:
-        return
-    provided_key = request.headers.get("x-api-key") or _get_bearer_token(request.headers.get("authorization"))
-    if provided_key != AppConfig.ADMIN_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid or missing admin API key")
-
-
-def _safe_upload_filename(filename: str | None) -> str:
-    safe_name = os.path.basename(filename or "upload")
-    return safe_name or "upload"
-
-
-async def save_validated_upload(file: UploadFile, destination: str) -> int:
-    """Validate and save an uploaded image without loading the whole file into memory."""
-    content_type = (file.content_type or "").split(";", 1)[0].strip().lower()
-    if content_type not in AppConfig.ALLOWED_UPLOAD_CONTENT_TYPES:
-        raise ValueError(f"不支持的文件类型: {file.content_type or 'unknown'}")
-
-    max_bytes = AppConfig.MAX_UPLOAD_FILE_MB * 1024 * 1024
-    total_bytes = 0
-    async with aiofiles.open(destination, "wb") as f:
-        while True:
-            chunk = await file.read(_UPLOAD_CHUNK_SIZE)
-            if not chunk:
-                break
-            total_bytes += len(chunk)
-            if total_bytes > max_bytes:
-                raise ValueError(f"文件过大，单文件不能超过 {AppConfig.MAX_UPLOAD_FILE_MB}MB")
-            await f.write(chunk)
-    return total_bytes
-
-
-def resolve_task_file_path(task_id: str, filename: str) -> str | None:
-    task_dir = Path(DirectoryConfig.TASKS_DIR, task_id).resolve()
-    file_path = Path(task_dir, filename).resolve()
-    try:
-        file_path.relative_to(task_dir)
-    except ValueError:
-        return None
-    return str(file_path)
-
-
-@app.get("/")
+@router.get("/")
 async def root():
     return JSONResponse({"service": "AI Image Generation API", "status": "ok", "docs": "/docs"})
 
 
-@app.get("/health")
+@router.get("/health")
 async def health_check():
     return JSONResponse({
         "status": "ok",
-        "version": app.version,
+        "version": API_VERSION,
         "configured_providers": len([p for p in APIConfig.get_available_providers() if p["configured"]]),
     })
 
-# 设置环境变量
-os.environ["REPLICATE_API_TOKEN"] = APIConfig.REPLICATE_API_TOKEN
-
-# 种子管理函数 - 从tasks目录读取
-def get_last_seed_from_tasks():
-    """从最近的生图任务中获取seed（优先读缓存文件，避免全目录扫描）"""
-    try:
-        cache_file = os.path.join(DirectoryConfig.TASKS_DIR, "_last_seed.txt")
-        if os.path.exists(cache_file):
-            with open(cache_file, 'r') as f:
-                val = f.read().strip()
-            if val.isdigit():
-                return int(val)
-
-        # 缓存不存在时回退到目录扫描（兼容历史数据）
-        if not os.path.exists(DirectoryConfig.TASKS_DIR):
-            return None
-        task_dirs = sorted(
-            [
-                (item, os.path.join(DirectoryConfig.TASKS_DIR, item))
-                for item in os.listdir(DirectoryConfig.TASKS_DIR)
-                if os.path.isdir(os.path.join(DirectoryConfig.TASKS_DIR, item))
-                and os.path.exists(os.path.join(DirectoryConfig.TASKS_DIR, item, "params.json"))
-            ],
-            reverse=True
-        )
-        for task_id, task_path in task_dirs:
-            try:
-                with open(os.path.join(task_path, "params.json"), 'r', encoding='utf-8') as f:
-                    params = json.load(f)
-                if 'art_style' in params and 'model' not in params:
-                    return params.get('extracted_seed') or params.get('input_seed')
-            except:
-                continue
-        return None
-    except Exception:
-        return None
-    
-def get_all_seeds_from_tasks():
-    """从所有生图任务中获取seed列表"""
-    try:
-        seeds = []
-        if not os.path.exists(DirectoryConfig.TASKS_DIR):
-            return {"seeds": [], "count": 0}
-        
-        # 获取所有任务目录
-        for item in os.listdir(DirectoryConfig.TASKS_DIR):
-            task_path = os.path.join(DirectoryConfig.TASKS_DIR, item)
-            if os.path.isdir(task_path):
-                params_file = os.path.join(task_path, "params.json")
-                if os.path.exists(params_file):
-                    try:
-                        with open(params_file, 'r', encoding='utf-8') as f:
-                            params = json.load(f)
-                        
-                        # 只处理生图任务，不处理放大任务
-                        if 'art_style' in params and 'model' not in params:
-                            seed = params.get('extracted_seed') or params.get('input_seed')
-                            if seed:
-                                seeds.append({
-                                    "seed": seed,
-                                    "task_id": params.get('task_id', item),
-                                    "description": params.get('description', ''),
-                                    "art_style": params.get('art_style', ''),
-                                    "created_at": params.get('time', ''),
-                                    "prompt": params.get('original_prompt', '')[:100] + "..." if len(params.get('original_prompt', '')) > 100 else params.get('original_prompt', ''),
-                                    "input_seed": params.get('input_seed'),  # 用户输入的seed
-                                    "extracted_seed": params.get('extracted_seed')  # 从响应中提取的真实seed
-                                })
-                    except:
-                        continue
-        
-        # 按时间倒序排列
-        seeds.sort(key=lambda x: x['created_at'], reverse=True)
-        
-        return {"seeds": seeds, "count": len(seeds)}
-    except Exception:
-        return {"seeds": [], "count": 0}
-
 # ==================== 异步高并发端点 ====================
 
-@app.post("/generate-async/")
+@router.post("/generate-async/")
 async def generate_image_async(
     provider: ProviderEnum = Form(...),  # 必选服务提供商；Swagger 中显示为下拉选择
     prompt: str = Form(...),
@@ -294,7 +120,7 @@ async def generate_image_async(
             if len(files) > AppConfig.MAX_UPLOAD_FILES:
                 raise ValueError(f"最多只能上传 {AppConfig.MAX_UPLOAD_FILES} 个文件")
             for file in files:
-                input_filename = _safe_upload_filename(file.filename)
+                input_filename = safe_upload_filename(file.filename)
                 input_image_path = os.path.join(task_dir, input_filename)
                 await save_validated_upload(file, input_image_path)
                 input_image_paths.append(input_image_path)
@@ -378,15 +204,15 @@ async def generate_image_async(
         
         # 7. 启动后台处理任务（不等待）
         # 注意：process_generation_background 需要适配多图路径
-        _t = asyncio.create_task(
+        background_task = asyncio.create_task(
             process_generation_background(
                 task_id, task_dir, final_prompt, input_image_paths,
                 flux_model_variant, aspect_ratio, output_format, final_seed, params,
                 effective_provider
             )
         )
-        _background_tasks.add(_t)
-        _t.add_done_callback(_background_tasks.discard)
+        _background_tasks.add(background_task)
+        background_task.add_done_callback(_background_tasks.discard)
         
         # 8. 立即返回任务ID
         return JSONResponse({
@@ -408,13 +234,13 @@ async def generate_image_async(
         }, status_code=500)
 
 
-@app.get("/providers")
+@router.get("/providers")
 async def get_providers():
     """返回所有 provider 及其是否已配置 API Key。"""
     return JSONResponse({"providers": APIConfig.get_available_providers()})
 
 
-@app.get("/provider-options")
+@router.get("/provider-options")
 async def get_provider_options():
     """返回 provider 与 aspect_ratio 等测试参数的对应关系。"""
     return JSONResponse({"providers": APIConfig.get_provider_options()})
@@ -546,10 +372,9 @@ async def _do_generation_work(
         image_url = str(result["output"])
         # 使用第一个输入图像的文件名作为基础
         main_input_filename = params.get("input_images")[0] if params.get("input_images") else "output.png"
-        await download_and_process_image_async_optimized(task_id, task_dir, image_url, main_input_filename)
+        current_files = await save_generated_image_outputs(task_id, task_dir, image_url, main_input_filename)
         
         # 水印处理完成后，最终更新75%状态包含完整文件列表
-        current_files = await get_output_files_async(task_dir, task_id)
         task_manager.update_task(task_id, 
             status=TaskStatus.PROCESSING, 
             progress=75,
@@ -580,21 +405,21 @@ async def _do_generation_work(
         auto_upscale_value = params.get("auto_upscale", False)
         
         if auto_upscale_value:
-            _t = asyncio.create_task(
+            background_task = asyncio.create_task(
                 process_upscale_background(task_id, task_dir, params, image_url)
             )
-            _background_tasks.add(_t)
-            _t.add_done_callback(_background_tasks.discard)
+            _background_tasks.add(background_task)
+            background_task.add_done_callback(_background_tasks.discard)
         
         return
     else:
         error_msg = result.get("error", "未知错误")
         task_manager.set_task_failed(task_id, error_msg)
 
-async def download_and_process_image_async_optimized(task_id: str, task_dir: str, image_url: str, filename: str):
-    """优化版本：分阶段更新状态的异步下载和处理图片（最小化日志输出）"""
+async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: str, filename: str):
+    """Download a generated image, save outputs, and add the watermark file."""
     # 生成文件名
-    OUTPUT_FILE, ORIGINAL_FILE, WATERMARK_FILE = generate_output_filenames(
+    _output_file, original_file, watermark_file = generate_output_filenames(
         task_dir, filename, "png"
     )
     
@@ -611,7 +436,7 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
     if content_bytes is None:
         # 异步下载图片
         try:
-            response = await app.state.http_client.get(image_url)
+            response = await get_http_client().get(image_url)
             response.raise_for_status()
             content_bytes = response.content
         except Exception as e:
@@ -619,10 +444,12 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
     
     # 异步保存原图
     try:
-        async with aiofiles.open(ORIGINAL_FILE, "wb") as f:
+        async with aiofiles.open(original_file, "wb") as f:
             await f.write(content_bytes)
     except Exception as e:
         raise ValueError(f"原图保存失败: {e}")
+
+    output_files = [f"/taskfile/{task_id}/{os.path.basename(original_file)}"]
     
     # 🚀 关键优化：原图保存完成后立即更新状态 (72%)，让前端能立即获取文件
     task_manager.update_task(task_id, 
@@ -630,7 +457,7 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
         progress=72,
         result={
             "image_url": image_url,
-            "output_files": await get_output_files_async(task_dir, task_id)
+            "output_files": output_files
         }
     )
     
@@ -642,10 +469,12 @@ async def download_and_process_image_async_optimized(task_id: str, task_dir: str
             # 在 await 前置位，防止并发任务同时通过检查重复创建（asyncio 单线程，此处无竞态）
             _watermark_logo_created = True
             await loop.run_in_executor(None, create_logo_watermark)
-        await loop.run_in_executor(None, add_logo_watermark, ORIGINAL_FILE, WATERMARK_FILE)
+        await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
+        output_files.append(f"/taskfile/{task_id}/{os.path.basename(watermark_file)}")
     except Exception:
         # 水印失败不中断主流程
         pass
+    return output_files
 
 async def process_upscale_background(task_id: str, task_dir: str, params: dict, image_url: str):
     """后台处理放大任务，不阻塞主流程"""
@@ -655,13 +484,13 @@ async def process_upscale_background(task_id: str, task_dir: str, params: dict, 
         main_input_filename = params.get("input_images")[0] if params.get("input_images") else "reference.png"
         
         # 获取原图路径
-        OUTPUT_FILE, ORIGINAL_FILE, WATERMARK_FILE = generate_output_filenames(
+        _output_file, original_file, watermark_file = generate_output_filenames(
             task_dir, main_input_filename, "png"
         )
         
         # 调用放大功能
         upscale_success, upscale_message, upscale_result = await upscale_image_with_replicate(
-            ORIGINAL_FILE,  # 使用原图进行放大
+            original_file,  # 使用原图进行放大
             "upscaler",  # 使用upscaler模型
             2,  # 2倍放大
             params.get("upscale_face_enhance", False)  # 使用用户选择的面部增强设置
@@ -673,7 +502,6 @@ async def process_upscale_background(task_id: str, task_dir: str, params: dict, 
             upscale_output_url = upscale_result["output_url"]
             
             # 使用算法值生成文件名
-            from utils.utils_upscale import generate_upscale_filename
             upscale_filename = generate_upscale_filename("output_reference.png", 2)
             upscale_output_path = os.path.join(task_dir, upscale_filename)
             
@@ -713,7 +541,7 @@ async def get_output_files_async(task_dir: str, task_id: str) -> list:
         pass
     return files
 
-@app.get("/task-status/{task_id}")
+@router.get("/task-status/{task_id}")
 async def get_task_status_async(task_id: str):
     """异步获取任务状态"""
     from datetime import datetime
@@ -744,7 +572,11 @@ async def get_task_status_async(task_id: str):
     cached_files = (task_info.get("result") or {}).get("output_files")
     if cached_files:
         response_data["files"] = cached_files
-    else:
+    elif task_info["progress"] >= 70 or task_info["status"] in {
+        TaskStatus.DOWNLOADING,
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+    }:
         task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
         if os.path.exists(task_dir):
             output_files = await get_output_files_async(task_dir, task_id)
@@ -761,7 +593,7 @@ async def get_task_status_async(task_id: str):
     
     return JSONResponse(response_data)
 
-@app.get("/system-stats", dependencies=[Depends(require_admin_api_key)])
+@router.get("/system-stats", dependencies=[Depends(require_admin_api_key)])
 async def get_system_stats():
     """获取系统统计信息"""
     stats = task_manager.get_statistics()
@@ -775,7 +607,7 @@ async def get_system_stats():
 
 # ==================== 原有端点保持不变 ====================
 
-@app.get("/taskfile/{task_id}/{filename}")
+@router.get("/taskfile/{task_id}/{filename}")
 def get_task_file(task_id: str, filename: str, request: Request):
     file_path = resolve_task_file_path(task_id, filename)
     
@@ -810,49 +642,16 @@ def get_task_file(task_id: str, filename: str, request: Request):
     return JSONResponse({"error": "文件不存在"}, status_code=404)
 
 
-@app.get("/styles/")
+@router.get("/styles/")
 def get_art_styles():
-    """获取所有可用的绘画风格（去重）"""
-    styles = []
-    seen_values = set()  # 用于去重
-    
-    for style in ArtStyleEnum:
-        style_value = style.value
-        
-        # 跳过已经见过的值（去重）
-        if style_value in seen_values:
-            continue
-        
-        seen_values.add(style_value)
-        
-        style_info = {
-            "value": style_value,
-            "name": style_value.replace("_", " ").title(),
-            "description": get_style_description(style_value)
-        }
-        styles.append(style_info)
-    
-    # 按风格类型排序：先Flux，再Gemini，最后其他
-    def sort_key(style):
-        value = style["value"]
-        if value.startswith("flux_"):
-            return (0, value)
-        elif value.startswith("gemini_"):
-            return (1, value)
-        elif value.startswith("seedream-4_"):
-            return (2, value)
-        else:
-            return (3, value)
-    
-    styles.sort(key=sort_key)
-    return JSONResponse({"styles": styles})
+    return JSONResponse(build_art_styles_response())
 
-@app.get("/seeds/")
+@router.get("/seeds/")
 def get_all_seeds():
     """获取所有记录的 seed（从生图任务中读取）"""
     return JSONResponse(get_all_seeds_from_tasks())
 
-@app.get("/seeds/last")
+@router.get("/seeds/last")
 def get_last_seed():
     """获取最后使用的 seed（从生图任务中读取）"""
     last_seed = get_last_seed_from_tasks()
@@ -861,7 +660,7 @@ def get_last_seed():
     else:
         return JSONResponse({"seed": None, "message": "没有找到最后使用的 seed"})
 
-@app.get("/seeds/search/{description}")
+@router.get("/seeds/search/{description}")
 def search_seed_by_description(description: str):
     """根据描述搜索 seed（从生图任务中搜索）"""
     seeds_data = get_all_seeds_from_tasks()
@@ -878,14 +677,14 @@ def search_seed_by_description(description: str):
     
     return JSONResponse({"seed": None, "description": description, "message": "未找到匹配的 seed"})
 
-@app.get("/upscale/models")
+@router.get("/upscale/models")
 def get_upscale_models():
     """获取支持的放大模型信息"""
     return JSONResponse(get_upscale_models_info())
 
 
-@app.post("/api/check-photo")
-@app.post("/check-photo/")
+@router.post("/api/check-photo")
+@router.post("/check-photo/")
 async def check_photo(
     file: UploadFile = File(...),
     client_city: str = Form("")
@@ -946,60 +745,15 @@ async def check_photo(
             status_code=500,
         )
 
-@app.get("/tasks/", dependencies=[Depends(require_admin_api_key)])
+@router.get("/tasks/", dependencies=[Depends(require_admin_api_key)])
 def list_all_tasks():
     """列出所有任务"""
     try:
-        tasks = []
-        if os.path.exists(DirectoryConfig.TASKS_DIR):
-            for task_id in os.listdir(DirectoryConfig.TASKS_DIR):
-                task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
-                if os.path.isdir(task_dir):
-                    # 读取参数文件
-                    params_file = os.path.join(task_dir, "params.json")
-                    params = {}
-                    if os.path.exists(params_file):
-                        with open(params_file, 'r', encoding='utf-8') as f:
-                            params = json.load(f)
-                    
-                    # 读取响应文件（支持多种API模式）
-                    response = {}
-                    api_response_files = ["bfl_response.json", "replicate_response.json"]
-                    for response_file in api_response_files:
-                        response_file_path = os.path.join(task_dir, response_file)
-                        if os.path.exists(response_file_path):
-                            with open(response_file_path, 'r', encoding='utf-8') as f:
-                                response = json.load(f)
-                                break
-                    
-                    # 检查输出文件
-                    output_files = []
-                    for filename in os.listdir(task_dir):
-                        if filename.endswith(('.png', '.jpg', '.jpeg')):
-                            output_files.append(filename)
-                    
-                    tasks.append({
-                        "task_id": task_id,
-                        "description": params.get('description', ''),
-                        "created_at": params.get('time', ''),
-                        "extracted_seed": response.get('extracted_seed'),
-                        "output_files_count": len(output_files),
-                        "status": response.get('status', 'unknown'),
-                        "api_provider": params.get('api_provider')
-                    })
-        
-        # 按时间倒序排列
-        tasks.sort(key=lambda x: x['created_at'], reverse=True)
-        
-        return JSONResponse({
-            "tasks": tasks,
-            "total": len(tasks)
-        })
-        
+        return JSONResponse(list_task_summaries())
     except Exception as e:
         return JSONResponse({"error": f"获取任务列表失败: {str(e)}"}, status_code=500)
 
-@app.post("/upscale/")
+@router.post("/upscale/")
 async def upscale_image(
     file: UploadFile = File(...),
     model: str = Form("upscaler"),  # 默认使用real-esrgan
@@ -1019,7 +773,7 @@ async def upscale_image(
         task_id, task_dir, timestamp = generate_task_dir(DirectoryConfig.TASKS_DIR)
 
         # 异步保存上传图片
-        input_filename = _safe_upload_filename(file.filename)
+        input_filename = safe_upload_filename(file.filename)
         input_image_path = os.path.join(task_dir, input_filename)
         await save_validated_upload(file, input_image_path)
 
@@ -1068,105 +822,28 @@ async def upscale_image(
     except Exception as e:
         return JSONResponse({"error": f"放大图片时出错: {str(e)}"}, status_code=500)
 
-@app.get("/task/{task_id}")
+@router.get("/task/{task_id}")
 def get_task_info(task_id: str):
     """获取特定任务的详细信息"""
-    task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
-    if not os.path.exists(task_dir):
-        return JSONResponse({"error": "任务不存在"}, status_code=404)
-    
     try:
-        # 读取主任务参数文件
-        params_file = os.path.join(task_dir, "params.json")
-        main_params = {}
-        if os.path.exists(params_file):
-            with open(params_file, 'r', encoding='utf-8') as f:
-                main_params = json.load(f)
-        
-        # 读取完整的远程API响应文件（支持多种API模式）
-        api_responses = {}
-        api_response_files = ["bfl_response.json", "replicate_response.json"]
-        for response_file in api_response_files:
-            response_file_path = os.path.join(task_dir, response_file)
-            if os.path.exists(response_file_path):
-                with open(response_file_path, 'r', encoding='utf-8') as f:
-                    api_responses[response_file] = json.load(f)
-        
-        # 检查输出文件
-        output_files = []
-        for filename in os.listdir(task_dir):
-            if filename.endswith(('.png', '.jpg', '.jpeg')):
-                output_files.append({
-                    "filename": filename,
-                    "url": f"/taskfile/{task_id}/{filename}"
-                })
-        
-        # 构建响应
-        response_data = {
-            "task_id": task_id,
-            "params": main_params,  # 用户提交的参数和主要返回数据
-            "api_responses": api_responses,  # 完整的远程API响应
-            "output_files": output_files
-        }
-        
-        return JSONResponse(response_data)
-        
+        task_detail = get_task_detail(task_id)
+        if not task_detail:
+            return JSONResponse({"error": "任务不存在"}, status_code=404)
+        return JSONResponse(task_detail)
     except Exception as e:
         return JSONResponse({"error": f"读取任务信息失败: {str(e)}"}, status_code=500)
 
-@app.get("/token-usage/", dependencies=[Depends(require_admin_api_key)])
+@router.get("/token-usage/", dependencies=[Depends(require_admin_api_key)])
 def get_token_usage():
     """获取Gemini Token使用记录"""
-    import json
-    
-    log_file = "gemini_token_usage.json"
-    if os.path.exists(log_file):
-        try:
-            with open(log_file, 'r', encoding='utf-8') as f:
-                logs = json.load(f)
-            
-            # 计算统计信息
-            if logs:
-                total_tokens = sum(log.get('total_tokens', 0) for log in logs)
-                total_cost = sum(log.get('estimated_cost', 0) for log in logs)
-                total_requests = len(logs)
-                avg_tokens = total_tokens / total_requests if total_requests > 0 else 0
-                
-                stats = {
-                    "total_requests": total_requests,
-                    "total_tokens": total_tokens,
-                    "total_cost": round(total_cost, 6),
-                    "avg_tokens_per_request": round(avg_tokens, 1)
-                }
-                
-                return JSONResponse({
-                    "success": True,
-                    "stats": stats,
-                    "recent_logs": logs[-10:],  # 最近10条记录
-                    "all_logs": logs
-                })
-            else:
-                return JSONResponse({
-                    "success": True,
-                    "stats": {"total_requests": 0, "total_tokens": 0, "total_cost": 0, "avg_tokens_per_request": 0},
-                    "recent_logs": [],
-                    "all_logs": []
-                })
-                
-        except Exception as e:
-            return JSONResponse({"error": f"读取Token记录失败: {e}"}, status_code=500)
-    else:
-        return JSONResponse({
-            "success": True,
-            "message": "暂无Token使用记录",
-            "stats": {"total_requests": 0, "total_tokens": 0, "total_cost": 0, "avg_tokens_per_request": 0},
-            "recent_logs": [],
-            "all_logs": []
-        })
+    try:
+        return JSONResponse(get_token_usage_summary())
+    except Exception as e:
+        return JSONResponse({"error": f"读取Token记录失败: {e}"}, status_code=500)
 
 # 根据API服务提供商提供特定的端点
 if "flux_bfl" in APIConfig.ALL_PROVIDERS:
-    @app.post("/resume-bfl/{task_id}")
+    @router.post("/resume-bfl/{task_id}")
     async def resume_bfl(task_id: str):
         """根据保存的 bfl_polling_url 继续轮询并把图片落地（断点续跑）。"""
         task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
@@ -1182,12 +859,12 @@ if "flux_bfl" in APIConfig.ALL_PROVIDERS:
         if not polling_url:
             return JSONResponse({"error": "无 bfl_polling_url 可恢复"}, status_code=400)
         # 若文件已存在，直接返回
-        output_file, original_file, watermark_file = generate_output_filenames(task_dir, params.get("input_image", "output.png"), "png")
+        _output_file, original_file, watermark_file = generate_output_filenames(task_dir, params.get("input_image", "output.png"), "png")
         if os.path.exists(original_file):
             return JSONResponse({"message": "文件已存在", "files": [f"/taskfile/{task_id}/{os.path.basename(original_file)}"]})
         # 轮询
         try:
-            client = app.state.long_http_client
+            client = get_long_http_client()
             output_url = None
             raw_final = None
             waited = 0
@@ -1228,7 +905,7 @@ if "flux_bfl" in APIConfig.ALL_PROVIDERS:
             if not output_url:
                 return JSONResponse({"error": "轮询超时或未返回图片 URL"}, status_code=504)
             # 下载并保存
-            await download_and_process_image_async_optimized(task_id, task_dir, output_url, params.get("input_image", "output.png"))
+            await save_generated_image_outputs(task_id, task_dir, output_url, params.get("input_image", "output.png"))
             # 保存响应
             try:
                 with open(os.path.join(task_dir, "bfl_response.json"), 'w', encoding='utf-8') as rf:
@@ -1246,4 +923,3 @@ if "flux_bfl" in APIConfig.ALL_PROVIDERS:
             })
         except Exception as e:
             return JSONResponse({"error": f"恢复失败: {e}"}, status_code=500)
-

@@ -7,7 +7,7 @@ import os
 import asyncio
 import replicate
 from datetime import datetime
-from config import APIConfig
+from app.core.config import APIConfig
 
 class Seedream4ReplicateClient:
     """Seedream-4 Replicate API客户端"""

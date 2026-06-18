@@ -15,7 +15,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 import io
-from config import APIConfig, STYLE_PROMPTS, ArtStyleEnum
+from app.core.config import APIConfig, STYLE_PROMPTS, ArtStyleEnum
 
 class GeminiClient:
     """Gemini API客户端"""

@@ -11,8 +11,8 @@ import base64
 import mimetypes
 import httpx
 import asyncio
-from config import APIConfig
-from core import create_response_record
+from app.core.config import APIConfig
+from app.core.helpers import create_response_record
 from PIL import Image
 
 class FluxClient:

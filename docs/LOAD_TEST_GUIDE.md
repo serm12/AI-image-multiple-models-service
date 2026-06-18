@@ -20,7 +20,7 @@
 
 ```bash
 # 先启动服务
-wsl -e bash -lc "cd /mnt/c/Users/yt640/Documents/Python/AI-image-multiple-models-service && source .venv-linux/bin/activate && python run.py"
+wsl -e bash -lc "cd /mnt/c/Users/yt640/Documents/Python/AI-image-multiple-models-service && source .venv-linux/bin/activate && python -m app.run"
 
 # 新开一个终端，运行快速测试
 python tests/quick_test.py
@@ -179,7 +179,7 @@ python tests/load_test.py --concurrency 5 --duration 1800 --mode mixed
 ❌ 连接失败: Cannot connect to host localhost:8001
 ```
 **解决方案：**
-- 确保服务已启动：`python run.py`
+- 确保服务已启动：`python -m app.run`
 - 检查端口是否正确：`.env` 中 `PORT=8001`
 - 如果用 WSL，确保 WSL 网络配置正确
 
