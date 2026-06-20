@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="AI Image Generation API" \
-      org.opencontainers.image.version="2.1.0" \
-      org.opencontainers.image.created="2026-06-18"
+    org.opencontainers.image.version="2.1.1" \
+    org.opencontainers.image.created="2026-06-20"
 
 # 安装运行时依赖
 # libgl1, libglib2.0-0: opencv-headless 运行需要
