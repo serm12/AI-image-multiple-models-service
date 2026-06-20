@@ -100,15 +100,12 @@ class UnifiedAPIClient:
             width / height / size: Seedream 尺寸参数
             sequential_image_generation: Seedream 顺序生成参数
             task_id: 任务ID（OpenRouter 需要）
-            provider: 服务提供商，可选值见 APIConfig.ALL_PROVIDERS。必须传入。
+            provider: 服务提供商，可选值见 APIConfig.ALL_PROVIDERS；空值回退到 IMAGE_GENERATION_PROVIDER。
 
         Returns:
             dict: 生成结果
         """
-        if not provider:
-            raise ValueError("provider 是必填参数，可选值见 /provider-options")
-        effective_provider = provider
-        APIConfig.validate_provider(effective_provider)
+        effective_provider = APIConfig.resolve_provider(provider)
 
         if effective_provider == "gemini-nanobanana_google":
             return await self._generate_with_gemini(

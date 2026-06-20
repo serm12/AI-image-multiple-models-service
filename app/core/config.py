@@ -40,6 +40,8 @@ class AlgorithmConfig:
         return current_year * cls.ALGORITHM_FACTOR
 # API配置
 class APIConfig:
+    IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "seedream-4_replicate").strip() or "seedream-4_replicate"
+
     # Replicate 配置（用于生图流程或者放大流程...等其他流程）
     REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
     # Fireworks AI API配置
@@ -104,7 +106,7 @@ class APIConfig:
         "gemini-nanobanana_google": {
             "label": "Google Gemini API (Nano-Banana)",
             "key": "GOOGLE_GEMINI_API_KEY",
-            "aspect_ratios": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            "aspect_ratios": ["match_input_image", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
             # Source: https://ai.google.dev/gemini-api/docs/image-generation
         },
         "gemini-nanobanana_replicate": {
@@ -116,7 +118,7 @@ class APIConfig:
         "gemini-nanobanana_openrouter": {
             "label": "OpenRouter API (Nano-Banana)",
             "key": "OPENROUTER_API_KEY",
-            "aspect_ratios": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+            "aspect_ratios": ["match_input_image", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
             # Source: https://openrouter.ai/docs/features/multimodal/images
         },
         "seedream-4_replicate": {
@@ -175,6 +177,17 @@ class APIConfig:
             raise ValueError(f"使用 {provider} 需要设置环境变量 {key_name}")
 
     @classmethod
+    def resolve_provider(cls, provider: str | None, validate_config: bool = True) -> str:
+        """解析本次请求使用的 provider；空值回退到 IMAGE_GENERATION_PROVIDER。"""
+        provider_value = getattr(provider, "value", provider)
+        effective_provider = (provider_value or cls.IMAGE_GENERATION_PROVIDER).strip()
+        if validate_config:
+            cls.validate_provider(effective_provider)
+        elif effective_provider not in cls.ALL_PROVIDERS:
+            raise ValueError(f"不支持的默认服务提供商: {effective_provider}，可选: {cls.ALL_PROVIDERS}")
+        return effective_provider
+
+    @classmethod
     def validate_aspect_ratio(cls, provider: str, aspect_ratio: str):
         """校验 provider 是否支持指定 aspect_ratio；空列表表示该 provider 不使用此参数。"""
         ratio_value = getattr(aspect_ratio, "value", aspect_ratio)
@@ -191,7 +204,7 @@ class APIConfig:
             provider: {
                 "label": config.get("label", provider),
                 "configured": bool(getattr(cls, config.get("key"), None)) if config.get("key") else True,
-                "is_default": False,
+                "is_default": provider == cls.IMAGE_GENERATION_PROVIDER,
                 "aspect_ratios": config.get("aspect_ratios", []),
                 "uses_aspect_ratio": bool(config.get("aspect_ratios", [])),
                 "sizes": config.get("sizes", []),
@@ -212,7 +225,7 @@ class APIConfig:
                 "provider": p,
                 "label": config.get("label", p),
                 "configured": configured,
-                "is_default": False,
+                "is_default": p == cls.IMAGE_GENERATION_PROVIDER,
             })
         return result
 

@@ -79,7 +79,7 @@ async def get_version():
 
 @router.post("/generate-async/")
 async def generate_image_async(
-    provider: ProviderEnum = Form(...),  # 必选服务提供商；Swagger 中显示为下拉选择
+    provider: str | None = Form(None),  # 可选；空值回退到 IMAGE_GENERATION_PROVIDER
     prompt: str = Form(...),
     aspect_ratio: AspectRatioEnum = Form(AspectRatioEnum.ratio_3_4),
     output_format: OutputFormatEnum = Form(OutputFormatEnum.png),
@@ -104,10 +104,8 @@ async def generate_image_async(
     flux_model_variant = FluxModelEnum.pro
 
     # 2. provider: 确定本次请求实际使用的服务商并做运行时校验
-    provider_value = provider.value if isinstance(provider, ProviderEnum) else provider
-    effective_provider = (provider_value or "").strip()
     try:
-        APIConfig.validate_provider(effective_provider)
+        effective_provider = APIConfig.resolve_provider(provider)
         APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)

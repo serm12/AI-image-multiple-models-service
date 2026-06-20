@@ -83,6 +83,55 @@ def main() -> int:
     else:
         checks.append(("generate validation without input image", True, "SKIP no configured provider"))
 
+    previous_default_provider = APIConfig.IMAGE_GENERATION_PROVIDER
+    previous_bfl_key = APIConfig.BFL_API_KEY
+    try:
+        APIConfig.IMAGE_GENERATION_PROVIDER = "flux_bfl"
+        APIConfig.BFL_API_KEY = "smoke-test-key"
+        response = client.post(
+            "/generate-async/",
+            data={
+                "provider": "",
+                "prompt": "smoke test default provider",
+                "aspect_ratio": "3:4",
+                "output_format": "png",
+                "art_style": "flux_realistic",
+            },
+        )
+        checks.append(
+            (
+                "generate empty provider uses default",
+                response.status_code == 500 and "必须提供 files 或 input_image_url" in response.text,
+                f"POST /generate-async/ empty provider -> {response.status_code}",
+            )
+        )
+    finally:
+        APIConfig.IMAGE_GENERATION_PROVIDER = previous_default_provider
+        APIConfig.BFL_API_KEY = previous_bfl_key
+
+    previous_google_key = APIConfig.GOOGLE_GEMINI_API_KEY
+    try:
+        APIConfig.GOOGLE_GEMINI_API_KEY = "smoke-test-key"
+        response = client.post(
+            "/generate-async/",
+            data={
+                "provider": "gemini-nanobanana_google",
+                "prompt": "smoke test gemini automatic dimension",
+                "aspect_ratio": "match_input_image",
+                "output_format": "png",
+                "art_style": "gemini_realistic",
+            },
+        )
+        checks.append(
+            (
+                "generate gemini match input dimension",
+                response.status_code == 500 and "必须提供 files 或 input_image_url" in response.text,
+                f"POST /generate-async/ gemini match_input_image -> {response.status_code}",
+            )
+        )
+    finally:
+        APIConfig.GOOGLE_GEMINI_API_KEY = previous_google_key
+
     checks.append(("upscale external call", True, "SKIP would call external Replicate API"))
 
     if "flux_bfl" in APIConfig.ALL_PROVIDERS:
