@@ -41,6 +41,8 @@ services:
     volumes:
       - ./tasks:/app/tasks
       - ./logs:/app/logs
+    healthcheck:
+      disable: true
     entrypoint: ["python", "scripts/cleanup_scheduler.py", "--loop", "--interval", "86400"]
     # 或者用 cron 方式（取消下面注释，注释掉上面的 entrypoint）
     # entrypoint: ["/bin/sh", "-c", "while true; do python scripts/cleanup_scheduler.py; sleep 86400; done"]
