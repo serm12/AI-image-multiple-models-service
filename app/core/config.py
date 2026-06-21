@@ -382,6 +382,9 @@ class ArtStyleEnum(str, Enum):
     # Seedream-4 Fal.ai 风格
     seedream_4_fal_realistic = "seedream-4_fal_realistic"
 
+    # 通用风格
+    style_3d_cartoon_doll = "3d_cartoon_doll"
+
 
 # 风格提示词映射
 STYLE_PROMPTS = {
@@ -421,6 +424,9 @@ STYLE_PROMPTS = {
 
     # Seedream-4 Fal.ai 风格提示词
     ArtStyleEnum.seedream_4_fal_realistic: "",
+
+    # 通用风格提示词
+    ArtStyleEnum.style_3d_cartoon_doll: "3D cartoon doll style, cute collectible toy figure, soft vinyl doll look, rounded facial features, glossy eyes, smooth plastic texture, charming stylized proportions, playful product render, clean detailed 3D character design, ",
     
 
 }
@@ -463,6 +469,9 @@ STYLE_DESCRIPTIONS = {
 
     # Seedream-4 Fal.ai 风格描述
     "seedream-4_fal_realistic": "Seedream4 (Fal.ai) 写实风格 - 保持真实感，不添加艺术效果",
+
+    # 通用风格描述
+    "3d_cartoon_doll": "3D卡通娃娃风格 - 可爱收藏玩具质感，圆润五官和3D卡通比例",
     
 }
     
