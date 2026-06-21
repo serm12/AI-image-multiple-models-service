@@ -17,3 +17,6 @@ __pycache__/
 
 # Logs
 /logs/
+
+# Agent/local metadata
+.claude/
