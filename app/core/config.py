@@ -17,6 +17,10 @@ class AppConfig:
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
     PORT = int(os.getenv("PORT", "8001"))
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+    CORS_ORIGIN_REGEX = (
+        os.getenv("CORS_ORIGIN_REGEX", r"https://([a-zA-Z0-9-]+\.)*shopifypreview\.com").strip()
+        or None
+    )
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
     ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
     MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "4"))

@@ -76,6 +76,7 @@ app.openapi = custom_openapi
 app.add_middleware(
     CORSMiddleware,
     allow_origins=AppConfig.CORS_ORIGINS,
+    allow_origin_regex=AppConfig.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
