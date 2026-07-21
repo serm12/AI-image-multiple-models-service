@@ -15,7 +15,7 @@ aiofiles>=0.7.0
 
 # 图像处理
 Pillow>=8.3.0
-opencv-python-headless>=4.10.0
+opencv-python-headless>=4.10.0,<5
 
 # 表单数据处理
 python-multipart>=0.0.13
