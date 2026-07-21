@@ -204,9 +204,7 @@ def create_logo_watermark(
     padding = padding or WatermarkConfig.DEFAULT_PADDING
     color = color or WatermarkConfig.DEFAULT_COLOR
     out_path = out_path or WatermarkConfig.LOGO_PATH
-    if os.path.exists(out_path):
-        print(f"水印logo已存在: {out_path}")
-        return
+    # 每次服务启动时都按当前配置重新生成，确保透明度等配置修改能够生效。
     try:
         font = ImageFont.truetype(font_path, font_size)
         print(f"使用自带字体: {font_path}, 字号: {font_size}")
