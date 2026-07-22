@@ -305,8 +305,8 @@ class WatermarkConfig:
     DEFAULT_FONT_PATH = "assets/holidayvibesfreeregular-wppxv.ttf"
     DEFAULT_FONT_SIZE = 48
     # 铺满画面的 Paintingify 文字水印颜色；最后一位是 alpha 值（0=完全透明，255=完全不透明）。
-    # 140 约等于 55% 不透明度。
-    DEFAULT_COLOR = (255, 255, 255, 140)
+    # 80 约等于 31% 不透明度。
+    DEFAULT_COLOR = (255, 255, 255, 80)
     DEFAULT_ANGLE = 30
     DEFAULT_STEP = 120
     DEFAULT_PADDING = 10
