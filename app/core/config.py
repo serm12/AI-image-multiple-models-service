@@ -381,6 +381,7 @@ class ArtStyleEnum(str, Enum):
     gemini_digital_paint_glossy = "gemini_digital_paint_glossy"
     gemini_acrylic = "gemini_acrylic"
     gemini_watercolor = "gemini_watercolor"
+    chatgpt_bright_cartoon_adventure = "chatgpt_bright_cartoon_adventure"
 
     # Seedream-4 Replicate 风格
     seedream_4_realistic = "seedream-4_realistic"
@@ -424,6 +425,7 @@ STYLE_PROMPTS = {
     ArtStyleEnum.gemini_thick_paint_portrait: "thick paint portrait style, heavy impasto technique, precise facial feature preservation, accurate character likeness, detailed facial anatomy, thick paint texture while maintaining facial accuracy, layered paint application with careful attention to facial details, portrait-focused thick paint work, dimensional character portraiture, facial feature emphasis, authentic character representation, sculptural paint work on facial features, rich color depth in skin tones, dramatic lighting that enhances facial structure, painterly portrait technique, thick paint medium optimized for character accuracy, detailed facial rendering with impasto texture, portrait-quality thick paint illustration, character-focused dimensional artwork, ",
     ArtStyleEnum.gemini_acrylic: "acrylic painting style, vibrant acrylic colors, bold brushstrokes, matte finish, contemporary acrylic art, bright pigments, modern acrylic technique, plastic paint medium, quick-drying paint, colorful acrylic artwork, abstract acrylic style, expressive acrylic brushwork, contemporary art style, acrylic on canvas, vivid color palette, modern painting technique, artistic acrylic expression, bold color application, acrylic paint texture, contemporary acrylic masterpiece, ",
     ArtStyleEnum.gemini_watercolor: "watercolor painting style, soft watercolor washes, translucent layers, paper texture, watercolor bloom effects, delicate brush strokes, flowing watercolor technique, transparent pigments, aquarelle style, wet-on-wet technique, watercolor gradients, soft color transitions, artistic watercolor expression, traditional watercolor method, gentle color blending, watercolor paper texture, ethereal watercolor effects, fluid paint application, watercolor transparency, dreamy watercolor atmosphere, ",
+    ArtStyleEnum.chatgpt_bright_cartoon_adventure: "bright colorful 3D cartoon movie style, vibrant family-friendly animated adventure look, polished character render, soft rounded facial features, expressive eyes, glossy cinematic lighting, tropical fantasy colors, turquoise ocean, sunny blue sky, magical golden sparkles, cheerful adventure atmosphere, clean high-detail animation concept art, charming storybook fantasy, smooth detailed 3D character design, lively dynamic pose, joyful warm expression, glossy water splashes, premium animated film aesthetic, ",
     
     # Seedream-4 风格提示词
     ArtStyleEnum.seedream_4_realistic: "",
@@ -469,6 +471,7 @@ STYLE_DESCRIPTIONS = {
     "gemini_digital_paint_glossy": "Gemini数字绘画高光风格 - 光滑数字绘画技法，专注面部特征",
     "gemini_acrylic": "Gemini丙烯画风格 - 鲜艳的丙烯颜色，现代绘画技法",
     "gemini_watercolor": "Gemini水彩风格 - 柔和水彩洗染效果，透明层次",
+    "chatgpt_bright_cartoon_adventure": "ChatGPT亮丽卡通冒险风格 - 明亮热带色彩，3D动画电影质感，魔法闪光和欢乐冒险氛围",
     
     # Seedream-4 风格描述
     "seedream-4_realistic": "Seedream4写实风格 - 保持真实感，不添加艺术效果",
