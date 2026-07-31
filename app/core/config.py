@@ -313,7 +313,7 @@ class WatermarkConfig:
     DEFAULT_STEP = 120
     DEFAULT_PADDING = 10
     DEFAULT_BLEND_MODE = "screen"
-    DEFAULT_RESIZE_SCALE = 0.8
+    DEFAULT_RESIZE_SCALE = 0.5
 
     @classmethod
     def get_resize_scale(cls):
@@ -327,10 +327,10 @@ class WatermarkConfig:
 
     LOGO_PATH = "assets/logo_watermark.png"
     CENTER_LOGO_PATH = "assets/logo_watermark_big_black.png"
-    CENTER_LOGO_COUNT = 3
+    CENTER_LOGO_COUNT = 1
     CENTER_LOGO_WIDTH_RATIO = 0.88
-    CENTER_LOGO_OPACITY = 0.36
-    CENTER_LOGO_OFFSET_RATIO = 0.03
+    CENTER_LOGO_OPACITY = 0.55
+    CENTER_LOGO_VERTICAL_OFFSET_RATIO = 0.10
 
     CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
     CORNER_LABEL_FONT_PATH = "assets/arial.ttf"

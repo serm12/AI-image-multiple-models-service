@@ -357,13 +357,12 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
             lambda value: int(value * WatermarkConfig.CENTER_LOGO_OPACITY)
         )
         center_logo.putalpha(alpha)
-        offset = int(min(image.width, image.height) * WatermarkConfig.CENTER_LOGO_OFFSET_RATIO)
+        vertical_offset = int(image.height * WatermarkConfig.CENTER_LOGO_VERTICAL_OFFSET_RATIO)
 
         for index in range(WatermarkConfig.CENTER_LOGO_COUNT):
-            shift = (index - (WatermarkConfig.CENTER_LOGO_COUNT - 1) / 2) * offset
             position = (
-                int((image.width - center_logo.width) / 2 + shift),
-                int((image.height - center_logo.height) / 2 + shift),
+                (image.width - center_logo.width) // 2,
+                (image.height - center_logo.height) // 2 + vertical_offset,
             )
             watermark_layer.paste(center_logo, position, center_logo)
         blend_mode = "normal"
