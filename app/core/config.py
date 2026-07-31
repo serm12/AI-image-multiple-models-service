@@ -301,6 +301,8 @@ class AspectRatioEnum(str, Enum):
 
 # 水印配置
 class WatermarkConfig:
+    # 水印铺设样式：tiled 为原有全屏平铺，center 为画面中央单个水印。
+    STYLE = os.getenv("WATERMARK_STYLE", "tiled").strip().lower() or "tiled"
     DEFAULT_TEXT = "Paintingify"
     DEFAULT_FONT_PATH = "assets/holidayvibesfreeregular-wppxv.ttf"
     DEFAULT_FONT_SIZE = 48
@@ -324,6 +326,11 @@ class WatermarkConfig:
     MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]
 
     LOGO_PATH = "assets/logo_watermark.png"
+    CENTER_LOGO_PATH = "assets/logo_watermark_big_black.png"
+    CENTER_LOGO_COUNT = 3
+    CENTER_LOGO_WIDTH_RATIO = 0.88
+    CENTER_LOGO_OPACITY = 0.36
+    CENTER_LOGO_OFFSET_RATIO = 0.03
 
     CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
     CORNER_LABEL_FONT_PATH = "assets/arial.ttf"

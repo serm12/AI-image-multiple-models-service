@@ -348,7 +348,26 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     # 生成随机种子（基于图片内容，确保同图片结果一致）
     random.seed(hash(str(image.size)) % 2147483647)
     
-    if WatermarkConfig.ENABLE_RANDOM_PATTERNS:
+    if WatermarkConfig.STYLE == "center":
+        center_logo = Image.open(WatermarkConfig.CENTER_LOGO_PATH).convert("RGBA")
+        center_logo_width = max(1, int(image.width * WatermarkConfig.CENTER_LOGO_WIDTH_RATIO))
+        center_logo_height = max(1, int(center_logo.height * center_logo_width / center_logo.width))
+        center_logo = center_logo.resize((center_logo_width, center_logo_height), Image.Resampling.LANCZOS)
+        alpha = center_logo.getchannel("A").point(
+            lambda value: int(value * WatermarkConfig.CENTER_LOGO_OPACITY)
+        )
+        center_logo.putalpha(alpha)
+        offset = int(min(image.width, image.height) * WatermarkConfig.CENTER_LOGO_OFFSET_RATIO)
+
+        for index in range(WatermarkConfig.CENTER_LOGO_COUNT):
+            shift = (index - (WatermarkConfig.CENTER_LOGO_COUNT - 1) / 2) * offset
+            position = (
+                int((image.width - center_logo.width) / 2 + shift),
+                int((image.height - center_logo.height) / 2 + shift),
+            )
+            watermark_layer.paste(center_logo, position, center_logo)
+        blend_mode = "normal"
+    elif WatermarkConfig.ENABLE_RANDOM_PATTERNS:
         # 随机化处理
         for y in range(0, image.height, step):
             for x in range(0, image.width, step):
@@ -385,7 +404,7 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
                 watermark_layer.paste(logo, (x, y), logo)
     
     # 随机选择混合模式
-    if WatermarkConfig.ENABLE_RANDOM_PATTERNS and hasattr(WatermarkConfig, 'MULTIPLE_BLEND_MODES'):
+    if WatermarkConfig.STYLE != "center" and WatermarkConfig.ENABLE_RANDOM_PATTERNS and hasattr(WatermarkConfig, 'MULTIPLE_BLEND_MODES'):
         blend_mode = random.choice(WatermarkConfig.MULTIPLE_BLEND_MODES)
     
     watermarked = blend_images(image, watermark_layer, blend_mode)
