@@ -83,7 +83,7 @@ async def generate_image_async(
     prompt: str = Form(...),
     aspect_ratio: AspectRatioEnum = Form(AspectRatioEnum.ratio_3_4),
     output_format: OutputFormatEnum = Form(OutputFormatEnum.png),
-    art_style: ArtStyleEnum = Form(ArtStyleEnum.flux_realistic),
+    art_style: str | None = Form(None),
     seed: str = Form(None),  # 接受字符串类型的seed
     use_last_seed: bool = Form(False),
     description: str = Form(""),
@@ -162,7 +162,17 @@ async def generate_image_async(
                 final_seed = last_seed
         
         # 4. 准备参数
-        style_prompt = STYLE_PROMPTS.get(art_style, "")
+        normalized_art_style = ""
+        style_prompt = ""
+        art_style_value = (art_style or "").strip()
+        if art_style_value:
+            try:
+                recognized_art_style = ArtStyleEnum(art_style_value)
+            except ValueError:
+                recognized_art_style = None
+            if recognized_art_style is not None:
+                normalized_art_style = recognized_art_style.value
+                style_prompt = STYLE_PROMPTS.get(recognized_art_style, "")
         final_prompt = style_prompt + prompt
         
         # 生成一个用于文件命名的安全名称（URL 情况）
@@ -178,7 +188,7 @@ async def generate_image_async(
         params = {
             "prompt": final_prompt,
             "original_prompt": prompt,
-            "art_style": art_style.value,
+            "art_style": normalized_art_style,
             "aspect_ratio": aspect_ratio.value,
             "output_format": output_format.value,
             "flux_model_variant": flux_model_variant.value,
