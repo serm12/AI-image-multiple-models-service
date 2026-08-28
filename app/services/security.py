@@ -106,3 +106,14 @@ def get_request_client_ip(request: Request) -> str:
         except ValueError:
             continue
     return peer_ip or "unknown"
+
+
+def get_request_country(request: Request) -> str:
+    """Return Cloudflare's ISO country code only for requests from a trusted proxy."""
+    peer_ip = request.client.host if request.client else ""
+    if not _is_trusted_proxy(peer_ip):
+        return ""
+    country = request.headers.get("cf-ipcountry", "").strip().upper()
+    if len(country) == 2 and country.isalpha():
+        return country
+    return ""

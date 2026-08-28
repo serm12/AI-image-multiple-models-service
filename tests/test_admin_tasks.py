@@ -9,7 +9,7 @@ from starlette.requests import Request
 
 from app.core.config import AppConfig, DirectoryConfig
 from app.main import app
-from app.services.security import get_request_client_ip
+from app.services.security import get_request_client_ip, get_request_country
 
 
 class AdminTasksTests(unittest.TestCase):
@@ -38,6 +38,8 @@ class AdminTasksTests(unittest.TestCase):
                     "original_prompt": "<script>alert(1)</script>",
                     "request_url": "https://image-api.example/generate-async/",
                     "client_ip": "203.0.113.5",
+                    "client_country": "US",
+                    "generation_duration_seconds": 12.34,
                     "api_provider": "test-provider",
                 },
                 file,
@@ -52,6 +54,8 @@ class AdminTasksTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("203.0.113.5", response.text)
+        self.assertIn("US", response.text)
+        self.assertIn("12.3 秒", response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
 
@@ -90,6 +94,7 @@ class AdminTasksTests(unittest.TestCase):
                 "path": "/generate-async/",
                 "headers": [
                     (b"cf-connecting-ip", b"203.0.113.9"),
+                    (b"cf-ipcountry", b"US"),
                     (b"x-forwarded-for", b"203.0.113.9, 172.71.152.93"),
                 ],
                 "client": ("172.71.152.93", 1234),
@@ -99,6 +104,7 @@ class AdminTasksTests(unittest.TestCase):
         )
 
         self.assertEqual(get_request_client_ip(request), "203.0.113.9")
+        self.assertEqual(get_request_country(request), "US")
 
     def test_cf_header_is_ignored_from_untrusted_public_client(self):
         request = Request(
@@ -114,6 +120,7 @@ class AdminTasksTests(unittest.TestCase):
         )
 
         self.assertEqual(get_request_client_ip(request), "198.51.100.5")
+        self.assertEqual(get_request_country(request), "")
 
 
 if __name__ == "__main__":

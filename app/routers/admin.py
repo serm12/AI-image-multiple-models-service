@@ -27,13 +27,21 @@ def _task_row(task: dict) -> str:
         else '<span class="muted">旧任务未记录</span>'
     )
     client_ip = _text(task.get("client_ip")) or '<span class="muted">—</span>'
+    country = _text(task.get("client_country")) or '<span class="muted">—</span>'
+    duration_value = task.get("generation_duration_seconds")
+    try:
+        duration = f"{float(duration_value):.1f} 秒"
+    except (TypeError, ValueError):
+        duration = '<span class="muted">—</span>'
     return (
         "<tr>"
         f'<td><code>{_text(task["task_id"])}</code></td>'
         f'<td><span class="status">{_text(task["status"])}</span></td>'
         f'<td>{_text(task["created_at"])}</td>'
+        f"<td>{duration}</td>"
         f'<td>{_text(task.get("api_provider"))}</td>'
         f"<td>{client_ip}</td>"
+        f"<td>{country}</td>"
         f'<td class="url">{request_link}</td>'
         f'<td class="prompt">{_text(task.get("prompt"))}</td>'
         f'<td><div class="images">{images}</div></td>'
@@ -45,7 +53,7 @@ def _task_row(task: dict) -> str:
 def admin_tasks(_username: str = Depends(require_admin_login)):
     data = list_task_summaries()
     rows = "".join(_task_row(task) for task in data["tasks"])
-    body = rows or '<tr><td colspan="8" class="empty">暂无任务记录</td></tr>'
+    body = rows or '<tr><td colspan="10" class="empty">暂无任务记录</td></tr>'
     return HTMLResponse(
         f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -58,6 +66,6 @@ table{{width:100%;border-collapse:collapse;min-width:1250px}}th,td{{padding:12px
 code{{font-size:12px}}.status{{display:inline-block;padding:3px 8px;border-radius:999px;background:#edf7ed;color:#287a35}}.url{{max-width:260px;word-break:break-all}}.prompt{{max-width:320px;white-space:pre-wrap}}a{{color:#1769d2}}.images{{display:flex;gap:6px;max-width:360px;overflow:auto}}.images img{{display:block;width:72px;height:72px;object-fit:cover;border-radius:7px;border:1px solid #dbe2ea}}.empty{{padding:50px;text-align:center;color:#718096}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="count">共 {_text(data['total'])} 条任务</div></div><a href="/health" target="_blank">服务状态</a></header>
-<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>Provider</th><th>访客 IP</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
+<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 </main></body></html>"""
     )

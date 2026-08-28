@@ -34,6 +34,10 @@ def list_task_summaries() -> dict:
                     "api_provider": params.get("api_provider"),
                     "request_url": params.get("request_url", ""),
                     "client_ip": params.get("client_ip", ""),
+                    "client_country": params.get("client_country", ""),
+                    "generation_duration_seconds": params.get(
+                        "generation_duration_seconds"
+                    ),
                     "user_agent": params.get("user_agent", ""),
                     "prompt": params.get("original_prompt", params.get("prompt", "")),
                     "output_files": [

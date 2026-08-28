@@ -3,6 +3,7 @@ import os
 import json
 import asyncio
 import aiofiles
+import time
 from fastapi import APIRouter, File, UploadFile, Form, Request, Depends
 from fastapi.responses import JSONResponse
 
@@ -19,7 +20,11 @@ from app.services.task_query_service import (
     get_token_usage_summary,
     list_task_summaries,
 )
-from app.services.security import get_request_client_ip, require_admin_api_key
+from app.services.security import (
+    get_request_client_ip,
+    get_request_country,
+    require_admin_api_key,
+)
 from app.services.seed_history import get_all_seeds_from_tasks, get_last_seed_from_tasks
 from app.services.task_files import (
     resolve_task_file_path,
@@ -209,7 +214,9 @@ async def generate_image_async(
             "api_provider": effective_provider,  # 记录本次请求实际使用的服务提供商
             "request_url": str(request.url),
             "client_ip": get_request_client_ip(request),
+            "client_country": get_request_country(request),
             "user_agent": request.headers.get("user-agent", "")[:500],
+            "started_at_epoch": time.time(),
         }
         
         # 5. 异步保存参数
@@ -288,6 +295,29 @@ async def process_generation_background(
     except Exception as e:
         print(f"❌ 后台任务 {task_id} 失败: {e}")
         task_manager.set_task_failed(task_id, str(e))
+    finally:
+        completed_at = time.time()
+        started_at = params.get("started_at_epoch", completed_at)
+        try:
+            duration = max(0.0, completed_at - float(started_at))
+        except (TypeError, ValueError):
+            duration = 0.0
+        params_path = os.path.join(task_dir, "params.json")
+        try:
+            async with aiofiles.open(params_path, "r", encoding="utf-8") as file:
+                stored_params = json.loads(await file.read())
+        except Exception:
+            stored_params = dict(params)
+        stored_params.update(
+            {
+                "completed_at_epoch": completed_at,
+                "generation_duration_seconds": round(duration, 2),
+            }
+        )
+        async with aiofiles.open(params_path, "w", encoding="utf-8") as file:
+            await file.write(
+                json.dumps(stored_params, ensure_ascii=False, separators=(",", ":"))
+            )
 
 async def _do_generation_work(
     task_id: str, task_dir: str, prompt: str, input_image_paths: list[str],
