@@ -20,6 +20,11 @@ class WatermarkConfigTests(unittest.TestCase):
         self.assertEqual(bounded, 1.0)
         self.assertEqual(fallback, 0.75)
 
+    def test_watermark_output_scale_reads_valid_value(self):
+        with patch.dict(os.environ, {"WATERMARK_OUTPUT_SCALE": "0.75"}):
+            value = env_float("WATERMARK_OUTPUT_SCALE", 0.5, 0.1, 1.0)
+        self.assertEqual(value, 0.75)
+
 
 if __name__ == "__main__":
     unittest.main()

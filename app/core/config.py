@@ -330,7 +330,7 @@ class WatermarkConfig:
     DEFAULT_STEP = 120
     DEFAULT_PADDING = 10
     DEFAULT_BLEND_MODE = "screen"
-    DEFAULT_RESIZE_SCALE = 0.5
+    DEFAULT_RESIZE_SCALE = env_float("WATERMARK_OUTPUT_SCALE", 0.5, 0.1, 1.0)
 
     @classmethod
     def get_resize_scale(cls):
