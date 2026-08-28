@@ -350,7 +350,14 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     
     if WatermarkConfig.STYLE == "center":
         center_logo = Image.open(WatermarkConfig.CENTER_LOGO_PATH).convert("RGBA")
-        center_logo_width = max(1, int(image.width * WatermarkConfig.CENTER_LOGO_WIDTH_RATIO))
+        center_logo_width = max(
+            1,
+            int(
+                image.width
+                * WatermarkConfig.CENTER_LOGO_WIDTH_RATIO
+                * WatermarkConfig.CENTER_LOGO_SCALE
+            ),
+        )
         center_logo_height = max(1, int(center_logo.height * center_logo_width / center_logo.width))
         center_logo = center_logo.resize((center_logo_width, center_logo_height), Image.Resampling.LANCZOS)
         alpha = center_logo.getchannel("A").point(

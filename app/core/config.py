@@ -12,6 +12,15 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
+
+def env_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    """Read a bounded float without making the service fail on an invalid env value."""
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(maximum, value))
+
 # 应用配置
 class AppConfig:
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
@@ -337,6 +346,7 @@ class WatermarkConfig:
     CENTER_LOGO_PATH = "assets/logo_watermark_big_black.png"
     CENTER_LOGO_COUNT = 1
     CENTER_LOGO_WIDTH_RATIO = 0.88
+    CENTER_LOGO_SCALE = env_float("WATERMARK_CENTER_LOGO_SCALE", 1.0, 0.05, 1.0)
     CENTER_LOGO_OPACITY = 0.55
     CENTER_LOGO_VERTICAL_OFFSET_RATIO = 0.10
 
