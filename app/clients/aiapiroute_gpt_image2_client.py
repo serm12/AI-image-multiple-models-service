@@ -17,6 +17,7 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import APIConfig
+from app.utils.reference_image_utils import image_file_to_cropped_data_url
 
 AIAPIROUTE_IMAGE_MAX_EDGE = 3840
 AIAPIROUTE_IMAGE_MIN_PIXELS = 655_360
@@ -71,15 +72,24 @@ class AIApiRouteGPTImageClient:
         if quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY:
             payload["quality"] = quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY
 
+        force_reference_ratio = self._should_force_reference_ratio()
+        if force_reference_ratio:
+            self._validate_reference_ratio(APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO)
+
         if reference_images:
-            payload["images"] = [{"image_url": self._to_data_url(image)} for image in reference_images]
+            payload["images"] = [
+                {"image_url": self._to_request_data_url(image, force_reference_ratio)}
+                for image in reference_images
+            ]
 
         endpoint = "/v1/images/edits" if reference_images else "/v1/images/generations"
         response_data, raw_text = await self._post_json(endpoint, payload, stream=should_stream)
         b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
 
         if not b64_image and reference_images and endpoint == "/v1/images/edits":
-            response_payload = self._build_responses_payload(full_prompt, reference_images, request_size, quality)
+            response_payload = self._build_responses_payload(
+                full_prompt, reference_images, request_size, quality, force_reference_ratio
+            )
             response_data, raw_text = await self._post_json("/v1/responses", response_payload, stream=False)
             b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
             endpoint = "/v1/responses"
@@ -97,7 +107,11 @@ class AIApiRouteGPTImageClient:
             "status": "succeeded",
             "output": data_url,
             "output_for_json": "base64_data_removed_for_brevity",
-            "logs": f"aiapiroute GPT-image endpoint={endpoint}, size={request_size}",
+            "logs": (
+                f"aiapiroute GPT-image endpoint={endpoint}, size={request_size}, "
+                f"forced_reference_ratio="
+                f"{APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO if force_reference_ratio else 'disabled'}"
+            ),
             "input": {
                 "prompt": prompt,
                 "model": self.model,
@@ -137,10 +151,20 @@ class AIApiRouteGPTImageClient:
         except json.JSONDecodeError:
             return {}, text
 
-    def _build_responses_payload(self, prompt: str, reference_images: list[str], size: str, quality: Optional[str]):
+    def _build_responses_payload(
+        self,
+        prompt: str,
+        reference_images: list[str],
+        size: str,
+        quality: Optional[str],
+        force_reference_ratio: bool = False,
+    ):
         content = [{"type": "input_text", "text": prompt}]
         for image in reference_images:
-            content.append({"type": "input_image", "image_url": self._to_data_url(image)})
+            content.append({
+                "type": "input_image",
+                "image_url": self._to_request_data_url(image, force_reference_ratio),
+            })
 
         tool = {"type": "image_generation", "size": size}
         if quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY:
@@ -151,6 +175,35 @@ class AIApiRouteGPTImageClient:
             "input": [{"role": "user", "content": content}],
             "tools": [tool],
         }
+
+    def _should_force_reference_ratio(self) -> bool:
+        return (
+            APIConfig.AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO
+            and self.model == APIConfig.AIAPIROUTE_GPT_IMAGE2_MODEL
+        )
+
+    def _to_request_data_url(self, image: str, force_reference_ratio: bool) -> str:
+        if force_reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
+            return image_file_to_cropped_data_url(
+                image,
+                APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO,
+            )
+        return self._to_data_url(image)
+
+    @staticmethod
+    def _validate_reference_ratio(aspect_ratio: str) -> None:
+        try:
+            width_ratio, height_ratio = [
+                int(part.strip()) for part in str(aspect_ratio).split(":", 1)
+            ]
+            if width_ratio <= 0 or height_ratio <= 0:
+                raise ValueError
+            if max(width_ratio, height_ratio) / min(width_ratio, height_ratio) > AIAPIROUTE_IMAGE_MAX_RATIO:
+                raise ValueError
+        except (TypeError, ValueError, ZeroDivisionError) as exc:
+            raise ValueError(
+                "AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO 必须是有效且不超过 3:1 的比例，例如 1:1、3:4 或 16:9"
+            ) from exc
 
     def _to_data_url(self, image: str) -> str:
         if not image:
