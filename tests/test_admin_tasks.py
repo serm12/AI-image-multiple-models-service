@@ -82,6 +82,39 @@ class AdminTasksTests(unittest.TestCase):
         self.assertEqual(get_request_client_ip(trusted_request), "203.0.113.7")
         self.assertEqual(get_request_client_ip(public_request), "198.51.100.4")
 
+    def test_cf_connecting_ip_is_trusted_from_cloudflare_proxy(self):
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/generate-async/",
+                "headers": [
+                    (b"cf-connecting-ip", b"203.0.113.9"),
+                    (b"x-forwarded-for", b"203.0.113.9, 172.71.152.93"),
+                ],
+                "client": ("172.71.152.93", 1234),
+                "scheme": "https",
+                "server": ("image-api.example", 443),
+            }
+        )
+
+        self.assertEqual(get_request_client_ip(request), "203.0.113.9")
+
+    def test_cf_header_is_ignored_from_untrusted_public_client(self):
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/generate-async/",
+                "headers": [(b"cf-connecting-ip", b"203.0.113.10")],
+                "client": ("198.51.100.5", 1234),
+                "scheme": "http",
+                "server": ("server", 8002),
+            }
+        )
+
+        self.assertEqual(get_request_client_ip(request), "198.51.100.5")
+
 
 if __name__ == "__main__":
     unittest.main()
