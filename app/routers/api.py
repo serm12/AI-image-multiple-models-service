@@ -19,7 +19,7 @@ from app.services.task_query_service import (
     get_token_usage_summary,
     list_task_summaries,
 )
-from app.services.security import require_admin_api_key
+from app.services.security import get_request_client_ip, require_admin_api_key
 from app.services.seed_history import get_all_seeds_from_tasks, get_last_seed_from_tasks
 from app.services.task_files import (
     resolve_task_file_path,
@@ -79,6 +79,7 @@ async def get_version():
 
 @router.post("/generate-async/")
 async def generate_image_async(
+    request: Request,
     provider: str | None = Form(None),  # 可选；空值回退到 IMAGE_GENERATION_PROVIDER
     prompt: str = Form(...),
     aspect_ratio: AspectRatioEnum = Form(AspectRatioEnum.ratio_3_4),
@@ -205,7 +206,10 @@ async def generate_image_async(
             "height": height,
             "size": size,
             "sequential_image_generation": sequential_image_generation,
-            "api_provider": effective_provider  # 记录本次请求实际使用的服务提供商
+            "api_provider": effective_provider,  # 记录本次请求实际使用的服务提供商
+            "request_url": str(request.url),
+            "client_ip": get_request_client_ip(request),
+            "user_agent": request.headers.get("user-agent", "")[:500],
         }
         
         # 5. 异步保存参数
@@ -706,6 +710,7 @@ def get_upscale_models():
 @router.post("/api/check-photo")
 @router.post("/check-photo/")
 async def check_photo(
+    request: Request,
     file: UploadFile = File(...),
     client_city: str = Form("")
 ):
@@ -728,6 +733,9 @@ async def check_photo(
             "task_type": "face_check",
             "input_images": [original_name],
             "client_city": client_city,
+            "request_url": str(request.url),
+            "client_ip": get_request_client_ip(request),
+            "user_agent": request.headers.get("user-agent", "")[:500],
         }
         save_params(params, task_dir)
 

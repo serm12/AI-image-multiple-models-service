@@ -23,6 +23,8 @@ class AppConfig:
     )
     MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
     ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
+    ADMIN_USER = os.getenv("ADMIN_USER", "").strip()
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
     MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "4"))
     MAX_UPLOAD_FILE_MB = int(os.getenv("MAX_UPLOAD_FILE_MB", "20"))
     ALLOWED_UPLOAD_CONTENT_TYPES = {

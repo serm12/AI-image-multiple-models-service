@@ -18,7 +18,7 @@ def list_task_summaries() -> dict:
                 continue
 
             params = _read_json_if_exists(os.path.join(task_dir, "params.json"))
-            response = _read_first_json(task_dir, API_RESPONSE_FILES)
+            response = _read_first_api_response(task_dir)
             output_files_count = sum(
                 1 for filename in os.listdir(task_dir) if filename.endswith(IMAGE_EXTENSIONS)
             )
@@ -32,6 +32,15 @@ def list_task_summaries() -> dict:
                     "output_files_count": output_files_count,
                     "status": response.get("status", "unknown"),
                     "api_provider": params.get("api_provider"),
+                    "request_url": params.get("request_url", ""),
+                    "client_ip": params.get("client_ip", ""),
+                    "user_agent": params.get("user_agent", ""),
+                    "prompt": params.get("original_prompt", params.get("prompt", "")),
+                    "output_files": [
+                        f"/taskfile/{task_id}/{filename}"
+                        for filename in os.listdir(task_dir)
+                        if filename.lower().endswith(IMAGE_EXTENSIONS)
+                    ],
                 }
             )
 
@@ -120,6 +129,18 @@ def _read_first_json(directory: str, filenames: tuple[str, ...]) -> dict:
         data = _read_json_if_exists(os.path.join(directory, filename))
         if data:
             return data
+    return {}
+
+
+def _read_first_api_response(directory: str) -> dict:
+    response = _read_first_json(directory, API_RESPONSE_FILES)
+    if response:
+        return response
+    for filename in os.listdir(directory):
+        if filename.endswith("_response.json"):
+            response = _read_json_if_exists(os.path.join(directory, filename))
+            if isinstance(response, dict) and response:
+                return response
     return {}
 
 
