@@ -55,7 +55,8 @@ def main() -> int:
 
     fake_photo = {"file": ("invalid.jpg", b"not an image", "image/jpeg")}
     response = client.post("/check-photo/", files=fake_photo, data={"client_city": "smoke"})
-    checks.append(("check photo invalid image", response.status_code == 200, f"POST /check-photo/ -> {response.status_code}"))
+    photo_check_disabled = response.status_code == 200 and response.json().get("status") == "success"
+    checks.append(("check photo bypasses face detection", photo_check_disabled, f"POST /check-photo/ -> {response.status_code}"))
 
     if APIConfig.get_available_providers():
         configured = [p["provider"] for p in APIConfig.get_available_providers() if p["configured"]]
