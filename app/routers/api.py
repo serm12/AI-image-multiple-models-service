@@ -41,6 +41,7 @@ from app.services.upscale_service import (
     create_upscale_lookup_folder,
     get_upscale_models_info
 )
+from app.services.face_detection import contains_human
 
 # 异步组件导入
 from app.services.async_task_manager import task_manager, TaskStatus
@@ -143,6 +144,21 @@ async def generate_image_async(
         allows_text_to_image = effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP
         if not input_image_paths and not input_image_url and not allows_text_to_image:
             raise ValueError("必须提供 files 或 input_image_url 其中之一")
+        
+        # 2.5. 真人检测（仅当 enable_human_check=True 且有本地文件时执行）
+        if enable_human_check and input_image_paths:
+            loop = asyncio.get_event_loop()
+            for img_path in input_image_paths:
+                face_result = await loop.run_in_executor(None, contains_human, img_path)
+                if not face_result["valid"]:
+                    return JSONResponse(
+                        {
+                            "error": "human_check_failed",
+                            "message": face_result["message"],
+                            "task_id": task_id,
+                        },
+                        status_code=422,
+                    )
         
         # 3. 处理seed参数
         final_seed = seed_int
@@ -728,7 +744,7 @@ async def check_photo(
     file: UploadFile = File(...),
     client_city: str = Form("")
 ):
-    """保存上传照片并返回兼容响应；服务端人脸检测已关闭。"""
+    """执行即时人脸检测，并保存上传照片到当前任务目录。"""
     task_id, task_dir, timestamp = generate_task_dir(DirectoryConfig.TASKS_DIR)
     original_name = os.path.basename(file.filename or "upload.jpg")
     if not original_name:
@@ -753,20 +769,35 @@ async def check_photo(
         }
         save_params(params, task_dir)
 
+        face_check = contains_human(input_path)
         response_data = {
             "task_id": task_id,
-            "status": "success",
-            "message": "照片上传成功",
+            "status": "success" if face_check["valid"] else "error",
+            "message": face_check["message"],
             "client_city": client_city,
             "user_photo_url": f"/taskfile/{task_id}/{original_name}",
         }
+
+        if face_check.get("face"):
+            response_data["face"] = {
+                "x": face_check["face"][0],
+                "y": face_check["face"][1],
+                "w": face_check["face"][2],
+                "h": face_check["face"][3],
+            }
+        if face_check.get("img_size"):
+            response_data["image_size"] = {
+                "width": face_check["img_size"][0],
+                "height": face_check["img_size"][1],
+            }
+
         return JSONResponse(response_data)
     except Exception as e:
         return JSONResponse(
             {
                 "task_id": task_id,
                 "status": "error",
-                "message": f"照片上传处理失败: {str(e)}",
+                "message": f"人脸检测处理失败: {str(e)}",
                 "client_city": client_city,
             },
             status_code=500,
