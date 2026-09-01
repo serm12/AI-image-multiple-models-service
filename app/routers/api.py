@@ -426,13 +426,16 @@ async def _do_generation_work(
         # 使用第一个输入图像的文件名作为基础
         main_input_filename = params.get("input_images")[0] if params.get("input_images") else "output.png"
         current_files = await save_generated_image_outputs(task_id, task_dir, image_url, main_input_filename)
+        # Never retain a multi-megabyte data URL in the in-memory task registry.
+        # The generated file is already persisted and is the canonical public URL.
+        persisted_image_url = current_files[0] if current_files else None
         
         # 水印处理完成后，最终更新75%状态包含完整文件列表
         task_manager.update_task(task_id, 
             status=TaskStatus.PROCESSING, 
             progress=75,
             result={
-                "image_url": image_url,
+                "image_url": persisted_image_url,
                 "output_files": current_files
             }
         )
@@ -449,7 +452,7 @@ async def _do_generation_work(
         
         # 🚀 关键优化：立即完成普通图片任务，放大处理移到后台
         task_manager.set_task_completed(task_id, {
-            "image_url": image_url,
+            "image_url": persisted_image_url,
             "output_files": current_files,
             "stage": "regular_completed"
         })
@@ -459,7 +462,7 @@ async def _do_generation_work(
         
         if auto_upscale_value:
             background_task = asyncio.create_task(
-                process_upscale_background(task_id, task_dir, params, image_url)
+                process_upscale_background(task_id, task_dir, params)
             )
             _background_tasks.add(background_task)
             background_task.add_done_callback(_background_tasks.discard)
@@ -509,7 +512,7 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
         status=TaskStatus.PROCESSING, 
         progress=72,
         result={
-            "image_url": image_url,
+            "image_url": output_files[0],
             "output_files": output_files
         }
     )
@@ -529,7 +532,7 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
         pass
     return output_files
 
-async def process_upscale_background(task_id: str, task_dir: str, params: dict, image_url: str):
+async def process_upscale_background(task_id: str, task_dir: str, params: dict):
     """后台处理放大任务，不阻塞主流程"""
     try:
         

@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 from enum import Enum
 from app.core.config import AppConfig
+from app.utils.memory_utils import release_process_memory
 
 class TaskStatus(str, Enum):
     """任务状态枚举"""
@@ -90,6 +91,9 @@ class AsyncTaskManager:
             finally:
                 # 清理活跃任务记录
                 self.active_tasks.pop(task_id, None)
+                # PIL/NumPy/base64 processing can leave large freed arenas behind.
+                # Run collection off the event loop and return free glibc pages to Linux.
+                await asyncio.to_thread(release_process_memory)
     
     def get_statistics(self) -> Dict[str, Any]:
         """获取统计信息"""

@@ -12,6 +12,7 @@ from app.routers.api import router as api_router
 from app.routers.admin import router as admin_router
 from app.services.async_task_manager import task_manager
 from app.services.runtime_state import clear_http_clients, set_http_clients
+from app.utils.memory_utils import release_process_memory
 
 
 initialize_config()
@@ -22,9 +23,16 @@ async def _periodic_task_cleanup():
     while True:
         try:
             await asyncio.sleep(300)
-            removed = task_manager.cleanup_old_tasks(max_age_hours=24)
+            removed = task_manager.cleanup_old_tasks(max_age_hours=6)
+            memory_result = await asyncio.to_thread(
+                release_process_memory, clear_image_cache=True
+            )
             if removed:
                 print(f"🧹 定期清理：已移除 {removed} 个过期任务记录")
+            if memory_result["collected"]:
+                print(f"🧹 内存整理：回收 {memory_result['collected']} 个对象")
+        except asyncio.CancelledError:
+            break
         except Exception as e:
             print(f"⚠️ 任务清理出错: {e}")
 
@@ -45,6 +53,7 @@ async def app_lifespan(app: FastAPI):
         clear_http_clients()
         await http_client.aclose()
         await long_http_client.aclose()
+        await asyncio.to_thread(release_process_memory, clear_image_cache=True)
 
 
 app = FastAPI(

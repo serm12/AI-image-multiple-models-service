@@ -30,7 +30,7 @@ class AppConfig:
         os.getenv("CORS_ORIGIN_REGEX", r"https://([a-zA-Z0-9-]+\.)*shopifypreview\.com").strip()
         or None
     )
-    MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "5"))
+    MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "2"))
     ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
     ADMIN_USER = os.getenv("ADMIN_USER", "").strip()
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")

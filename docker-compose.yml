@@ -17,6 +17,12 @@ services:
     environment:
       - PORT=8001
       - DEBUG=false
+      - MALLOC_ARENA_MAX=2
+      - MALLOC_TRIM_THRESHOLD_=131072
+      - MALLOC_MMAP_THRESHOLD_=131072
+    mem_limit: ${AI_IMAGE_MEMORY_LIMIT:-2g}
+    mem_reservation: ${AI_IMAGE_MEMORY_RESERVATION:-768m}
+    pids_limit: 256
     volumes:
       # 持久化任务输出（重启不丢失）
       - ./tasks:/app/tasks
