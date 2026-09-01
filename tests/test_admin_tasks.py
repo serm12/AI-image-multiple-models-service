@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from app.core.config import AppConfig, DirectoryConfig
+from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.main import app
 from app.services.security import get_request_client_ip, get_request_country
 
@@ -56,6 +57,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("203.0.113.5", response.text)
         self.assertIn("US", response.text)
         self.assertIn("12.3 秒", response.text)
+        self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
 
