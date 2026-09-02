@@ -1,7 +1,7 @@
 import os
 import tempfile
 from html import escape
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, unquote, urlparse
 
@@ -13,6 +13,7 @@ from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.services.security import require_admin_login
 from app.services.task_files import resolve_task_file_path
 from app.services.task_query_service import list_task_summaries
+from app.utils.time_utils import CHINA_TIMEZONE, CHINA_TIMEZONE_NAME
 
 
 router = APIRouter()
@@ -22,10 +23,13 @@ def _text(value) -> str:
     return escape(str(value or ""))
 
 
-def _display_time(value) -> str:
+def _display_time(value, source_timezone="UTC") -> str:
     raw = str(value or "")
     try:
-        return datetime.strptime(raw, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+        parsed = datetime.strptime(raw, "%Y%m%d_%H%M%S")
+        if source_timezone != CHINA_TIMEZONE_NAME:
+            parsed = parsed.replace(tzinfo=timezone.utc).astimezone(CHINA_TIMEZONE)
+        return parsed.strftime("%Y-%m-%d %H:%M:%S")
     except ValueError:
         return raw
 
@@ -72,7 +76,7 @@ def _task_row(task: dict) -> str:
         "<tr>"
         f'<td><code title="{task_id}">{task_id[:17]}…</code></td>'
         f'<td><span class="status">{_text(task["status"])}</span></td>'
-        f'<td class="nowrap">{_text(_display_time(task["created_at"]))}</td>'
+        f'<td class="nowrap">{_text(_display_time(task["created_at"], task.get("time_zone")))}</td>'
         f"<td>{duration}</td>"
         f'<td class="provider">{_text(task.get("api_provider"))}</td>'
         f'<td class="nowrap">{client_ip}</td>'

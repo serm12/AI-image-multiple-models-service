@@ -33,6 +33,7 @@ from app.services.task_files import (
 )
 from app.services.watermark_service import create_logo_watermark, add_logo_watermark
 from app.services.task_storage import generate_task_dir, save_params, generate_output_filenames
+from app.utils.time_utils import CHINA_TIMEZONE_NAME
 from app.services.upscale_service import (
     upscale_image_with_replicate, 
     download_upscaled_image, 
@@ -202,6 +203,7 @@ async def generate_image_async(
             "input_image_url": input_image_url,
             "task_id": task_id,
             "time": timestamp,
+            "time_zone": CHINA_TIMEZONE_NAME,
             "input_seed": final_seed,
             "use_last_seed": use_last_seed,
             "description": description,

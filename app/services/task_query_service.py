@@ -28,6 +28,7 @@ def list_task_summaries() -> dict:
                     "task_id": task_id,
                     "description": params.get("description", ""),
                     "created_at": params.get("time", ""),
+                    "time_zone": params.get("time_zone", "UTC"),
                     "extracted_seed": response.get("extracted_seed"),
                     "output_files_count": output_files_count,
                     "status": response.get("status", "unknown"),

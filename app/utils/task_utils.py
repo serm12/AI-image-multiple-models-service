@@ -2,7 +2,7 @@ import os
 import uuid
 import json
 
-from app.utils.time_utils import now_china
+from app.utils.time_utils import CHINA_TIMEZONE_NAME, now_china
 
 def generate_task_dir(tasks_dir="tasks"):
     now = now_china()
@@ -20,6 +20,7 @@ def save_input_image(input_path, task_dir):
     return input_image_filename, task_input_image_path
 
 def save_params(params, task_dir):
+    params.setdefault("time_zone", CHINA_TIMEZONE_NAME)
     with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=2)
 

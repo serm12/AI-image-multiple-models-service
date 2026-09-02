@@ -9,9 +9,9 @@ from zoneinfo import ZoneInfo
 
 
 CHINA_TIMEZONE = ZoneInfo("Asia/Shanghai")
+CHINA_TIMEZONE_NAME = "Asia/Shanghai"
 
 
 def now_china() -> datetime:
     """Return the current timezone-aware China Standard Time."""
     return datetime.now(CHINA_TIMEZONE)
-

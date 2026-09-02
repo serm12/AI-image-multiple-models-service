@@ -212,10 +212,13 @@ def save_upscale_task_info(
     full_response: dict
 ) -> None:
     """保存放大任务信息"""
+    from app.utils.time_utils import CHINA_TIMEZONE_NAME
+
     # 保存放大任务参数
     upscale_params = {
         "task_id": task_id,
         "time": timestamp,
+        "time_zone": CHINA_TIMEZONE_NAME,
         "model": model,
         "scale": scale,
         "face_enhance": face_enhance,

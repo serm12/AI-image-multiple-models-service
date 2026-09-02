@@ -12,6 +12,7 @@ from starlette.requests import Request
 from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.main import app
+from app.routers.admin import _display_time
 from app.services.security import get_request_client_ip, get_request_country
 
 
@@ -105,6 +106,16 @@ class AdminTasksTests(unittest.TestCase):
 
         self.assertEqual(get_request_client_ip(trusted_request), "203.0.113.7")
         self.assertEqual(get_request_client_ip(public_request), "198.51.100.4")
+
+    def test_legacy_utc_time_is_displayed_in_beijing_time(self):
+        self.assertEqual(
+            _display_time("20260902_205212"),
+            "2026-09-03 04:52:12",
+        )
+        self.assertEqual(
+            _display_time("20260903_045212", "Asia/Shanghai"),
+            "2026-09-03 04:52:12",
+        )
 
     def test_cf_connecting_ip_is_trusted_from_cloudflare_proxy(self):
         request = Request(
