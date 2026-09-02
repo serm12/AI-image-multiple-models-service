@@ -1,12 +1,17 @@
+import os
+import tempfile
 from html import escape
 from datetime import datetime
-from urllib.parse import urlparse
+from pathlib import Path
+from urllib.parse import quote, unquote, urlparse
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from PIL import Image, ImageOps
 
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.services.security import require_admin_login
+from app.services.task_files import resolve_task_file_path
 from app.services.task_query_service import list_task_summaries
 
 
@@ -26,11 +31,19 @@ def _display_time(value) -> str:
 
 
 def _task_row(task: dict) -> str:
-    images = "".join(
-        f'<a href="{_text(url)}" target="_blank" rel="noopener">'
-        f'<img src="{_text(url)}" loading="lazy" alt="Generated image"></a>'
-        for url in task.get("output_files", [])
-    )
+    task_id = str(task["task_id"])
+    images = ""
+    for url in task.get("output_files", []):
+        filename = unquote(os.path.basename(urlparse(str(url)).path))
+        thumbnail_url = (
+            f"/admin/tasks/{quote(task_id, safe='')}/thumbnail/"
+            f"{quote(filename, safe='')}"
+        )
+        images += (
+            f'<a href="{_text(url)}" target="_blank" rel="noopener">'
+            f'<img src="{_text(thumbnail_url)}" loading="lazy" decoding="async" '
+            'alt="Generated image"></a>'
+        )
     request_url = _text(task.get("request_url"))
     if request_url:
         request_path = urlparse(str(task.get("request_url"))).path or "/"
@@ -42,7 +55,7 @@ def _task_row(task: dict) -> str:
         request_link = '<span class="muted">旧任务</span>'
     client_ip = _text(task.get("client_ip")) or '<span class="muted">—</span>'
     country = _text(task.get("client_country")) or '<span class="muted">—</span>'
-    task_id = _text(task["task_id"])
+    task_id = _text(task_id)
     prompt = _text(task.get("prompt"))
     prompt_view = (
         '<details class="prompt-details"><summary>查看提示词</summary>'
@@ -68,6 +81,50 @@ def _task_row(task: dict) -> str:
         f'<td class="prompt">{prompt_view}</td>'
         f'<td><div class="images">{images}</div></td>'
         "</tr>"
+    )
+
+
+@router.get("/admin/tasks/{task_id}/thumbnail/{filename}")
+def admin_task_thumbnail(
+    task_id: str,
+    filename: str,
+    _username: str = Depends(require_admin_login),
+):
+    """Return a small cached preview instead of transferring the original image."""
+    source_path = resolve_task_file_path(task_id, filename)
+    if not source_path or not os.path.isfile(source_path):
+        return HTMLResponse("图片不存在", status_code=404)
+
+    source = Path(source_path)
+    cache_dir = source.parent / ".admin-thumbnails"
+    cache_dir.mkdir(exist_ok=True)
+    cache_path = cache_dir / f"{source.name}.160.jpg"
+
+    if not cache_path.exists() or cache_path.stat().st_mtime < source.stat().st_mtime:
+        temp_file = tempfile.NamedTemporaryFile(
+            prefix="thumbnail-", suffix=".jpg", dir=cache_dir, delete=False
+        )
+        temp_path = Path(temp_file.name)
+        temp_file.close()
+        try:
+            with Image.open(source) as opened:
+                transposed = ImageOps.exif_transpose(opened)
+                image = transposed.convert("RGB")
+                try:
+                    image.thumbnail((160, 160), Image.Resampling.LANCZOS)
+                    image.save(temp_path, "JPEG", quality=72, optimize=True)
+                finally:
+                    image.close()
+                    if transposed is not opened:
+                        transposed.close()
+            os.replace(temp_path, cache_path)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    return FileResponse(
+        cache_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=86400"},
     )
 
 

@@ -3,8 +3,10 @@ import json
 import os
 import tempfile
 import unittest
+from io import BytesIO
 
 from fastapi.testclient import TestClient
+from PIL import Image
 from starlette.requests import Request
 
 from app.core.config import AppConfig, DirectoryConfig
@@ -45,6 +47,9 @@ class AdminTasksTests(unittest.TestCase):
                 },
                 file,
             )
+        Image.new("RGB", (1200, 800), "red").save(
+            os.path.join(task_dir, "output_reference.png")
+        )
 
         client = TestClient(app)
         self.assertEqual(client.get("/admin/tasks").status_code, 401)
@@ -58,8 +63,21 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("US", response.text)
         self.assertIn("12.3 秒", response.text)
         self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
+        self.assertIn(
+            "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
+        )
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
+
+        thumbnail = client.get(
+            "/admin/tasks/task-1/thumbnail/output_reference.png",
+            headers={"Authorization": f"Basic {token}"},
+        )
+        self.assertEqual(thumbnail.status_code, 200)
+        self.assertEqual(thumbnail.headers["content-type"], "image/jpeg")
+        with Image.open(BytesIO(thumbnail.content)) as preview:
+            self.assertLessEqual(preview.width, 160)
+            self.assertLessEqual(preview.height, 160)
 
     def test_forwarded_ip_is_only_trusted_from_local_proxy(self):
         trusted_request = Request(
