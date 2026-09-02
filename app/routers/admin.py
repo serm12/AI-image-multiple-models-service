@@ -148,7 +148,7 @@ code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>
-<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
+<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间（北京时间）</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 </main><script>
 const statusEl=document.getElementById('service-status');
 const statusText=statusEl.querySelector('.service-text');

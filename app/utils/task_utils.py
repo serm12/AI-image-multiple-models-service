@@ -1,10 +1,11 @@
 import os
 import uuid
 import json
-from datetime import datetime
+
+from app.utils.time_utils import now_china
 
 def generate_task_dir(tasks_dir="tasks"):
-    now = datetime.now()
+    now = now_china()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     task_id = f"{timestamp}_{uuid.uuid4().hex[:8]}"
     task_dir = os.path.join(tasks_dir, task_id)
