@@ -12,7 +12,7 @@ from starlette.requests import Request
 from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.main import app
-from app.routers.admin import _display_time
+from app.routers.admin import US_EASTERN_TIMEZONE, _display_time
 from app.services.security import get_request_client_ip, get_request_country
 
 
@@ -63,6 +63,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("203.0.113.5", response.text)
         self.assertIn("US", response.text)
         self.assertIn("12.3 秒", response.text)
+        self.assertIn("时间（美国东部）", response.text)
         self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
         self.assertIn(
             "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
@@ -111,6 +112,16 @@ class AdminTasksTests(unittest.TestCase):
         self.assertEqual(
             _display_time("20260902_205212"),
             "2026-09-03 04:52:12",
+        )
+
+    def test_china_time_is_displayed_in_us_eastern_time(self):
+        self.assertEqual(
+            _display_time(
+                "20260904_042745",
+                "Asia/Shanghai",
+                US_EASTERN_TIMEZONE,
+            ),
+            "2026-09-03 16:27:45",
         )
         self.assertEqual(
             _display_time("20260903_045212", "Asia/Shanghai"),
