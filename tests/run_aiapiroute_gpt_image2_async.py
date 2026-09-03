@@ -5,7 +5,7 @@ import requests
 
 
 BASE_URL = "http://localhost:8001"
-PROVIDER = "aiapiroute_gpt-image-2"
+PROVIDER = "gpt-image-2_aiapiroute"
 INPUT_IMAGES = [
     Path("assets/logo_brand.png"),
     Path("assets/logo_brand-white.png"),

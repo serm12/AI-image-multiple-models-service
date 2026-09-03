@@ -376,10 +376,12 @@ async def _do_generation_work(
             task_id=task_id,  # 传递任务ID
             provider=provider
         )
-        
+
+        actual_provider = result.get("api_provider", provider)
+
         # 处理seed逻辑差异 - Gemini不返回实际使用的seed
         extracted_seed = result.get("extracted_seed")
-        if provider in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
+        if actual_provider in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
             # Gemini自己生成seed，我们记录用户输入的seed
             extracted_seed = seed
         
@@ -414,6 +416,10 @@ async def _do_generation_work(
             existing_params.update({
                 f"{api_type}_id": result.get("id"),
                 "stage": "submitted",
+                "api_provider": actual_provider,
+                "requested_api_provider": provider,
+                "provider_fallback_chain": result.get("provider_fallback_chain", [actual_provider]),
+                "provider_fallback_attempts": result.get("provider_fallback_attempts", []),
                 **({
                     "extracted_seed": extracted_seed
                 } if extracted_seed is not None else {})

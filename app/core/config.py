@@ -6,6 +6,7 @@
 """
 
 import os
+import json
 from enum import Enum
 from dotenv import load_dotenv
 
@@ -56,6 +57,7 @@ class AlgorithmConfig:
 # API配置
 class APIConfig:
     IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "seedream-4_replicate").strip() or "seedream-4_replicate"
+    PROVIDER_FALLBACKS_ENABLED = os.getenv("PROVIDER_FALLBACKS_ENABLED", "true").lower() == "true"
 
     # Replicate 配置（用于生图流程或者放大流程...等其他流程）
     REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN")
@@ -176,7 +178,7 @@ class APIConfig:
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
             "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
-        "aiapiroute_gpt-image-2": {
+        "gpt-image-2_aiapiroute": {
             "label": "aiapiroute/Sub2API gpt-image-2",
             "key": "AIAPIROUTE_API_KEY",
             "model": AIAPIROUTE_GPT_IMAGE2_MODEL,
@@ -186,6 +188,17 @@ class APIConfig:
     }
 
     ALL_PROVIDERS = list(PROVIDERS.keys())
+    DEFAULT_PROVIDER_FALLBACK_GROUPS = {
+        "flux": ["flux_bfl", "flux_replicate", "flux_fireworks"],
+        "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
+        "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
+        "gemini-nanobanana": [
+            "gemini-nanobanana_google",
+            "gemini-nanobanana_replicate",
+            "gemini-nanobanana_openrouter",
+        ],
+    }
+    PROVIDER_FALLBACK_GROUPS = DEFAULT_PROVIDER_FALLBACK_GROUPS
     AIAPIROUTE_PROVIDER_MODEL_MAP = {
         provider: config["model"]
         for provider, config in PROVIDERS.items()
@@ -195,6 +208,39 @@ class APIConfig:
         provider: config.get("aspect_ratios", [])
         for provider, config in PROVIDERS.items()
     }
+
+    @classmethod
+    def _load_provider_fallback_groups(cls) -> dict:
+        raw = os.getenv("PROVIDER_FALLBACK_GROUPS_JSON", "").strip()
+        if not raw:
+            return cls.DEFAULT_PROVIDER_FALLBACK_GROUPS
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"PROVIDER_FALLBACK_GROUPS_JSON 不是有效 JSON: {exc}") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("PROVIDER_FALLBACK_GROUPS_JSON 必须是对象，例如 {\"flux\":[\"flux_bfl\"]}")
+        groups = {}
+        for group_name, providers in parsed.items():
+            if not isinstance(providers, list) or not all(isinstance(item, str) for item in providers):
+                raise ValueError(f"兜底组 {group_name} 必须是 provider 字符串数组")
+            unknown = [item for item in providers if item not in cls.ALL_PROVIDERS]
+            if unknown:
+                raise ValueError(f"兜底组 {group_name} 包含不支持的 provider: {unknown}")
+            groups[str(group_name)] = providers
+        return groups
+
+    @classmethod
+    def get_provider_fallback_groups(cls) -> dict:
+        cls.PROVIDER_FALLBACK_GROUPS = cls._load_provider_fallback_groups()
+        return cls.PROVIDER_FALLBACK_GROUPS
+
+    @classmethod
+    def find_fallback_group(cls, provider: str) -> str | None:
+        for group_name, providers in cls.get_provider_fallback_groups().items():
+            if provider == group_name or provider in providers:
+                return group_name
+        return None
 
     @classmethod
     def validate_provider(cls, provider: str):
@@ -207,14 +253,43 @@ class APIConfig:
 
     @classmethod
     def resolve_provider(cls, provider: str | None, validate_config: bool = True) -> str:
-        """解析本次请求使用的 provider；空值回退到 IMAGE_GENERATION_PROVIDER。"""
+        """解析本次请求使用的 primary provider；空值回退到 IMAGE_GENERATION_PROVIDER。"""
         provider_value = getattr(provider, "value", provider)
         effective_provider = (provider_value or cls.IMAGE_GENERATION_PROVIDER).strip()
+        fallback_group = cls.find_fallback_group(effective_provider)
+        if fallback_group and effective_provider == fallback_group:
+            effective_provider = cls.get_provider_fallback_groups()[fallback_group][0]
         if validate_config:
             cls.validate_provider(effective_provider)
         elif effective_provider not in cls.ALL_PROVIDERS:
             raise ValueError(f"不支持的默认服务提供商: {effective_provider}，可选: {cls.ALL_PROVIDERS}")
         return effective_provider
+
+    @classmethod
+    def resolve_provider_chain(cls, provider: str | None, validate_config: bool = True) -> list[str]:
+        """返回本次请求可尝试的 provider 顺序，用于同模型多服务商兜底。"""
+        primary_provider = cls.resolve_provider(provider, validate_config=False)
+        if not cls.PROVIDER_FALLBACKS_ENABLED:
+            chain = [primary_provider]
+        else:
+            group_name = cls.find_fallback_group(primary_provider)
+            configured_group = cls.get_provider_fallback_groups()
+            chain = list(configured_group.get(group_name, [primary_provider])) if group_name else [primary_provider]
+            if primary_provider in chain:
+                chain = [primary_provider, *[item for item in chain if item != primary_provider]]
+        if validate_config:
+            configured = []
+            missing = []
+            for candidate in chain:
+                try:
+                    cls.validate_provider(candidate)
+                    configured.append(candidate)
+                except ValueError as exc:
+                    missing.append(str(exc))
+            if configured:
+                return configured
+            raise ValueError("兜底链里没有可用 provider: " + "; ".join(missing))
+        return chain
 
     @classmethod
     def validate_aspect_ratio(cls, provider: str, aspect_ratio: str):
@@ -238,6 +313,8 @@ class APIConfig:
                 "uses_aspect_ratio": bool(config.get("aspect_ratios", [])),
                 "sizes": config.get("sizes", []),
                 "uses_size": bool(config.get("sizes", [])),
+                "fallback_group": cls.find_fallback_group(provider),
+                "fallback_chain": cls.resolve_provider_chain(provider, validate_config=False),
                 **({"model": config["model"]} if "model" in config else {}),
             }
             for provider, config in cls.PROVIDERS.items()
@@ -255,6 +332,7 @@ class APIConfig:
                 "label": config.get("label", p),
                 "configured": configured,
                 "is_default": p == cls.IMAGE_GENERATION_PROVIDER,
+                "fallback_group": cls.find_fallback_group(p),
             })
         return result
 
@@ -271,7 +349,7 @@ class ProviderEnum(str, Enum):
     gpt_image_2_fal = "gpt-image-2_fal"
     aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
     aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
-    aiapiroute_gpt_image_2 = "aiapiroute_gpt-image-2"
+    gpt_image_2_aiapiroute = "gpt-image-2_aiapiroute"
 
 # 目录配置
 class DirectoryConfig:

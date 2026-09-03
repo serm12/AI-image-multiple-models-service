@@ -112,7 +112,48 @@ class UnifiedAPIClient:
         Returns:
             dict: 生成结果
         """
-        effective_provider = APIConfig.resolve_provider(provider)
+        provider_chain = APIConfig.resolve_provider_chain(provider)
+        errors = []
+        for index, effective_provider in enumerate(provider_chain):
+            try:
+                result = await self._generate_image_with_provider(
+                    effective_provider=effective_provider,
+                    prompt=prompt,
+                    input_image_paths=input_image_paths,
+                    input_image_url=input_image_url,
+                    flux_model_variant=flux_model_variant,
+                    aspect_ratio=aspect_ratio,
+                    output_format=output_format,
+                    seed=seed,
+                    art_style=art_style,
+                    width=width,
+                    height=height,
+                    size=size,
+                    sequential_image_generation=sequential_image_generation,
+                    task_id=task_id,
+                )
+                result["api_provider"] = effective_provider
+                result["provider_fallback_chain"] = provider_chain
+                result["provider_fallback_attempts"] = [
+                    {"provider": item, "error": error}
+                    for item, error in errors
+                ]
+                return result
+            except Exception as exc:
+                error_message = str(exc)
+                errors.append((effective_provider, error_message))
+                print(f"⚠️ provider {effective_provider} 生成失败: {error_message}")
+                if index + 1 < len(provider_chain):
+                    print(f"🔁 切换兜底 provider: {provider_chain[index + 1]}")
+
+        summary = "; ".join(f"{provider}: {error}" for provider, error in errors)
+        raise ValueError(f"所有兜底 provider 均失败: {summary}")
+
+    async def _generate_image_with_provider(self, effective_provider, prompt, input_image_paths=None, input_image_url=None,
+                                            flux_model_variant=None, aspect_ratio=None, output_format=None,
+                                            seed=None, art_style=None, width=None, height=None, size=None,
+                                            sequential_image_generation=None, task_id=None):
+        APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
 
         if effective_provider == "gemini-nanobanana_google":
             return await self._generate_with_gemini(

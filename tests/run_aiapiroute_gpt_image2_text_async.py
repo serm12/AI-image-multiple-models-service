@@ -4,7 +4,7 @@ import requests
 
 
 BASE_URL = "http://localhost:8001"
-PROVIDER = "aiapiroute_gpt-image-2"
+PROVIDER = "gpt-image-2_aiapiroute"
 PROMPTS = [
     "A cinematic product photo of a matte black ceramic coffee cup on a clean white table, soft studio lighting, minimal composition.",
     "A cheerful watercolor illustration of a small bakery storefront on a sunny morning, pastel colors, cozy atmosphere.",
