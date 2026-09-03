@@ -75,6 +75,8 @@ class APIConfig:
     FAL_API_KEY = os.getenv("FAL_API_KEY")
     if FAL_API_KEY:
         os.environ["FAL_KEY"] = FAL_API_KEY
+    FAL_GPT_IMAGE2_MODEL_ID = os.getenv("FAL_GPT_IMAGE2_MODEL_ID", "openai/gpt-image-2/edit").strip()
+    FAL_GPT_IMAGE2_QUALITY = os.getenv("FAL_GPT_IMAGE2_QUALITY", "medium").strip() or "medium"
 
     # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
     AIAPIROUTE_API_KEY = os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY")
@@ -153,6 +155,12 @@ class APIConfig:
             "key": "FAL_API_KEY",
             "aspect_ratios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
             # Source: https://fal.ai/models/fal-ai/bytedance/seedream/v4/edit/api
+        },
+        "gpt-image-2_fal": {
+            "label": "fal.ai API (GPT Image 2)",
+            "key": "FAL_API_KEY",
+            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
         "aiapiroute_gpt-image-1": {
             "label": "aiapiroute/Sub2API gpt-image-1",
@@ -260,6 +268,7 @@ class ProviderEnum(str, Enum):
     gemini_nanobanana_openrouter = "gemini-nanobanana_openrouter"
     seedream_4_replicate = "seedream-4_replicate"
     seedream_4_fal = "seedream-4_fal"
+    gpt_image_2_fal = "gpt-image-2_fal"
     aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
     aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
     aiapiroute_gpt_image_2 = "aiapiroute_gpt-image-2"
