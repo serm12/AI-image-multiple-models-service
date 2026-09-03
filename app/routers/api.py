@@ -25,6 +25,7 @@ from app.services.security import (
     get_request_country,
     require_admin_api_key,
 )
+from app.services.rate_limiter import generate_request_limiter
 from app.services.seed_history import get_all_seeds_from_tasks, get_last_seed_from_tasks
 from app.services.task_files import (
     resolve_task_file_path,
@@ -105,6 +106,25 @@ async def generate_image_async(
     files: list[UploadFile] = File([])
 ):
     """异步图像生成API - 立即返回任务ID，支持1个并发处理"""
+    client_ip = get_request_client_ip(request)
+    rate_limit = await generate_request_limiter.check(client_ip)
+    if not rate_limit.allowed:
+        return JSONResponse(
+            {
+                "error": "rate_limit_exceeded",
+                "message": "Too many generation requests. Please try again later.",
+                "limit": rate_limit.limit,
+                "window_seconds": rate_limit.window_seconds,
+                "retry_after_seconds": rate_limit.retry_after_seconds,
+            },
+            status_code=429,
+            headers={
+                "Retry-After": str(rate_limit.retry_after_seconds),
+                "X-RateLimit-Limit": str(rate_limit.limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Window": str(rate_limit.window_seconds),
+            },
+        )
     
     # -- 参数兼容性处理 --
     # 1. flux_model_variant: 固定为 pro
