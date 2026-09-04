@@ -64,6 +64,10 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("US", response.text)
         self.assertIn("12.3 秒", response.text)
         self.assertIn("时间（美国东部）", response.text)
+        self.assertIn('id="current-beijing-time"', response.text)
+        self.assertIn('id="current-us-eastern-time"', response.text)
+        self.assertIn("Asia/Shanghai", response.text)
+        self.assertIn("America/New_York", response.text)
         self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
         self.assertIn(
             "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
