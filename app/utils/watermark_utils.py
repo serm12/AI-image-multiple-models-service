@@ -268,7 +268,7 @@ def add_corner_label(
     border_width=None,
     corner_radius=None
 ):
-    """在图片左上角添加带圆角外框的白色文字"""
+    """在图片左上角添加标识；尺寸参数以 1024 像素短边为基准。"""
     # 使用配置文件的默认值
     text = text or WatermarkConfig.CORNER_LABEL_TEXT
     font_path = font_path or WatermarkConfig.CORNER_LABEL_FONT_PATH
@@ -284,6 +284,12 @@ def add_corner_label(
     # 打开图片
     image = Image.open(input_image_path).convert("RGBA")
     width, height = image.size
+    label_scale = min(width, height) / 1024
+    font_size = max(1, round(font_size * label_scale))
+    padding = max(1, round(padding * label_scale))
+    margin = max(1, round(margin * label_scale))
+    border_width = max(1, round(border_width * label_scale))
+    corner_radius = max(1, round(corner_radius * label_scale))
     
     # 创建绘图对象
     draw = ImageDraw.Draw(image)
@@ -292,8 +298,10 @@ def add_corner_label(
     try:
         font = ImageFont.truetype(font_path, font_size)
     except Exception as e:
-        font = ImageFont.load_default()
-        print(f"使用默认字体，字号不可调，错误信息：{e}")
+        # 使用项目自带字体，避免默认位图字体忽略字号（也兼容旧版 Pillow）。
+        bundled_font = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "arial.ttf")
+        font = ImageFont.truetype(bundled_font, font_size)
+        print(f"使用自带备用字体，错误信息：{e}")
     
     # 计算文字尺寸
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -318,8 +326,8 @@ def add_corner_label(
     )
     
     # 计算文字位置（在框内居中）
-    text_x = box_x + padding
-    text_y = box_y + padding
+    text_x = box_x + padding - bbox[0]
+    text_y = box_y + padding - bbox[1]
     
     # 绘制文字
     draw.text((text_x, text_y), text, font=font, fill=text_color)
@@ -638,64 +646,10 @@ def temp_add_corner_label(
     border_width=None,
     corner_radius=None
 ):
-    """临时的左上角标识函数，不包含品牌logo处理"""
-    # 使用配置文件的默认值
-    text = text or WatermarkConfig.CORNER_LABEL_TEXT
-    font_path = font_path or WatermarkConfig.CORNER_LABEL_FONT_PATH
-    font_size = font_size or WatermarkConfig.CORNER_LABEL_FONT_SIZE
-    padding = padding or WatermarkConfig.CORNER_LABEL_PADDING
-    margin = margin or WatermarkConfig.CORNER_LABEL_MARGIN
-    text_color = text_color or WatermarkConfig.CORNER_LABEL_TEXT_COLOR
-    bg_color = bg_color or WatermarkConfig.CORNER_LABEL_BG_COLOR
-    border_color = border_color or WatermarkConfig.CORNER_LABEL_BORDER_COLOR
-    border_width = border_width or WatermarkConfig.CORNER_LABEL_BORDER_WIDTH
-    corner_radius = corner_radius or WatermarkConfig.CORNER_LABEL_CORNER_RADIUS
-    
-    # 打开图片
-    image = Image.open(input_image_path).convert("RGBA")
-    width, height = image.size
-    
-    # 创建绘图对象
-    draw = ImageDraw.Draw(image)
-    
-    # 加载字体
-    try:
-        font = ImageFont.truetype(font_path, font_size)
-    except Exception as e:
-        font = ImageFont.load_default()
-        print(f"使用默认字体，字号不可调，错误信息：{e}")
-    
-    # 计算文字尺寸
-    bbox = draw.textbbox((0, 0), text, font=font)
-    text_width = bbox[2] - bbox[0]
-    text_height = bbox[3] - bbox[1]
-    
-    # 计算外框尺寸和位置（左上角）
-    box_width = text_width + 2 * padding
-    box_height = text_height + 2 * padding
-    box_x = margin
-    box_y = margin
-    
-    # 绘制圆角矩形（背景和边框）
-    box_coords = [box_x, box_y, box_x + box_width, box_y + box_height]
-    draw_rounded_rectangle(
-        draw, 
-        box_coords, 
-        corner_radius, 
-        fill=bg_color, 
-        outline=border_color, 
-        width=border_width
+    """兼容旧调用，复用同一套尺寸自适应逻辑。"""
+    return add_corner_label(
+        input_image_path, output_image_path, text=text, font_path=font_path,
+        font_size=font_size, padding=padding, margin=margin,
+        text_color=text_color, bg_color=bg_color, border_color=border_color,
+        border_width=border_width, corner_radius=corner_radius,
     )
-    
-    # 计算文字位置（在框内居中）
-    text_x = box_x + padding
-    text_y = box_y + padding
-    
-    # 绘制文字
-    draw.text((text_x, text_y), text, font=font, fill=text_color)
-    
-    # 保存图片
-    if output_image_path.lower().endswith(".jpg") or output_image_path.lower().endswith(".jpeg"):
-        image = image.convert("RGB")
-    
-    image.save(output_image_path) 

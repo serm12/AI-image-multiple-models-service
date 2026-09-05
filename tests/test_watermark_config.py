@@ -1,12 +1,44 @@
 import os
 import unittest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from app.core.config import WatermarkConfig, env_float
-from PIL import ImageFont
+from PIL import Image, ImageChops, ImageFont
+from app.utils.watermark_utils import add_corner_label, temp_add_corner_label
 
 
 class WatermarkConfigTests(unittest.TestCase):
+    def test_corner_label_keeps_proportions_on_high_resolution_images(self):
+        with tempfile.TemporaryDirectory() as directory:
+            bounds = []
+            for scale in (1, 2, 3):
+                source = str(Path(directory) / 'source.png')
+                output = str(Path(directory) / 'label.png')
+                Image.new('RGB', (1024 * scale, 1536 * scale)).save(source)
+                add_corner_label(source, output)
+                with Image.open(output) as rendered:
+                    rgb = rendered.convert('RGB')
+                    box = ImageChops.difference(rgb, Image.new('RGB', rgb.size)).getbbox()
+                    self.assertLess(box[2], rgb.width)
+                    bounds.append(tuple(value / scale for value in box))
+            for box in bounds[1:]:
+                for actual, expected in zip(box, bounds[0]):
+                    # Font hinting can slightly change glyph widths at each size.
+                    self.assertAlmostEqual(actual, expected, delta=max(2, expected * 0.02))
+
+    def test_legacy_corner_label_and_missing_font_use_same_rendering(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = str(Path(directory) / 'source.png')
+            output = str(Path(directory) / 'label.png')
+            legacy = str(Path(directory) / 'legacy.png')
+            Image.new('RGB', (1024, 1536)).save(source)
+            add_corner_label(source, output)
+            temp_add_corner_label(source, legacy, font_path='missing-font.ttf')
+            with Image.open(output) as current, Image.open(legacy) as fallback:
+                self.assertIsNone(ImageChops.difference(current.convert('RGB'), fallback.convert('RGB')).getbbox())
+
     def test_enlarged_corner_label_fits_portrait_width(self):
         font = ImageFont.truetype(
             WatermarkConfig.CORNER_LABEL_FONT_PATH,
