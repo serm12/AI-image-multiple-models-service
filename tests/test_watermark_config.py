@@ -2,10 +2,22 @@ import os
 import unittest
 from unittest.mock import patch
 
-from app.core.config import env_float
+from app.core.config import WatermarkConfig, env_float
+from PIL import ImageFont
 
 
 class WatermarkConfigTests(unittest.TestCase):
+    def test_enlarged_corner_label_fits_portrait_width(self):
+        font = ImageFont.truetype(
+            WatermarkConfig.CORNER_LABEL_FONT_PATH,
+            WatermarkConfig.CORNER_LABEL_FONT_SIZE,
+        )
+        left, _, right, _ = font.getbbox(WatermarkConfig.CORNER_LABEL_TEXT)
+        width = right - left + 2 * WatermarkConfig.CORNER_LABEL_PADDING
+        self.assertEqual(WatermarkConfig.CORNER_LABEL_FONT_SIZE, 28)
+        self.assertEqual(WatermarkConfig.CORNER_LABEL_BORDER_WIDTH, 2)
+        self.assertLessEqual(width + 2 * WatermarkConfig.CORNER_LABEL_MARGIN, 1024)
+
     def test_center_logo_scale_reads_valid_value(self):
         with patch.dict(os.environ, {"WATERMARK_CENTER_LOGO_SCALE": "0.5"}):
             value = env_float("WATERMARK_CENTER_LOGO_SCALE", 1.0, 0.05, 1.0)
