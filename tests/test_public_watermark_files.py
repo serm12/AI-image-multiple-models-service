@@ -5,6 +5,9 @@ def test_only_watermarked_images_are_public() -> None:
     files = [
         "/taskfile/example/output_cropped_original_14155662.png",
         "/taskfile/example/output_cropped_watermark.png",
+        "/taskfile/example/output_cropped_watermark_temp1.png",
+        "/taskfile/example/output_cropped_watermark_temp2.png",
+        "/taskfile/example/output_cropped_watermark_temp_final.png",
         "/taskfile/example/output_reference_upscaled_2x.png",
         "/taskfile/example/output_reference_upscaled_2x_watermark.png",
         "/taskfile/example/params.json",

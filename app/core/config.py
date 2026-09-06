@@ -438,7 +438,7 @@ class WatermarkConfig:
     CENTER_LOGO_VERTICAL_OFFSET_RATIO = 0.10
 
     CORNER_LABEL_TEXT = "Purchase to get high-resolution watermark-free image by Paintingify.com"
-    CORNER_LABEL_FONT_PATH = "assets/arial.ttf"
+    CORNER_LABEL_FONT_PATH = "assets/ARIAL.TTF"
     CORNER_LABEL_FONT_SIZE = 28
     CORNER_LABEL_PADDING = 12
     CORNER_LABEL_MARGIN = 12

@@ -54,6 +54,7 @@ from app.services.runtime_state import get_http_client, get_long_http_client
 
 # 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
 _watermark_logo_created: bool = False
+_watermark_logo_lock = asyncio.Lock()
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
 router = APIRouter()
@@ -540,13 +541,22 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
     try:
         global _watermark_logo_created
         loop = asyncio.get_running_loop()
-        if not _watermark_logo_created:
-            # 在 await 前置位，防止并发任务同时通过检查重复创建（asyncio 单线程，此处无竞态）
-            _watermark_logo_created = True
-            await loop.run_in_executor(None, create_logo_watermark)
+        async with _watermark_logo_lock:
+            if not _watermark_logo_created or not os.path.isfile("assets/logo_watermark.png"):
+                await loop.run_in_executor(None, create_logo_watermark)
+                if not os.path.isfile("assets/logo_watermark.png"):
+                    raise FileNotFoundError("水印 Logo 初始化失败")
+                _watermark_logo_created = True
         await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
         return [f"/taskfile/{task_id}/{os.path.basename(watermark_file)}"]
     except Exception as exc:
+        for suffix in ("_temp1.png", "_temp2.png", "_temp_final.png"):
+            temp_file = watermark_file.replace(".png", suffix)
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            except OSError:
+                pass
         raise ValueError(f"水印生成失败: {exc}") from exc
 
 async def process_upscale_background(task_id: str, task_dir: str, params: dict):
@@ -618,7 +628,7 @@ def get_public_watermark_files(files: list | None) -> list:
     """Only expose watermarked previews through the storefront task-status API."""
     return [
         file for file in (files or [])
-        if "_watermark" in os.path.basename(file).lower()
+        if os.path.splitext(os.path.basename(file).lower())[0].endswith("_watermark")
         and os.path.basename(file).lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
     ]
 

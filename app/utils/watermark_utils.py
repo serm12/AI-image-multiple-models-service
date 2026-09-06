@@ -299,7 +299,7 @@ def add_corner_label(
         font = ImageFont.truetype(font_path, font_size)
     except Exception as e:
         # 使用项目自带字体，避免默认位图字体忽略字号（也兼容旧版 Pillow）。
-        bundled_font = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "arial.ttf")
+        bundled_font = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "ARIAL.TTF")
         font = ImageFont.truetype(bundled_font, font_size)
         print(f"使用自带备用字体，错误信息：{e}")
     
