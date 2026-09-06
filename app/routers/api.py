@@ -533,17 +533,8 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
     except Exception as e:
         raise ValueError(f"原图保存失败: {e}")
 
-    output_files = [f"/taskfile/{task_id}/{os.path.basename(original_file)}"]
-    
-    # 🚀 关键优化：原图保存完成后立即更新状态 (72%)，让前端能立即获取文件
-    task_manager.update_task(task_id, 
-        status=TaskStatus.PROCESSING, 
-        progress=72,
-        result={
-            "image_url": output_files[0],
-            "output_files": output_files
-        }
-    )
+    # 原图只保存在服务端供订单与放大流程使用，不通过任务状态暴露给前端。
+    task_manager.update_task(task_id, status=TaskStatus.PROCESSING, progress=72)
     
     # 在线程池中处理水印（避免阻塞事件循环）
     try:
@@ -554,11 +545,9 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
             _watermark_logo_created = True
             await loop.run_in_executor(None, create_logo_watermark)
         await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
-        output_files.append(f"/taskfile/{task_id}/{os.path.basename(watermark_file)}")
-    except Exception:
-        # 水印失败不中断主流程
-        pass
-    return output_files
+        return [f"/taskfile/{task_id}/{os.path.basename(watermark_file)}"]
+    except Exception as exc:
+        raise ValueError(f"水印生成失败: {exc}") from exc
 
 async def process_upscale_background(task_id: str, task_dir: str, params: dict):
     """后台处理放大任务，不阻塞主流程"""
@@ -625,6 +614,14 @@ async def get_output_files_async(task_dir: str, task_id: str) -> list:
         pass
     return files
 
+def get_public_watermark_files(files: list | None) -> list:
+    """Only expose watermarked previews through the storefront task-status API."""
+    return [
+        file for file in (files or [])
+        if "_watermark" in os.path.basename(file).lower()
+        and os.path.basename(file).lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+    ]
+
 @router.get("/task-status/{task_id}")
 async def get_task_status_async(task_id: str):
     """异步获取任务状态"""
@@ -654,8 +651,9 @@ async def get_task_status_async(task_id: str):
     # 检查是否有文件
     # 任务已完成时直接用内存缓存，避免每次轮询都 os.listdir
     cached_files = (task_info.get("result") or {}).get("output_files")
-    if cached_files:
-        response_data["files"] = cached_files
+    public_cached_files = get_public_watermark_files(cached_files)
+    if public_cached_files:
+        response_data["files"] = public_cached_files
     elif task_info["progress"] >= 70 or task_info["status"] in {
         TaskStatus.DOWNLOADING,
         TaskStatus.COMPLETED,
@@ -664,8 +662,9 @@ async def get_task_status_async(task_id: str):
         task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
         if os.path.exists(task_dir):
             output_files = await get_output_files_async(task_dir, task_id)
-            if output_files:
-                response_data["files"] = output_files
+            public_output_files = get_public_watermark_files(output_files)
+            if public_output_files:
+                response_data["files"] = public_output_files
     
     # 如果任务完成，添加额外信息
     if task_info["status"] == TaskStatus.COMPLETED and task_info.get("result"):
