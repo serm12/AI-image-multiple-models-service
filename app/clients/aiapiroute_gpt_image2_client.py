@@ -60,7 +60,7 @@ class AIApiRouteGPTImageClient:
 
         request_size = self._resolve_size(size, aspect_ratio)
         should_stream = APIConfig.AIAPIROUTE_IMAGE_STREAM if stream is None else bool(stream)
-        full_prompt = f"{prompt}\n\nSeed: {seed}" if seed is not None else prompt
+        full_prompt = prompt
 
         payload = {
             "model": self.model,
@@ -73,12 +73,13 @@ class AIApiRouteGPTImageClient:
             payload["quality"] = quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY
 
         force_reference_ratio = self._should_force_reference_ratio()
-        if force_reference_ratio:
-            self._validate_reference_ratio(APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO)
+        reference_ratio = (
+            self._resolve_reference_ratio(aspect_ratio) if force_reference_ratio else None
+        )
 
         if reference_images:
             payload["images"] = [
-                {"image_url": self._to_request_data_url(image, force_reference_ratio)}
+                {"image_url": self._to_request_data_url(image, reference_ratio)}
                 for image in reference_images
             ]
 
@@ -88,7 +89,7 @@ class AIApiRouteGPTImageClient:
 
         if not b64_image and reference_images and endpoint == "/v1/images/edits":
             response_payload = self._build_responses_payload(
-                full_prompt, reference_images, request_size, quality, force_reference_ratio
+                full_prompt, reference_images, request_size, quality, reference_ratio
             )
             response_data, raw_text = await self._post_json("/v1/responses", response_payload, stream=False)
             b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
@@ -100,7 +101,7 @@ class AIApiRouteGPTImageClient:
 
         mime_type = self._detect_mime_from_base64(b64_image)
         data_url = f"data:{mime_type};base64,{self._normalize_base64(b64_image)}"
-        prediction_id = f"aiapiroute_gpt_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{seed or 'na'}"
+        prediction_id = f"aiapiroute_gpt_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}_na"
 
         return {
             "id": prediction_id,
@@ -110,18 +111,20 @@ class AIApiRouteGPTImageClient:
             "logs": (
                 f"aiapiroute GPT-image endpoint={endpoint}, size={request_size}, "
                 f"forced_reference_ratio="
-                f"{APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO if force_reference_ratio else 'disabled'}"
+                f"{reference_ratio or 'disabled'}"
             ),
             "input": {
                 "prompt": prompt,
                 "model": self.model,
                 "size": request_size,
-                "seed": seed,
+                "seed": None,
+                "aspect_ratio": getattr(aspect_ratio, "value", aspect_ratio),
+                "reference_ratio": reference_ratio,
                 "reference_image_count": len(reference_images),
             },
             "raw": self._scrub_large_base64(response_data),
             "api_type": "aiapiroute_gpt_image",
-            "extracted_seed": seed,
+            "extracted_seed": None,
         }
 
     async def _post_json(self, endpoint: str, payload: dict[str, Any], stream: bool = False):
@@ -157,13 +160,13 @@ class AIApiRouteGPTImageClient:
         reference_images: list[str],
         size: str,
         quality: Optional[str],
-        force_reference_ratio: bool = False,
+        reference_ratio: Optional[str] = None,
     ):
         content = [{"type": "input_text", "text": prompt}]
         for image in reference_images:
             content.append({
                 "type": "input_image",
-                "image_url": self._to_request_data_url(image, force_reference_ratio),
+                "image_url": self._to_request_data_url(image, reference_ratio),
             })
 
         tool = {"type": "image_generation", "size": size}
@@ -182,11 +185,22 @@ class AIApiRouteGPTImageClient:
             and self.model == APIConfig.AIAPIROUTE_GPT_IMAGE2_MODEL
         )
 
-    def _to_request_data_url(self, image: str, force_reference_ratio: bool) -> str:
-        if force_reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
+    def _resolve_reference_ratio(self, aspect_ratio) -> str:
+        ratio_value = str(
+            getattr(aspect_ratio, "value", aspect_ratio)
+            or APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO
+            or "3:4"
+        ).strip()
+        if ratio_value == "match_input_image":
+            ratio_value = APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO or "3:4"
+        self._validate_reference_ratio(ratio_value)
+        return ratio_value
+
+    def _to_request_data_url(self, image: str, reference_ratio: Optional[str]) -> str:
+        if reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
             return image_file_to_cropped_data_url(
                 image,
-                APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO,
+                reference_ratio,
             )
         return self._to_data_url(image)
 
