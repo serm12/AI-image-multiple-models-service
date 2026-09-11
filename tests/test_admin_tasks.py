@@ -13,7 +13,11 @@ from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.main import app
 from app.routers.admin import US_EASTERN_TIMEZONE, _display_time
-from app.services.security import get_request_client_ip, get_request_country
+from app.services.security import (
+    get_request_client_ip,
+    get_request_country,
+    get_request_source_page,
+)
 
 
 class AdminTasksTests(unittest.TestCase):
@@ -41,6 +45,7 @@ class AdminTasksTests(unittest.TestCase):
                     "time": "2026-08-28T10:00:00",
                     "original_prompt": "<script>alert(1)</script>",
                     "request_url": "https://image-api.example/generate-async/",
+                    "source_page_url": "https://shop.example/products/custom-portrait",
                     "client_ip": "203.0.113.5",
                     "client_country": "US",
                     "generation_duration_seconds": 12.34,
@@ -62,6 +67,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("203.0.113.5", response.text)
         self.assertIn("US", response.text)
+        self.assertIn("来源页面", response.text)
+        self.assertIn("shop.example/products/custom-portrait", response.text)
         self.assertIn("12.3 秒", response.text)
         self.assertIn("时间（美国东部）", response.text)
         self.assertIn('id="current-beijing-time"', response.text)
@@ -167,6 +174,45 @@ class AdminTasksTests(unittest.TestCase):
 
         self.assertEqual(get_request_client_ip(request), "198.51.100.5")
         self.assertEqual(get_request_country(request), "")
+
+    def test_explicit_source_page_is_preferred_and_fragment_is_removed(self):
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/generate-async/",
+                "headers": [(b"referer", b"https://fallback.example/")],
+                "client": ("198.51.100.5", 1234),
+                "scheme": "https",
+                "server": ("image-api.example", 443),
+            }
+        )
+
+        self.assertEqual(
+            get_request_source_page(
+                request,
+                "https://shop.example/products/portrait?variant=1#reviews",
+            ),
+            "https://shop.example/products/portrait?variant=1",
+        )
+
+    def test_source_page_rejects_unsafe_scheme_and_falls_back_to_referer(self):
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/generate-async/",
+                "headers": [(b"referer", b"https://shop.example/collections/all")],
+                "client": ("198.51.100.5", 1234),
+                "scheme": "https",
+                "server": ("image-api.example", 443),
+            }
+        )
+
+        self.assertEqual(
+            get_request_source_page(request, "javascript:alert(1)"),
+            "https://shop.example/collections/all",
+        )
 
 
 if __name__ == "__main__":

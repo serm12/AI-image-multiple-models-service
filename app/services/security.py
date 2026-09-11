@@ -1,5 +1,6 @@
 import ipaddress
 import secrets
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -116,4 +117,29 @@ def get_request_country(request: Request) -> str:
     country = request.headers.get("cf-ipcountry", "").strip().upper()
     if len(country) == 2 and country.isalpha():
         return country
+    return ""
+
+
+def get_request_source_page(request: Request, submitted_url: str | None = None) -> str:
+    """Return a safe storefront page URL, preferring the explicit form value."""
+    candidates = (submitted_url, request.headers.get("referer"))
+    for candidate in candidates:
+        value = str(candidate or "").strip()
+        if not value or len(value) > 2048:
+            continue
+        try:
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme.lower() not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+            ):
+                continue
+            # Fragments are browser-local and may contain sensitive application state.
+            return urlunsplit(
+                (parsed.scheme.lower(), parsed.netloc, parsed.path or "/", parsed.query, "")
+            )
+        except ValueError:
+            continue
     return ""

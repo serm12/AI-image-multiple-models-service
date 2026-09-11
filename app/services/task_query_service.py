@@ -34,6 +34,7 @@ def list_task_summaries() -> dict:
                     "status": response.get("status", "unknown"),
                     "api_provider": params.get("api_provider"),
                     "request_url": params.get("request_url", ""),
+                    "source_page_url": params.get("source_page_url", ""),
                     "client_ip": params.get("client_ip", ""),
                     "client_country": params.get("client_country", ""),
                     "generation_duration_seconds": params.get(

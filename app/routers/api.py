@@ -23,6 +23,7 @@ from app.services.task_query_service import (
 from app.services.security import (
     get_request_client_ip,
     get_request_country,
+    get_request_source_page,
     require_admin_api_key,
 )
 from app.services.rate_limiter import generate_request_limiter
@@ -104,6 +105,7 @@ async def generate_image_async(
     size: str = Form("2K"),
     sequential_image_generation: str = Form("disabled"),
     enable_human_check: bool = Form(False),  # 是否开启真人检测，True时上传图片必须包含清晰人脸
+    source_page_url: str | None = Form(None),
     files: list[UploadFile] = File([])
 ):
     """异步图像生成API - 立即返回任务ID，支持1个并发处理"""
@@ -236,6 +238,7 @@ async def generate_image_async(
             "sequential_image_generation": sequential_image_generation,
             "api_provider": effective_provider,  # 记录本次请求实际使用的服务提供商
             "request_url": str(request.url),
+            "source_page_url": get_request_source_page(request, source_page_url),
             "client_ip": get_request_client_ip(request),
             "client_country": get_request_country(request),
             "user_agent": request.headers.get("user-agent", "")[:500],
