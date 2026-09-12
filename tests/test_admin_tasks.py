@@ -85,6 +85,10 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn(
             "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
         )
+        self.assertIn('data-image-strip', response.text)
+        self.assertIn('class="image-scroll image-scroll-prev"', response.text)
+        self.assertIn('class="image-scroll image-scroll-next"', response.text)
+        self.assertIn('class="images" tabindex="0"', response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
 

@@ -53,10 +53,22 @@ def _task_row(task: dict) -> str:
             f"{quote(filename, safe='')}"
         )
         images += (
-            f'<a href="{_text(url)}" target="_blank" rel="noopener">'
+            f'<a class="image-item" href="{_text(url)}" target="_blank" rel="noopener">'
             f'<img src="{_text(thumbnail_url)}" loading="lazy" decoding="async" '
             'alt="Generated image"></a>'
         )
+    image_strip = (
+        '<div class="image-strip" data-image-strip>'
+        '<button class="image-scroll image-scroll-prev" type="button" '
+        'aria-label="向左滚动图片" title="上一张">‹</button>'
+        '<div class="images" tabindex="0" aria-label="生成图片列表">'
+        f'{images}</div>'
+        '<button class="image-scroll image-scroll-next" type="button" '
+        'aria-label="向右滚动图片" title="下一张">›</button>'
+        '</div>'
+        if images
+        else '<span class="muted">—</span>'
+    )
     request_url = _text(task.get("request_url"))
     if request_url:
         request_path = urlparse(str(task.get("request_url"))).path or "/"
@@ -116,7 +128,7 @@ def _task_row(task: dict) -> str:
         f'<td class="url">{source_link}</td>'
         f'<td class="url">{request_link}</td>'
         f'<td class="prompt">{prompt_view}</td>'
-        f'<td><div class="images">{images}</div></td>'
+        f'<td class="images-cell">{image_strip}</td>'
         "</tr>"
     )
 
@@ -180,8 +192,8 @@ main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-co
 h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:10px;margin-top:2px}}.count,.muted{{color:#718096}}.version{{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}}.current-times{{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}}.current-time{{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}}.current-time__label{{color:#718096;font-size:12px}}.current-time time{{font-weight:600;white-space:nowrap}}.panel{{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}}
 .service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
 table{{width:100%;border-collapse:collapse;min-width:1805px;table-layout:fixed}}th,td{{padding:13px 12px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:94px}}tbody tr:hover{{background:#fafcff}}
-th:nth-child(1){{width:180px}}th:nth-child(2){{width:105px}}th:nth-child(3),th:nth-child(4){{width:165px}}th:nth-child(5){{width:90px}}th:nth-child(6){{width:170px}}th:nth-child(7){{width:125px}}th:nth-child(8){{width:90px}}th:nth-child(9){{width:260px}}th:nth-child(10){{width:145px}}th:nth-child(11){{width:115px}}th:nth-child(12){{width:265px}}
-code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}.images{{display:flex;gap:7px;overflow-x:auto;padding:2px}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.empty{{padding:50px;text-align:center;color:#718096}}
+th:nth-child(1){{width:180px}}th:nth-child(2){{width:105px}}th:nth-child(3),th:nth-child(4){{width:165px}}th:nth-child(5){{width:90px}}th:nth-child(6){{width:170px}}th:nth-child(7){{width:125px}}th:nth-child(8){{width:90px}}th:nth-child(9){{width:260px}}th:nth-child(10){{width:145px}}th:nth-child(11){{width:115px}}th:nth-child(12){{width:300px}}
+code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;min-width:0}}.images{{display:flex;gap:7px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 7px}}.images::-webkit-scrollbar{{height:7px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:28px;height:42px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 22px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.empty{{padding:50px;text-align:center;color:#718096}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>
@@ -208,5 +220,27 @@ fetch('/health',{{cache:'no-store'}}).then(response=>{{if(!response.ok)throw new
   statusText.textContent=data.status==='ok'?'服务正常':'服务异常';
   if(data.status!=='ok')statusEl.classList.add('error');
 }}).catch(()=>{{statusEl.className='service-status error';statusText.textContent='服务异常'}});
+document.querySelectorAll('[data-image-strip]').forEach(strip=>{{
+  const viewport=strip.querySelector('.images');
+  const previous=strip.querySelector('.image-scroll-prev');
+  const next=strip.querySelector('.image-scroll-next');
+  const update=()=>{{
+    const maxScroll=Math.max(0,viewport.scrollWidth-viewport.clientWidth);
+    previous.disabled=viewport.scrollLeft<=1;
+    next.disabled=viewport.scrollLeft>=maxScroll-1;
+  }};
+  const move=direction=>viewport.scrollBy({{left:direction*Math.max(75,viewport.clientWidth*.8),behavior:'smooth'}});
+  previous.addEventListener('click',()=>move(-1));
+  next.addEventListener('click',()=>move(1));
+  viewport.addEventListener('scroll',update,{{passive:true}});
+  viewport.addEventListener('keydown',event=>{{
+    if(event.key==='ArrowLeft'){{event.preventDefault();move(-1)}}
+    if(event.key==='ArrowRight'){{event.preventDefault();move(1)}}
+    if(event.key==='Home'){{event.preventDefault();viewport.scrollTo({{left:0,behavior:'smooth'}})}}
+    if(event.key==='End'){{event.preventDefault();viewport.scrollTo({{left:viewport.scrollWidth,behavior:'smooth'}})}}
+  }});
+  new ResizeObserver(update).observe(viewport);
+  update();
+}});
 </script></body></html>"""
     )
