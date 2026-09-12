@@ -35,6 +35,11 @@ def list_task_summaries() -> dict:
                     "api_provider": params.get("api_provider"),
                     "request_url": params.get("request_url", ""),
                     "source_page_url": params.get("source_page_url", ""),
+                    "source_page_title": params.get("source_page_title", ""),
+                    "source_page_type": params.get("source_page_type", ""),
+                    "source_product_id": params.get("source_product_id", ""),
+                    "source_product_handle": params.get("source_product_handle", ""),
+                    "source_product_title": params.get("source_product_title", ""),
                     "client_ip": params.get("client_ip", ""),
                     "client_country": params.get("client_country", ""),
                     "generation_duration_seconds": params.get(

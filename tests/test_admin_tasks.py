@@ -46,6 +46,11 @@ class AdminTasksTests(unittest.TestCase):
                     "original_prompt": "<script>alert(1)</script>",
                     "request_url": "https://image-api.example/generate-async/",
                     "source_page_url": "https://shop.example/products/custom-portrait",
+                    "source_page_title": "Custom Portrait – Example Shop",
+                    "source_page_type": "product",
+                    "source_product_id": "123456789",
+                    "source_product_handle": "custom-portrait",
+                    "source_product_title": "Custom Portrait",
                     "client_ip": "203.0.113.5",
                     "client_country": "US",
                     "generation_duration_seconds": 12.34,
@@ -68,6 +73,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("203.0.113.5", response.text)
         self.assertIn("US", response.text)
         self.assertIn("来源页面", response.text)
+        self.assertIn("Custom Portrait", response.text)
         self.assertIn("shop.example/products/custom-portrait", response.text)
         self.assertIn("12.3 秒", response.text)
         self.assertIn("时间（美国东部）", response.text)
