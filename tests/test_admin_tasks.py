@@ -89,6 +89,11 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn('class="image-scroll image-scroll-prev"', response.text)
         self.assertIn('class="image-scroll image-scroll-next"', response.text)
         self.assertIn('class="images" tabindex="0"', response.text)
+        self.assertIn('data-image-viewer-item', response.text)
+        self.assertIn('id="image-viewer"', response.text)
+        self.assertIn('class="image-viewer__button image-viewer__prev"', response.text)
+        self.assertIn("viewer.addEventListener('wheel'", response.text)
+        self.assertIn("viewer.addEventListener('touchstart'", response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
 
