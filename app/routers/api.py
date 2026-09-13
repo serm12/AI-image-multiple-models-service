@@ -689,7 +689,35 @@ async def get_task_status_async(task_id: str):
     
     task_info = task_manager.get_task(task_id)
     if not task_info:
-        return JSONResponse({"error": "任务不存在"}, status_code=404)
+        # Task state is kept in memory for fast polling.  A process restart
+        # must not make already-generated previews permanently fall back to
+        # the origin URL though: the task directory and its R2 mapping are
+        # durable.  Hydrate a compact completed response for those tasks so a
+        # storefront that was restored from IndexedDB can still switch to CDN.
+        task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
+        if not os.path.isdir(task_dir):
+            return JSONResponse({"error": "任务不存在"}, status_code=404)
+
+        local_files = get_public_watermark_files(
+            await get_output_files_async(task_dir, task_id)
+        )
+        if not local_files:
+            return JSONResponse({"error": "任务不存在"}, status_code=404)
+
+        from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
+
+        cdn_files = get_public_watermark_files(
+            replace_with_cdn_urls(local_files, read_r2_mapping(task_dir))
+        )
+        has_cdn_files = bool(cdn_files) and cdn_files != local_files
+        return JSONResponse({
+            "task_id": task_id,
+            "status": TaskStatus.COMPLETED,
+            "progress": 100,
+            "files": cdn_files if has_cdn_files else local_files,
+            "file_source": "cdn" if has_cdn_files else "local",
+            "restored_from_disk": True,
+        })
     
     # 把 Unix 时间戳转换为 ISO 格式字符串（保持 API 兼容性）
     def ts_to_iso(ts):
@@ -717,6 +745,19 @@ async def get_task_status_async(task_id: str):
         public_cdn_files = get_public_watermark_files(
             task_result.get("cdn_output_files")
         )
+        if not public_cdn_files:
+            # The background uploader persists this mapping on disk before it
+            # updates the in-memory task.  Reading it here closes the small
+            # race window and also covers a worker restart during upload.
+            from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
+
+            task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
+            public_cdn_files = get_public_watermark_files(
+                replace_with_cdn_urls(
+                    public_cached_files,
+                    read_r2_mapping(task_dir),
+                )
+            )
         if public_cdn_files and task_info.get("local_preview_served"):
             response_data["files"] = public_cdn_files
             response_data["file_source"] = "cdn"
