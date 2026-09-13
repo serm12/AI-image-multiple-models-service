@@ -134,6 +134,57 @@ def _task_row(task: dict) -> str:
     )
 
 
+def _pagination(data: dict) -> str:
+    page = int(data["page"])
+    page_size = int(data["page_size"])
+    total_pages = int(data["total_pages"])
+
+    def page_link(target: int, label: str, class_name: str = "") -> str:
+        classes = f' class="{class_name}"' if class_name else ""
+        return (
+            f'<a{classes} href="/admin/tasks?page={target}&amp;page_size={page_size}">'
+            f'{label}</a>'
+        )
+
+    page_numbers = {1, total_pages}
+    page_numbers.update(range(max(1, page - 2), min(total_pages, page + 2) + 1))
+    number_links = []
+    previous_number = 0
+    for number in sorted(page_numbers):
+        if previous_number and number - previous_number > 1:
+            number_links.append('<span class="pagination__ellipsis">…</span>')
+        if number == page:
+            number_links.append(
+                f'<span class="pagination__page is-current" aria-current="page">{number}</span>'
+            )
+        else:
+            number_links.append(page_link(number, str(number), "pagination__page"))
+        previous_number = number
+
+    previous = (
+        page_link(page - 1, "‹ 上一页", "pagination__direction")
+        if data["has_previous"]
+        else '<span class="pagination__direction is-disabled">‹ 上一页</span>'
+    )
+    following = (
+        page_link(page + 1, "下一页 ›", "pagination__direction")
+        if data["has_next"]
+        else '<span class="pagination__direction is-disabled">下一页 ›</span>'
+    )
+    size_options = "".join(
+        f'<option value="{size}"{" selected" if size == page_size else ""}>{size} 条/页</option>'
+        for size in (25, 50, 100)
+    )
+    return (
+        '<nav class="pagination" aria-label="任务分页">'
+        f'<div class="pagination__links">{previous}{"".join(number_links)}{following}</div>'
+        '<label class="pagination__size">每页显示 '
+        f'<select id="page-size-select">{size_options}</select></label>'
+        f'<span class="pagination__summary">第 {page} / {total_pages} 页</span>'
+        '</nav>'
+    )
+
+
 @router.get("/admin/tasks/{task_id}/thumbnail/{filename}")
 def admin_task_thumbnail(
     task_id: str,
@@ -179,10 +230,15 @@ def admin_task_thumbnail(
 
 
 @router.get("/admin/tasks", response_class=HTMLResponse)
-def admin_tasks(_username: str = Depends(require_admin_login)):
-    data = list_task_summaries()
+def admin_tasks(
+    page: int = 1,
+    page_size: int = 25,
+    _username: str = Depends(require_admin_login),
+):
+    data = list_task_summaries(page=page, page_size=page_size)
     rows = "".join(_task_row(task) for task in data["tasks"])
     body = rows or '<tr><td colspan="12" class="empty">暂无任务记录</td></tr>'
+    pagination = _pagination(data)
     return HTMLResponse(
         f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -194,11 +250,12 @@ h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:1
 .service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
 table{{width:100%;border-collapse:collapse;min-width:1805px;table-layout:fixed}}th,td{{padding:13px 12px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:94px}}tbody tr:hover{{background:#fafcff}}
 th:nth-child(1){{width:180px}}th:nth-child(2){{width:105px}}th:nth-child(3),th:nth-child(4){{width:165px}}th:nth-child(5){{width:90px}}th:nth-child(6){{width:170px}}th:nth-child(7){{width:125px}}th:nth-child(8){{width:90px}}th:nth-child(9){{width:260px}}th:nth-child(10){{width:145px}}th:nth-child(11){{width:115px}}th:nth-child(12){{width:300px}}
-code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;min-width:0}}.images{{display:flex;gap:7px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 7px}}.images::-webkit-scrollbar{{height:7px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:28px;height:42px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 22px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.image-viewer{{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;background:#090d14e8;backdrop-filter:blur(3px)}}.image-viewer[hidden]{{display:none}}.image-viewer__stage{{position:relative;display:grid;place-items:center;width:min(1100px,calc(100vw - 48px));height:calc(100vh - 48px)}}.image-viewer__image{{display:block;max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 20px 70px #0009}}.image-viewer__button{{position:absolute;z-index:2;display:grid;place-items:center;width:46px;height:54px;padding:0;border:1px solid #ffffff38;border-radius:12px;background:#101827bd;color:#fff;font:700 30px/1 system-ui;cursor:pointer}}.image-viewer__button:hover:not(:disabled){{background:#1d2b42ed}}.image-viewer__button:disabled{{display:none}}.image-viewer__prev{{left:12px}}.image-viewer__next{{right:12px}}.image-viewer__close{{top:0;right:0;width:42px;height:42px;font-size:24px}}.image-viewer__count{{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827cf;color:#fff;font-size:13px;font-variant-numeric:tabular-nums}}.empty{{padding:50px;text-align:center;color:#718096}}
+code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;min-width:0}}.images{{display:flex;gap:7px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 7px}}.images::-webkit-scrollbar{{height:7px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:28px;height:42px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 22px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.pagination{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}}.pagination__links{{display:flex;align-items:center;gap:6px}}.pagination__page,.pagination__direction{{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}}.pagination__page.is-current{{border-color:#366fac;background:#366fac;color:#fff}}.pagination__direction.is-disabled{{color:#a2adbb;background:#f3f6f9}}.pagination__ellipsis{{padding:0 2px}}.pagination__size{{display:flex;align-items:center;gap:6px}}.pagination__size select{{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}}.pagination__summary{{font-size:12px}}.image-viewer{{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:clamp(8px,2.5vw,24px);background:#090d14e8;backdrop-filter:blur(3px)}}.image-viewer[hidden]{{display:none}}.image-viewer__stage{{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}}.image-viewer__image{{display:block;width:100%;height:100%;min-width:0;min-height:0;object-fit:contain;border-radius:8px;filter:drop-shadow(0 20px 35px #0009)}}.image-viewer__button{{position:absolute;z-index:2;display:grid;place-items:center;width:46px;height:54px;padding:0;border:1px solid #ffffff38;border-radius:12px;background:#101827bd;color:#fff;font:700 30px/1 system-ui;cursor:pointer}}.image-viewer__button:hover:not(:disabled){{background:#1d2b42ed}}.image-viewer__button:disabled{{display:none}}.image-viewer__prev{{left:12px}}.image-viewer__next{{right:12px}}.image-viewer__close{{top:0;right:0;width:42px;height:42px;font-size:24px}}.image-viewer__count{{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827cf;color:#fff;font-size:13px;font-variant-numeric:tabular-nums}}.empty{{padding:50px;text-align:center;color:#718096}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
-@media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
+@media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}.image-viewer__button{{width:40px;height:48px}}.image-viewer__prev{{left:4px}}.image-viewer__next{{right:4px}}.image-viewer__close{{top:4px;right:4px;width:38px;height:38px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>
 <div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间（北京时间）</th><th>时间（美国东部）</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>来源页面</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
+{pagination}
 <div class="image-viewer" id="image-viewer" role="dialog" aria-modal="true" aria-label="查看生成图片" hidden>
   <div class="image-viewer__stage">
     <button class="image-viewer__button image-viewer__close" type="button" aria-label="关闭">×</button>
@@ -225,6 +282,9 @@ function updateCurrentTimes(){{
 }}
 updateCurrentTimes();
 setInterval(updateCurrentTimes,1000);
+document.getElementById('page-size-select')?.addEventListener('change',event=>{{
+  window.location.href=`/admin/tasks?page=1&page_size=${{event.target.value}}`;
+}});
 fetch('/health',{{cache:'no-store'}}).then(response=>{{if(!response.ok)throw new Error();return response.json()}}).then(data=>{{
   statusEl.className='service-status';
   statusText.textContent=data.status==='ok'?'服务正常':'服务异常';

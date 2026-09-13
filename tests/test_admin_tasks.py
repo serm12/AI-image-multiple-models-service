@@ -81,6 +81,9 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn('id="current-us-eastern-time"', response.text)
         self.assertIn("Asia/Shanghai", response.text)
         self.assertIn("America/New_York", response.text)
+        self.assertIn('aria-label="任务分页"', response.text)
+        self.assertIn('id="page-size-select"', response.text)
+        self.assertIn('第 1 / 1 页', response.text)
         self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
         self.assertIn(
             "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
@@ -92,6 +95,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn('data-image-viewer-item', response.text)
         self.assertIn('id="image-viewer"', response.text)
         self.assertIn('class="image-viewer__button image-viewer__prev"', response.text)
+        self.assertIn('width:100%;height:100%;min-width:0;min-height:0;object-fit:contain', response.text)
         self.assertIn("viewer.addEventListener('wheel'", response.text)
         self.assertIn("viewer.addEventListener('touchstart'", response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
@@ -106,6 +110,39 @@ class AdminTasksTests(unittest.TestCase):
         with Image.open(BytesIO(thumbnail.content)) as preview:
             self.assertLessEqual(preview.width, 160)
             self.assertLessEqual(preview.height, 160)
+
+    def test_admin_tasks_uses_server_side_pagination(self):
+        for index in range(30):
+            task_id = f"20260913_{index:06d}_task"
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "time": f"20260913_{index:06d}",
+                        "original_prompt": f"prompt-{index}",
+                    },
+                    file,
+                )
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        headers = {"Authorization": f"Basic {token}"}
+        first_page = client.get("/admin/tasks", headers=headers)
+        second_page = client.get("/admin/tasks?page=2&page_size=25", headers=headers)
+
+        self.assertEqual(first_page.status_code, 200)
+        self.assertEqual(first_page.text.count("<tr>"), 26)
+        self.assertIn("prompt-29", first_page.text)
+        self.assertNotIn("prompt-0</div>", first_page.text)
+        self.assertIn("第 1 / 2 页", first_page.text)
+        self.assertIn("/admin/tasks?page=2&amp;page_size=25", first_page.text)
+
+        self.assertEqual(second_page.status_code, 200)
+        self.assertEqual(second_page.text.count("<tr>"), 6)
+        self.assertIn("prompt-0", second_page.text)
+        self.assertNotIn("prompt-29", second_page.text)
+        self.assertIn("第 2 / 2 页", second_page.text)
 
     def test_forwarded_ip_is_only_trusted_from_local_proxy(self):
         trusted_request = Request(

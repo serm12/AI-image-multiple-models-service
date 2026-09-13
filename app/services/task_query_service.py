@@ -8,55 +8,83 @@ IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 API_RESPONSE_FILES = ("bfl_response.json", "replicate_response.json")
 
 
-def list_task_summaries() -> dict:
-    """Return compact task summaries for the admin task list endpoint."""
+def list_task_summaries(page: int | None = None, page_size: int | None = None) -> dict:
+    """Return compact task summaries, optionally loading one server-side page."""
     tasks = []
+    task_entries = []
     if os.path.exists(DirectoryConfig.TASKS_DIR):
-        for task_id in os.listdir(DirectoryConfig.TASKS_DIR):
-            task_dir = os.path.join(DirectoryConfig.TASKS_DIR, task_id)
-            if not os.path.isdir(task_dir):
-                continue
+        with os.scandir(DirectoryConfig.TASKS_DIR) as entries:
+            task_entries = [entry for entry in entries if entry.is_dir()]
 
-            params = _read_json_if_exists(os.path.join(task_dir, "params.json"))
-            response = _read_first_api_response(task_dir)
-            output_files_count = sum(
-                1 for filename in os.listdir(task_dir) if filename.endswith(IMAGE_EXTENSIONS)
-            )
+    # Task directory names begin with YYYYMMDD_HHMMSS, so lexical order keeps
+    # the newest tasks first without opening every task's params.json file.
+    task_entries.sort(key=lambda entry: entry.name, reverse=True)
+    total = len(task_entries)
 
-            tasks.append(
-                {
-                    "task_id": task_id,
-                    "description": params.get("description", ""),
-                    "created_at": params.get("time", ""),
-                    "time_zone": params.get("time_zone", "UTC"),
-                    "extracted_seed": response.get("extracted_seed"),
-                    "output_files_count": output_files_count,
-                    "status": response.get("status", "unknown"),
-                    "api_provider": params.get("api_provider"),
-                    "request_url": params.get("request_url", ""),
-                    "source_page_url": params.get("source_page_url", ""),
-                    "source_page_title": params.get("source_page_title", ""),
-                    "source_page_type": params.get("source_page_type", ""),
-                    "source_product_id": params.get("source_product_id", ""),
-                    "source_product_handle": params.get("source_product_handle", ""),
-                    "source_product_title": params.get("source_product_title", ""),
-                    "client_ip": params.get("client_ip", ""),
-                    "client_country": params.get("client_country", ""),
-                    "generation_duration_seconds": params.get(
-                        "generation_duration_seconds"
-                    ),
-                    "user_agent": params.get("user_agent", ""),
-                    "prompt": params.get("original_prompt", params.get("prompt", "")),
-                    "output_files": [
-                        f"/taskfile/{task_id}/{filename}"
-                        for filename in os.listdir(task_dir)
-                        if filename.lower().endswith(IMAGE_EXTENSIONS)
-                    ],
-                }
-            )
+    if page_size is None:
+        selected_entries = task_entries
+        current_page = 1
+        normalized_page_size = total or 1
+        total_pages = 1
+    else:
+        normalized_page_size = max(10, min(int(page_size), 100))
+        total_pages = max(1, (total + normalized_page_size - 1) // normalized_page_size)
+        current_page = max(1, min(int(page or 1), total_pages))
+        start = (current_page - 1) * normalized_page_size
+        selected_entries = task_entries[start : start + normalized_page_size]
 
-    tasks.sort(key=lambda x: x["created_at"], reverse=True)
-    return {"tasks": tasks, "total": len(tasks)}
+    for entry in selected_entries:
+        task_id = entry.name
+        task_dir = entry.path
+        filenames = os.listdir(task_dir)
+
+        params = _read_json_if_exists(os.path.join(task_dir, "params.json"))
+        response = _read_first_api_response(task_dir, filenames)
+        output_filenames = [
+            filename
+            for filename in filenames
+            if filename.lower().endswith(IMAGE_EXTENSIONS)
+        ]
+
+        tasks.append(
+            {
+                "task_id": task_id,
+                "description": params.get("description", ""),
+                "created_at": params.get("time", ""),
+                "time_zone": params.get("time_zone", "UTC"),
+                "extracted_seed": response.get("extracted_seed"),
+                "output_files_count": len(output_filenames),
+                "status": response.get("status", "unknown"),
+                "api_provider": params.get("api_provider"),
+                "request_url": params.get("request_url", ""),
+                "source_page_url": params.get("source_page_url", ""),
+                "source_page_title": params.get("source_page_title", ""),
+                "source_page_type": params.get("source_page_type", ""),
+                "source_product_id": params.get("source_product_id", ""),
+                "source_product_handle": params.get("source_product_handle", ""),
+                "source_product_title": params.get("source_product_title", ""),
+                "client_ip": params.get("client_ip", ""),
+                "client_country": params.get("client_country", ""),
+                "generation_duration_seconds": params.get(
+                    "generation_duration_seconds"
+                ),
+                "user_agent": params.get("user_agent", ""),
+                "prompt": params.get("original_prompt", params.get("prompt", "")),
+                "output_files": [
+                    f"/taskfile/{task_id}/{filename}" for filename in output_filenames
+                ],
+            }
+        )
+
+    return {
+        "tasks": tasks,
+        "total": total,
+        "page": current_page,
+        "page_size": normalized_page_size,
+        "total_pages": total_pages,
+        "has_previous": current_page > 1,
+        "has_next": current_page < total_pages,
+    }
 
 
 def get_task_detail(task_id: str) -> dict | None:
@@ -143,11 +171,11 @@ def _read_first_json(directory: str, filenames: tuple[str, ...]) -> dict:
     return {}
 
 
-def _read_first_api_response(directory: str) -> dict:
+def _read_first_api_response(directory: str, filenames: list[str] | None = None) -> dict:
     response = _read_first_json(directory, API_RESPONSE_FILES)
     if response:
         return response
-    for filename in os.listdir(directory):
+    for filename in filenames if filenames is not None else os.listdir(directory):
         if filename.endswith("_response.json"):
             response = _read_json_if_exists(os.path.join(directory, filename))
             if isinstance(response, dict) and response:
