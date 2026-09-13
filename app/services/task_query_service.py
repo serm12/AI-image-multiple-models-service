@@ -2,6 +2,7 @@ import json
 import os
 
 from app.core.config import DirectoryConfig
+from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
@@ -51,6 +52,9 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
             if filename.lower().endswith(IMAGE_EXTENSIONS)
         ]
 
+        local_output_files = [
+            f"/taskfile/{task_id}/{filename}" for filename in output_filenames
+        ]
         tasks.append(
             {
                 "task_id": task_id,
@@ -75,9 +79,9 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 ),
                 "user_agent": params.get("user_agent", ""),
                 "prompt": params.get("original_prompt", params.get("prompt", "")),
-                "output_files": [
-                    f"/taskfile/{task_id}/{filename}" for filename in output_filenames
-                ],
+                "output_files": replace_with_cdn_urls(
+                    local_output_files, read_r2_mapping(task_dir)
+                ),
             }
         )
 
@@ -106,10 +110,15 @@ def get_task_detail(task_id: str) -> dict | None:
         if response:
             api_responses[response_file] = response
 
-    output_files = [
+    local_output_files = [
         {"filename": filename, "url": f"/taskfile/{task_id}/{filename}"}
         for filename in os.listdir(task_dir)
         if filename.endswith(IMAGE_EXTENSIONS)
+    ]
+    cdn_mapping = read_r2_mapping(task_dir)
+    output_files = [
+        {**item, "url": cdn_mapping.get(item["url"], item["url"])}
+        for item in local_output_files
     ]
 
     return {

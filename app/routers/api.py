@@ -52,6 +52,7 @@ from app.services.async_task_manager import task_manager, TaskStatus
 # 导入统一API客户端
 from app.clients.unified_api_client import api_client
 from app.services.runtime_state import get_http_client, get_long_http_client
+from app.services.r2_storage import R2StorageConfig, upload_public_task_images
 
 # 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
 _watermark_logo_created: bool = False
@@ -77,6 +78,9 @@ async def health_check():
         "status": "ok",
         **get_version_info(),
         "configured_providers": len([p for p in APIConfig.get_available_providers() if p["configured"]]),
+        "r2_storage": (
+            "configured" if R2StorageConfig.from_env().is_configured else "disabled"
+        ),
     })
 
 
@@ -498,6 +502,14 @@ async def _do_generation_work(
             "output_files": current_files,
             "stage": "regular_completed"
         })
+
+        # Return local files immediately. R2 archival runs independently and
+        # only changes subsequent task-status responses after a local URL was served.
+        r2_upload_task = asyncio.create_task(
+            process_r2_upload_background(task_id, task_dir, current_files)
+        )
+        _background_tasks.add(r2_upload_task)
+        r2_upload_task.add_done_callback(_background_tasks.discard)
         
         # 自动进行2倍放大处理（如果用户选择启用）- 后台异步处理
         auto_upscale_value = params.get("auto_upscale", False)
@@ -513,6 +525,31 @@ async def _do_generation_work(
     else:
         error_msg = result.get("error", "未知错误")
         task_manager.set_task_failed(task_id, error_msg)
+
+
+async def process_r2_upload_background(
+    task_id: str, task_dir: str, local_files: list[str]
+) -> None:
+    """Archive public previews without delaying the first local response."""
+    try:
+        mapping = await asyncio.to_thread(
+            upload_public_task_images, task_id, task_dir, local_files
+        )
+        if not mapping:
+            return
+        task_info = task_manager.get_task(task_id)
+        if not task_info:
+            return
+        task_manager.update_task_result(
+            task_id,
+            cdn_output_files=[
+                mapping.get(local_url, local_url) for local_url in local_files
+            ],
+            cdn_ready=True,
+        )
+    except Exception as exc:
+        # R2 is an optional archive. Local delivery remains the fallback.
+        print(f"⚠️ R2后台上传失败 ({task_id}): {exc}")
 
 async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: str, filename: str):
     """Download a generated image, save outputs, and add the watermark file."""
@@ -673,10 +710,20 @@ async def get_task_status_async(task_id: str):
     }
     # 检查是否有文件
     # 任务已完成时直接用内存缓存，避免每次轮询都 os.listdir
-    cached_files = (task_info.get("result") or {}).get("output_files")
+    task_result = task_info.get("result") or {}
+    cached_files = task_result.get("output_files")
     public_cached_files = get_public_watermark_files(cached_files)
     if public_cached_files:
-        response_data["files"] = public_cached_files
+        public_cdn_files = get_public_watermark_files(
+            task_result.get("cdn_output_files")
+        )
+        if public_cdn_files and task_info.get("local_preview_served"):
+            response_data["files"] = public_cdn_files
+            response_data["file_source"] = "cdn"
+        else:
+            response_data["files"] = public_cached_files
+            response_data["file_source"] = "local"
+            task_manager.mark_local_preview_served(task_id)
     elif task_info["progress"] >= 70 or task_info["status"] in {
         TaskStatus.DOWNLOADING,
         TaskStatus.COMPLETED,
@@ -688,6 +735,8 @@ async def get_task_status_async(task_id: str):
             public_output_files = get_public_watermark_files(output_files)
             if public_output_files:
                 response_data["files"] = public_output_files
+                response_data["file_source"] = "local"
+                task_manager.mark_local_preview_served(task_id)
     
     # 如果任务完成，添加额外信息
     if task_info["status"] == TaskStatus.COMPLETED and task_info.get("result"):

@@ -12,6 +12,7 @@ aiohttp>=3.8.0
 
 # 异步文件处理
 aiofiles>=0.7.0
+boto3>=1.35.0
 
 # 图像处理
 Pillow>=8.3.0

@@ -61,6 +61,22 @@ class AsyncTaskManager:
     def get_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """获取任务信息"""
         return self.tasks.get(task_id)
+
+    def mark_local_preview_served(self, task_id: str) -> bool:
+        """Record first local delivery without changing task completion time."""
+        if task_id not in self.tasks:
+            return False
+        self.tasks[task_id]["local_preview_served"] = True
+        return True
+
+    def update_task_result(self, task_id: str, **updates) -> bool:
+        """Merge delivery metadata without changing generation completion time."""
+        if task_id not in self.tasks:
+            return False
+        result = dict(self.tasks[task_id].get("result") or {})
+        result.update(updates)
+        self.tasks[task_id]["result"] = result
+        return True
     
     def set_task_failed(self, task_id: str, error: str):
         """设置任务失败"""
