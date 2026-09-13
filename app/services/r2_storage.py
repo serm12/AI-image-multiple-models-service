@@ -26,7 +26,9 @@ class R2StorageConfig:
     secret_access_key: str
     bucket: str
     public_base_url: str
-    prefix: str = "ai-image-tasks"
+    # Keep the CDN URL structure identical to the backend's local public URL:
+    # /taskfile/{task_id}/{filename}.  This makes both sources interchangeable.
+    prefix: str = "taskfile"
     enabled: bool = True
 
     @classmethod
@@ -41,7 +43,7 @@ class R2StorageConfig:
             public_base_url=os.getenv(
                 "CLOUDFLARE_R2_PUBLIC_BASE_URL", ""
             ).strip().rstrip("/"),
-            prefix=os.getenv("CLOUDFLARE_R2_PREFIX", "ai-image-tasks")
+            prefix=os.getenv("CLOUDFLARE_R2_PREFIX", "taskfile")
             .strip()
             .strip("/"),
             enabled=_env_bool("CLOUDFLARE_R2_ENABLED", True),
