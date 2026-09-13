@@ -125,6 +125,11 @@ class AdminTasksTests(unittest.TestCase):
                     file,
                 )
 
+        empty_intermediate_dir = (
+            "20260913_999999_task_aiapiroute_gpt_image_20260913_160000_na"
+        )
+        os.makedirs(os.path.join(self.temp_dir.name, empty_intermediate_dir))
+
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         headers = {"Authorization": f"Basic {token}"}
@@ -136,7 +141,9 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("prompt-29", first_page.text)
         self.assertNotIn("prompt-0</div>", first_page.text)
         self.assertIn("第 1 / 2 页", first_page.text)
+        self.assertIn("共 30 条任务", first_page.text)
         self.assertIn("/admin/tasks?page=2&amp;page_size=25", first_page.text)
+        self.assertNotIn(empty_intermediate_dir, first_page.text)
 
         self.assertEqual(second_page.status_code, 200)
         self.assertEqual(second_page.text.count("<tr>"), 6)

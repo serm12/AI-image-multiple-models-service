@@ -14,7 +14,12 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
     task_entries = []
     if os.path.exists(DirectoryConfig.TASKS_DIR):
         with os.scandir(DirectoryConfig.TASKS_DIR) as entries:
-            task_entries = [entry for entry in entries if entry.is_dir()]
+            task_entries = [
+                entry
+                for entry in entries
+                if entry.is_dir()
+                and os.path.isfile(os.path.join(entry.path, "params.json"))
+            ]
 
     # Task directory names begin with YYYYMMDD_HHMMSS, so lexical order keeps
     # the newest tasks first without opening every task's params.json file.
