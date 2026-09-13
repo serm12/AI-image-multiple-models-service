@@ -758,7 +758,11 @@ async def get_task_status_async(task_id: str):
                     read_r2_mapping(task_dir),
                 )
             )
-        if public_cdn_files and task_info.get("local_preview_served"):
+        # The browser has already received the local preview while R2 was
+        # uploading.  Once a durable R2 mapping exists, always return it.
+        # Do not gate this on an in-memory flag: a server restart (or a page
+        # refresh after one) loses that flag and would make old URLs persist.
+        if public_cdn_files:
             response_data["files"] = public_cdn_files
             response_data["file_source"] = "cdn"
         else:
