@@ -180,10 +180,9 @@ class AIApiRouteGPTImageClient:
         }
 
     def _should_force_reference_ratio(self) -> bool:
-        return (
-            APIConfig.AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO
-            and self.model == APIConfig.AIAPIROUTE_GPT_IMAGE2_MODEL
-        )
+        # Every model routed through this client uses the aiapiroute/Sub2API
+        # channel. Fal clients never call this preprocessing path.
+        return APIConfig.AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO
 
     def _resolve_reference_ratio(self, aspect_ratio) -> str:
         ratio_value = str(
