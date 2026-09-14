@@ -24,7 +24,7 @@ class AIApiRouteGPTImageClientTests(unittest.TestCase):
         ):
             self.assertEqual(self.client._resolve_reference_ratio("4:3"), "4:3")
 
-    def test_reference_image_is_cropped_to_request_aspect_ratio(self):
+    def test_reference_image_is_fitted_to_request_aspect_ratio_without_cropping(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = f"{temp_dir}/source.png"
             Image.new("RGB", (800, 1200), "green").save(image_path)
@@ -32,7 +32,7 @@ class AIApiRouteGPTImageClientTests(unittest.TestCase):
             data_url = self.client._to_request_data_url(image_path, "4:3")
             encoded = data_url.split(",", 1)[1]
             with Image.open(BytesIO(base64.b64decode(encoded))) as result:
-                self.assertEqual(result.size, (800, 600))
+                self.assertEqual(result.size, (1600, 1200))
 
     def test_missing_request_ratio_uses_configured_fallback(self):
         with patch.object(

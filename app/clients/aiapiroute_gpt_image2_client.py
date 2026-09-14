@@ -17,7 +17,7 @@ from typing import Any, Optional
 import httpx
 
 from app.core.config import APIConfig
-from app.utils.reference_image_utils import image_file_to_cropped_data_url
+from app.utils.reference_image_utils import image_file_to_fitted_data_url
 
 AIAPIROUTE_IMAGE_MAX_EDGE = 3840
 AIAPIROUTE_IMAGE_MIN_PIXELS = 655_360
@@ -198,7 +198,7 @@ class AIApiRouteGPTImageClient:
 
     def _to_request_data_url(self, image: str, reference_ratio: Optional[str]) -> str:
         if reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
-            return image_file_to_cropped_data_url(
+            return image_file_to_fitted_data_url(
                 image,
                 reference_ratio,
             )
