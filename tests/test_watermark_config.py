@@ -11,7 +11,7 @@ from app.utils.watermark_utils import add_corner_label, temp_add_corner_label
 
 class WatermarkConfigTests(unittest.TestCase):
     def test_tiled_watermark_balances_visibility_and_spacing(self):
-        self.assertEqual(WatermarkConfig.DEFAULT_COLOR, (255, 255, 255, 125))
+        self.assertEqual(WatermarkConfig.DEFAULT_COLOR, (255, 255, 255, 153))
         self.assertEqual(WatermarkConfig.DEFAULT_STEP, 165)
 
     def test_corner_label_keeps_proportions_on_high_resolution_images(self):
