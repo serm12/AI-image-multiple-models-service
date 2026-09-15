@@ -10,6 +10,9 @@ from app.utils.watermark_utils import add_corner_label, temp_add_corner_label
 
 
 class WatermarkConfigTests(unittest.TestCase):
+    def test_tiled_watermark_is_clearly_visible(self):
+        self.assertEqual(WatermarkConfig.DEFAULT_COLOR, (255, 255, 255, 150))
+
     def test_corner_label_keeps_proportions_on_high_resolution_images(self):
         with tempfile.TemporaryDirectory() as directory:
             bounds = []
