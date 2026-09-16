@@ -194,7 +194,11 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("#3</span>", first_page.text)
         self.assertIn("#2</span>", second_page.text)
         self.assertIn("#1</span>", second_page.text)
+        self.assertEqual(first_page.text.count("共 11 次</span>"), 9)
+        self.assertEqual(second_page.text.count("共 11 次</span>"), 2)
+        self.assertIn('class="ip-task-total"', first_page.text)
         self.assertIn("该 IP 发起的第 11 个任务", first_page.text)
+        self.assertIn("该 IP 累计发起 11 个任务", first_page.text)
 
     def test_forwarded_ip_is_only_trusted_from_local_proxy(self):
         trusted_request = Request(

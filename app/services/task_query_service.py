@@ -92,6 +92,9 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 "source_product_title": params.get("source_product_title", ""),
                 "client_ip": params.get("client_ip", ""),
                 "ip_task_sequence": ip_task_sequences.get(task_id),
+                "ip_task_total": ip_task_counts.get(
+                    str(params.get("client_ip") or "").strip()
+                ),
                 "client_country": params.get("client_country", ""),
                 "generation_duration_seconds": params.get(
                     "generation_duration_seconds"
