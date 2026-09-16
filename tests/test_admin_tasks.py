@@ -163,7 +163,11 @@ class AdminTasksTests(unittest.TestCase):
                 json.dump(
                     {
                         "time": f"20260914_{index:06d}",
-                        "client_ip": "203.0.113.20" if index != 5 else "198.51.100.8",
+                        "client_ip": (
+                            "203.0.113.20"
+                            if index != 5
+                            else "2603:6011:e600:46:4999:2:fbba:a378"
+                        ),
                     },
                     file,
                 )
@@ -175,7 +179,16 @@ class AdminTasksTests(unittest.TestCase):
         second_page = client.get("/admin/tasks?page=2&page_size=10", headers=headers)
 
         self.assertEqual(first_page.status_code, 200)
-        self.assertIn('203.0.113.20 <span class="ip-task-sequence"', first_page.text)
+        self.assertIn(
+            '<span class="client-ip__address">203.0.113.20</span> '
+            '<span class="ip-task-sequence"',
+            first_page.text,
+        )
+        self.assertIn(
+            '<span class="client-ip__address">2603:6011:e600:46:4999:2:fbba:a378</span>',
+            first_page.text,
+        )
+        self.assertIn(".client-ip__address{overflow-wrap:anywhere;word-break:break-all}", first_page.text)
         self.assertIn("#11</span>", first_page.text)
         self.assertIn("#6</span>", first_page.text)
         self.assertIn("#3</span>", first_page.text)
