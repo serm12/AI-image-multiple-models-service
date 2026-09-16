@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 
 from app.core.config import DirectoryConfig
 from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
@@ -39,12 +40,29 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
         start = (current_page - 1) * normalized_page_size
         selected_entries = task_entries[start : start + normalized_page_size]
 
+    selected_task_ids = {entry.name for entry in selected_entries}
+    selected_params = {}
+    ip_task_counts = defaultdict(int)
+    ip_task_sequences = {}
+
+    # Assign each IP a stable, chronological task number across every page.
+    # Directory names start with the task timestamp, so reversing the normal
+    # newest-first order gives us oldest-first numbering.
+    for entry in reversed(task_entries):
+        params = _read_json_if_exists(os.path.join(entry.path, "params.json"))
+        if entry.name in selected_task_ids:
+            selected_params[entry.name] = params
+        client_ip = str(params.get("client_ip") or "").strip()
+        if client_ip:
+            ip_task_counts[client_ip] += 1
+            ip_task_sequences[entry.name] = ip_task_counts[client_ip]
+
     for entry in selected_entries:
         task_id = entry.name
         task_dir = entry.path
         filenames = os.listdir(task_dir)
 
-        params = _read_json_if_exists(os.path.join(task_dir, "params.json"))
+        params = selected_params.get(task_id, {})
         response = _read_first_api_response(task_dir, filenames)
         output_filenames = [
             filename
@@ -73,6 +91,7 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 "source_product_handle": params.get("source_product_handle", ""),
                 "source_product_title": params.get("source_product_title", ""),
                 "client_ip": params.get("client_ip", ""),
+                "ip_task_sequence": ip_task_sequences.get(task_id),
                 "client_country": params.get("client_country", ""),
                 "generation_duration_seconds": params.get(
                     "generation_duration_seconds"

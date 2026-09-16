@@ -154,6 +154,35 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn("prompt-29", second_page.text)
         self.assertIn("第 2 / 2 页", second_page.text)
 
+    def test_same_ip_has_chronological_sequence_across_pages(self):
+        for index in range(12):
+            task_id = f"20260914_{index:06d}_task"
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "time": f"20260914_{index:06d}",
+                        "client_ip": "203.0.113.20" if index != 5 else "198.51.100.8",
+                    },
+                    file,
+                )
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        headers = {"Authorization": f"Basic {token}"}
+        first_page = client.get("/admin/tasks?page=1&page_size=10", headers=headers)
+        second_page = client.get("/admin/tasks?page=2&page_size=10", headers=headers)
+
+        self.assertEqual(first_page.status_code, 200)
+        self.assertIn('203.0.113.20 <span class="ip-task-sequence"', first_page.text)
+        self.assertIn("#11</span>", first_page.text)
+        self.assertIn("#6</span>", first_page.text)
+        self.assertIn("#3</span>", first_page.text)
+        self.assertIn("#2</span>", second_page.text)
+        self.assertIn("#1</span>", second_page.text)
+        self.assertIn("该 IP 发起的第 11 个任务", first_page.text)
+
     def test_forwarded_ip_is_only_trusted_from_local_proxy(self):
         trusted_request = Request(
             {
