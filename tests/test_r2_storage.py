@@ -24,35 +24,40 @@ class FakeS3Client:
 
 
 class R2StorageTests(unittest.TestCase):
-    def test_uploads_only_public_watermark_and_persists_mapping(self):
+    def test_uploads_generated_original_and_watermark_but_not_source_input(self):
         with tempfile.TemporaryDirectory() as task_dir:
             watermark = os.path.join(task_dir, "output portrait_watermark.png")
-            original = os.path.join(task_dir, "output portrait_original.png")
+            original = os.path.join(task_dir, "output_cropped_original_14155662.png")
+            source = os.path.join(task_dir, "customer-photo.png")
             with open(watermark, "wb") as file:
                 file.write(b"preview")
             with open(original, "wb") as file:
                 file.write(b"original")
+            with open(source, "wb") as file:
+                file.write(b"source")
 
             local_preview = "/taskfile/task-1/output%20portrait_watermark.png"
-            local_original = "/taskfile/task-1/output%20portrait_original.png"
+            local_original = "/taskfile/task-1/output_cropped_original_14155662.png"
+            local_source = "/taskfile/task-1/customer-photo.png"
             config = R2StorageConfig(
                 account_id="account",
                 access_key_id="access",
                 secret_access_key="secret",
                 bucket="previews",
                 public_base_url="https://images.example.com",
+                prefix="ai-image-tasks",
             )
             client = FakeS3Client()
 
             mapping = upload_public_task_images(
                 "task-1",
                 task_dir,
-                [local_preview, local_original],
+                [local_preview, local_original, local_source],
                 config=config,
                 s3_client=client,
             )
 
-            self.assertEqual(len(client.uploads), 1)
+            self.assertEqual(len(client.uploads), 2)
             self.assertEqual(
                 client.uploads[0][2],
                 "ai-image-tasks/task-1/output portrait_watermark.png",
@@ -62,11 +67,16 @@ class R2StorageTests(unittest.TestCase):
                 "https://images.example.com/ai-image-tasks/task-1/"
                 "output%20portrait_watermark.png",
             )
-            self.assertNotIn(local_original, mapping)
+            self.assertEqual(
+                mapping[local_original],
+                "https://images.example.com/ai-image-tasks/task-1/"
+                "output_cropped_original_14155662.png",
+            )
+            self.assertNotIn(local_source, mapping)
             self.assertEqual(read_r2_mapping(task_dir), mapping)
             self.assertEqual(
                 replace_with_cdn_urls([local_preview, local_original], mapping),
-                [mapping[local_preview], local_original],
+                [mapping[local_preview], mapping[local_original]],
             )
             with open(os.path.join(task_dir, "cdn_uploads.json"), encoding="utf-8") as file:
                 self.assertEqual(json.load(file)["version"], 1)
@@ -79,7 +89,7 @@ class R2StorageTests(unittest.TestCase):
             )
         self.assertEqual(mapping, {})
 
-    def test_task_status_serves_local_once_before_switching_to_cdn(self):
+    def test_task_status_uses_durable_cdn_mapping_when_ready(self):
         task_id = "r2-delivery-test"
         local_url = f"/taskfile/{task_id}/output_watermark.png"
         cdn_url = (
@@ -100,8 +110,8 @@ class R2StorageTests(unittest.TestCase):
             first = client.get(f"/task-status/{task_id}")
             second = client.get(f"/task-status/{task_id}")
 
-            self.assertEqual(first.json()["files"], [local_url])
-            self.assertEqual(first.json()["file_source"], "local")
+            self.assertEqual(first.json()["files"], [cdn_url])
+            self.assertEqual(first.json()["file_source"], "cdn")
             self.assertEqual(second.json()["files"], [cdn_url])
             self.assertEqual(second.json()["file_source"], "cdn")
         finally:

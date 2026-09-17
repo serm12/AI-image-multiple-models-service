@@ -1,7 +1,8 @@
 # Cloudflare R2 image delivery
 
 Generated watermarked previews are returned from the local `/taskfile/` route first.
-The API then uploads those previews to Cloudflare R2 in a background task. After the
+The API then uploads those previews and their generated originals to Cloudflare R2
+in a background task. After the
 local URL has been returned at least once and the upload has completed, later
 `/task-status/{task_id}` responses use the CDN URL.
 
@@ -21,5 +22,7 @@ CLOUDFLARE_R2_PREFIX=ai-image-tasks
 bucket. If any required value is missing, or an upload fails, local delivery remains
 active and image generation is not failed.
 
-Only watermarked public previews are uploaded by this flow. Full-resolution originals
-remain local and are not exposed through the public R2 domain.
+Watermarked previews and generated files named `output_cropped_original_*` are
+uploaded by this flow. Customer source uploads remain local and are not exposed
+through the public R2 domain. Storefront task-status responses continue to return
+only watermarked previews; generated originals are available for order and email links.

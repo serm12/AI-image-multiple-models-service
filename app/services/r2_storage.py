@@ -66,10 +66,14 @@ class R2StorageConfig:
         return f"https://{self.account_id}.r2.cloudflarestorage.com"
 
 
-def is_public_preview_url(url: str) -> bool:
+def is_cdn_task_image_url(url: str) -> bool:
     filename = unquote(os.path.basename(urlparse(str(url)).path)).lower()
     stem, extension = os.path.splitext(filename)
-    return stem.endswith("_watermark") and extension in PUBLIC_IMAGE_EXTENSIONS
+    is_watermarked_preview = stem.endswith("_watermark")
+    is_generated_original = stem.startswith("output_cropped_original_")
+    return (
+        is_watermarked_preview or is_generated_original
+    ) and extension in PUBLIC_IMAGE_EXTENSIONS
 
 
 def upload_public_task_images(
@@ -80,7 +84,7 @@ def upload_public_task_images(
     config: R2StorageConfig | None = None,
     s3_client=None,
 ) -> dict[str, str]:
-    """Upload public watermarked previews and persist local-to-CDN mappings."""
+    """Upload generated originals and watermarked previews to the task CDN."""
     config = config or R2StorageConfig.from_env()
     if not config.is_configured:
         return {}
@@ -99,7 +103,7 @@ def upload_public_task_images(
     resolved_task_dir = Path(task_dir).resolve()
     mapping: dict[str, str] = {}
     for local_url in local_urls:
-        if not is_public_preview_url(local_url):
+        if not is_cdn_task_image_url(local_url):
             continue
         filename = unquote(os.path.basename(urlparse(local_url).path))
         source = Path(resolved_task_dir, filename).resolve()

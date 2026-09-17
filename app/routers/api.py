@@ -4,7 +4,9 @@ import json
 import asyncio
 import aiofiles
 import time
-from fastapi import APIRouter, File, UploadFile, Form, Request, Depends
+import secrets
+from pydantic import BaseModel, Field
+from fastapi import APIRouter, File, UploadFile, Form, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 # 导入配置和核心模块
@@ -53,6 +55,7 @@ from app.services.async_task_manager import task_manager, TaskStatus
 from app.clients.unified_api_client import api_client
 from app.services.runtime_state import get_http_client, get_long_http_client
 from app.services.r2_storage import R2StorageConfig, upload_public_task_images
+from app.services.storefront_events import hash_tracking_token, record_storefront_event
 
 # 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
 _watermark_logo_created: bool = False
@@ -60,6 +63,22 @@ _watermark_logo_lock = asyncio.Lock()
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
 router = APIRouter()
+
+
+class StorefrontEventRequest(BaseModel):
+    task_id: str = Field(min_length=1, max_length=160)
+    tracking_token: str = Field(min_length=20, max_length=200)
+    event_id: str = Field(min_length=1, max_length=120)
+    event_type: str = Field(min_length=1, max_length=50)
+    occurred_at: str = Field(default="", max_length=50)
+    source: str = Field(default="theme", max_length=50)
+    shop_domain: str = Field(default="", max_length=255)
+    customer_id: str = Field(default="", max_length=100)
+    customer_logged_in: bool = False
+    visitor_id: str = Field(default="", max_length=100)
+    cart_token: str = Field(default="", max_length=255)
+    variant_id: str = Field(default="", max_length=100)
+    checkout_token: str = Field(default="", max_length=255)
 
 
 @router.get("/")
@@ -115,6 +134,10 @@ async def generate_image_async(
     source_product_id: str | None = Form(None),
     source_product_handle: str | None = Form(None),
     source_product_title: str | None = Form(None),
+    shop_domain: str | None = Form(None),
+    customer_id: str | None = Form(None),
+    customer_logged_in: bool = Form(False),
+    storefront_visitor_id: str | None = Form(None),
     files: list[UploadFile] = File([])
 ):
     """异步图像生成API - 立即返回任务ID，支持1个并发处理"""
@@ -224,6 +247,7 @@ async def generate_image_async(
             except Exception:
                 input_filenames.append("url_input.jpg")
         
+        storefront_tracking_token = secrets.token_urlsafe(32)
         params = {
             "prompt": final_prompt,
             "original_prompt": prompt,
@@ -253,6 +277,12 @@ async def generate_image_async(
             "source_product_id": str(source_product_id or "").strip()[:100],
             "source_product_handle": str(source_product_handle or "").strip()[:255],
             "source_product_title": str(source_product_title or "").strip()[:500],
+            "shop_domain": str(shop_domain or "").strip()[:255],
+            "customer_id": str(customer_id or "").strip()[:100],
+            "customer_logged_in": customer_logged_in,
+            "customer_identity_source": "theme_liquid_unverified",
+            "storefront_visitor_id": str(storefront_visitor_id or "").strip()[:100],
+            "storefront_tracking_token_hash": hash_tracking_token(storefront_tracking_token),
             "client_ip": get_request_client_ip(request),
             "client_country": get_request_country(request),
             "user_agent": request.headers.get("user-agent", "")[:500],
@@ -293,6 +323,7 @@ async def generate_image_async(
             "status_url": f"/task-status/{task_id}",
             "created_at": timestamp,
             "api_provider": effective_provider,  # 返回本次请求实际使用的服务提供商
+            "tracking_token": storefront_tracking_token,
             "concurrent_improvement": "支持1个并发处理，内存优化版本"
         })
         
@@ -302,6 +333,24 @@ async def generate_image_async(
             "error": f"任务创建失败: {str(e)}",
             "task_id": task_id
         }, status_code=500)
+
+
+@router.post("/storefront-events")
+async def create_storefront_event(payload: StorefrontEventRequest):
+    try:
+        result = await asyncio.to_thread(
+            record_storefront_event,
+            payload.task_id,
+            payload.tracking_token,
+            payload.model_dump(),
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"ok": True, "created": result["created"]}
 
 
 @router.get("/providers")
@@ -530,10 +579,15 @@ async def _do_generation_work(
 async def process_r2_upload_background(
     task_id: str, task_dir: str, local_files: list[str]
 ) -> None:
-    """Archive public previews without delaying the first local response."""
+    """Archive generated originals and previews without delaying the response."""
     try:
+        # save_generated_image_outputs intentionally returns only the public
+        # watermarked preview. Discover the generated original on disk so
+        # order/email links can use the same CDN path without exposing source
+        # uploads or changing the storefront task-status response.
+        task_image_files = await get_output_files_async(task_dir, task_id)
         mapping = await asyncio.to_thread(
-            upload_public_task_images, task_id, task_dir, local_files
+            upload_public_task_images, task_id, task_dir, task_image_files
         )
         if not mapping:
             return
@@ -1027,7 +1081,7 @@ async def upscale_image(
     except Exception as e:
         return JSONResponse({"error": f"放大图片时出错: {str(e)}"}, status_code=500)
 
-@router.get("/task/{task_id}")
+@router.get("/task/{task_id}", dependencies=[Depends(require_admin_api_key)])
 def get_task_info(task_id: str):
     """获取特定任务的详细信息"""
     try:

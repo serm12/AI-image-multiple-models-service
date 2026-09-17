@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from app.core.config import DirectoryConfig
 from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
+from app.services.storefront_events import read_storefront_events, summarize_storefront_events
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
@@ -63,6 +64,7 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
         filenames = os.listdir(task_dir)
 
         params = selected_params.get(task_id, {})
+        event_summary = summarize_storefront_events(read_storefront_events(task_dir))
         response = _read_first_api_response(task_dir, filenames)
         output_filenames = [
             filename
@@ -90,6 +92,10 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 "source_product_id": params.get("source_product_id", ""),
                 "source_product_handle": params.get("source_product_handle", ""),
                 "source_product_title": params.get("source_product_title", ""),
+                "shop_domain": params.get("shop_domain", ""),
+                "customer_id": params.get("customer_id", ""),
+                "customer_logged_in": params.get("customer_logged_in", False),
+                "storefront_visitor_id": params.get("storefront_visitor_id", ""),
                 "client_ip": params.get("client_ip", ""),
                 "ip_task_sequence": ip_task_sequences.get(task_id),
                 "ip_task_total": ip_task_counts.get(
@@ -104,6 +110,7 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 "output_files": replace_with_cdn_urls(
                     local_output_files, read_r2_mapping(task_dir)
                 ),
+                **event_summary,
             }
         )
 
@@ -148,6 +155,7 @@ def get_task_detail(task_id: str) -> dict | None:
         "params": main_params,
         "api_responses": api_responses,
         "output_files": output_files,
+        **summarize_storefront_events(read_storefront_events(task_dir)),
     }
 
 
