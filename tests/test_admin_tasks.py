@@ -101,6 +101,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn('class="source-cell"', response.text)
         self.assertIn('<span>来源</span>', response.text)
         self.assertIn('<span>请求</span>', response.text)
+        self.assertIn("th:nth-child(9){width:340px}", response.text)
+        self.assertIn("th:nth-child(11){width:auto}", response.text)
         self.assertIn('<td class="identity-cell">', response.text)
         self.assertIn('<div class="funnel">', response.text)
         self.assertIn("shop.example/products/custom-portrait", response.text)
