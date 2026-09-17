@@ -94,6 +94,8 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
                 "source_product_title": params.get("source_product_title", ""),
                 "shop_domain": params.get("shop_domain", ""),
                 "customer_id": params.get("customer_id", ""),
+                "customer_email": params.get("customer_email", "")
+                or event_summary.get("event_customer_email", ""),
                 "customer_logged_in": params.get("customer_logged_in", False),
                 "storefront_visitor_id": params.get("storefront_visitor_id", ""),
                 "client_ip": params.get("client_ip", ""),

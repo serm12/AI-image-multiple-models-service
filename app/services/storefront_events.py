@@ -68,6 +68,7 @@ def record_storefront_event(task_id: str, tracking_token: str, event: dict) -> d
         "source": str(event.get("source") or "theme")[:50],
         "shop_domain": str(event.get("shop_domain") or "")[:255],
         "customer_id": str(event.get("customer_id") or "")[:100],
+        "customer_email": str(event.get("customer_email") or "")[:320],
         "customer_logged_in": bool(event.get("customer_logged_in")),
         "visitor_id": str(event.get("visitor_id") or "")[:100],
         "cart_token_hash": hash_tracking_token(str(event.get("cart_token") or ""))
@@ -103,8 +104,20 @@ def read_storefront_events(task_dir: str) -> list[dict]:
 
 def summarize_storefront_events(events: list[dict]) -> dict:
     event_types = {str(event.get("event_type") or "") for event in events}
+    event_times = {}
+    event_customer_email = ""
+    for event in events:
+        event_type = str(event.get("event_type") or "")
+        if event_type and event_type not in event_times:
+            event_times[event_type] = str(
+                event.get("occurred_at") or event.get("recorded_at") or ""
+            )
+        if not event_customer_email:
+            event_customer_email = str(event.get("customer_email") or "")
     return {
         "storefront_events": events,
+        "storefront_event_times": event_times,
+        "event_customer_email": event_customer_email,
         "added_to_cart": "added_to_cart" in event_types,
         "checkout_intent": "checkout_intent" in event_types,
         "checkout_started": "checkout_started" in event_types,

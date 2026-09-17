@@ -24,6 +24,7 @@ const reportCheckoutEvent = async (eventType, event) => {
         event_type: eventType,
         occurred_at: event.timestamp,
         source: 'shopify_web_pixel',
+        customer_email: checkout.email || '',
         visitor_id: event.clientId || '',
         variant_id: lineItem.merchandise?.id || '',
         checkout_token: checkout.token || ''

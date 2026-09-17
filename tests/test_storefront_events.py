@@ -41,6 +41,7 @@ class StorefrontEventsTests(unittest.TestCase):
             "occurred_at": "2026-09-17T12:00:00Z",
             "source": "test",
             "customer_id": "12345",
+            "customer_email": "buyer@example.com",
             "customer_logged_in": True,
             "visitor_id": "visitor-1",
             "cart_token": "secret-cart-token",
@@ -63,6 +64,7 @@ class StorefrontEventsTests(unittest.TestCase):
             events = json.load(file)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["customer_id"], "12345")
+        self.assertEqual(events[0]["customer_email"], "buyer@example.com")
         self.assertNotEqual(events[0]["cart_token_hash"], "secret-cart-token")
         self.assertNotIn("tracking_token", events[0])
 

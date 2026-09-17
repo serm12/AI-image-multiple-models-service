@@ -133,12 +133,19 @@ def _task_row(task: dict) -> str:
         duration = f"{float(duration_value):.1f} 秒"
     except (TypeError, ValueError):
         duration = '<span class="muted">—</span>'
+    customer_email = _text(task.get("customer_email"))
     customer_id = _text(task.get("customer_id"))
     visitor_id = _text(task.get("storefront_visitor_id"))
-    if customer_id:
+    if customer_email:
+        customer_title = f"Customer ID: {customer_id}" if customer_id else "已登录客户"
         identity = (
             '<span class="identity identity--customer">已登录</span>'
-            f'<code title="Customer ID: {customer_id}">{customer_id}</code>'
+            f'<span class="customer-email" title="{customer_title}">{customer_email}</span>'
+        )
+    elif customer_id:
+        identity = (
+            '<span class="identity identity--customer">已登录</span>'
+            f'<code title="尚未采集邮箱 · Customer ID: {customer_id}">{customer_id}</code>'
         )
     elif visitor_id:
         identity = (
@@ -147,16 +154,26 @@ def _task_row(task: dict) -> str:
         )
     else:
         identity = '<span class="muted">—</span>'
+    event_times = task.get("storefront_event_times") or {}
     funnel_states = (
-        ("加购", task.get("added_to_cart")),
-        ("结账意图", task.get("checkout_intent")),
-        ("开始结账", task.get("checkout_started")),
-        ("已付款", task.get("checkout_completed")),
+        ("added-to-cart", "added_to_cart", "加购", task.get("added_to_cart")),
+        ("checkout-intent", "checkout_intent", "结账意图", task.get("checkout_intent")),
+        ("checkout-started", "checkout_started", "开始结账", task.get("checkout_started")),
+        ("checkout-completed", "checkout_completed", "已付款", task.get("checkout_completed")),
     )
-    funnel = "".join(
-        f'<span class="funnel-step{" is-active" if active else ""}">{label}</span>'
-        for label, active in funnel_states
-    )
+    funnel_parts = []
+    for stage_class, event_type, label, active in funnel_states:
+        state_label = "已触发" if active else "未触发"
+        event_time = _text(event_times.get(event_type))
+        title = f"{label}：{state_label}"
+        if event_time:
+            title = f"{title} · {event_time}"
+        funnel_parts.append(
+            f'<span class="funnel-step funnel-step--{stage_class}'
+            f'{" is-active" if active else ""}" title="{title}">'
+            f'<span aria-hidden="true">{"✓" if active else "○"}</span> {label}</span>'
+        )
+    funnel = "".join(funnel_parts)
     return (
         "<tr>"
         f'<td><code title="{task_id}">{task_id[:17]}…</code></td>'
@@ -295,6 +312,7 @@ h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:1
 table{{width:100%;border-collapse:collapse;min-width:2150px;table-layout:fixed}}th,td{{padding:13px 12px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:94px}}tbody tr:hover{{background:#fafcff}}
 th:nth-child(1){{width:180px}}th:nth-child(2){{width:105px}}th:nth-child(3),th:nth-child(4){{width:165px}}th:nth-child(5){{width:90px}}th:nth-child(6){{width:170px}}th:nth-child(7){{width:155px}}th:nth-child(8){{width:90px}}th:nth-child(9){{width:130px}}th:nth-child(10){{width:240px}}th:nth-child(11){{width:260px}}th:nth-child(12){{width:145px}}th:nth-child(13){{width:115px}}th:nth-child(14){{width:300px}}
 code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.client-ip{{white-space:normal;line-height:1.35}}.client-ip__address{{overflow-wrap:anywhere;word-break:break-all}}.ip-task-sequence,.ip-task-total{{display:inline-flex;align-items:center;justify-content:center;margin-top:3px;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}}.ip-task-sequence{{min-width:28px;margin-left:4px;background:#e8f1ff;color:#245b9c}}.ip-task-total{{background:#eef7ed;color:#28733a}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.identity-cell{{display:flex;flex-direction:column;align-items:flex-start;gap:4px}}.identity{{padding:2px 6px;border-radius:999px;background:#eef3fa;color:#3f5675;font-size:11px;font-weight:700}}.identity--customer{{background:#eaf7ed;color:#247436}}.funnel{{display:flex;flex-wrap:wrap;gap:4px}}.funnel-step{{padding:3px 6px;border-radius:6px;background:#f1f3f6;color:#98a2b3;font-size:11px;white-space:nowrap}}.funnel-step.is-active{{background:#eaf7ed;color:#247436;font-weight:700}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(14),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(14){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;min-width:0}}.images{{display:flex;gap:7px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 7px}}.images::-webkit-scrollbar{{height:7px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:28px;height:42px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 22px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.pagination{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}}.pagination__links{{display:flex;align-items:center;gap:6px}}.pagination__page,.pagination__direction{{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}}.pagination__page.is-current{{border-color:#366fac;background:#366fac;color:#fff}}.pagination__direction.is-disabled{{color:#a2adbb;background:#f3f6f9}}.pagination__ellipsis{{padding:0 2px}}.pagination__size{{display:flex;align-items:center;gap:6px}}.pagination__size select{{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}}.pagination__summary{{font-size:12px}}.gcounter{{position:fixed;left:50%;bottom:12px;z-index:100001;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827d9;color:#fff;font-size:13px;font-variant-numeric:tabular-nums;pointer-events:none}}.empty{{padding:50px;text-align:center;color:#718096}}
+.customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>

@@ -74,6 +74,7 @@ class StorefrontEventRequest(BaseModel):
     source: str = Field(default="theme", max_length=50)
     shop_domain: str = Field(default="", max_length=255)
     customer_id: str = Field(default="", max_length=100)
+    customer_email: str = Field(default="", max_length=320)
     customer_logged_in: bool = False
     visitor_id: str = Field(default="", max_length=100)
     cart_token: str = Field(default="", max_length=255)
@@ -136,6 +137,7 @@ async def generate_image_async(
     source_product_title: str | None = Form(None),
     shop_domain: str | None = Form(None),
     customer_id: str | None = Form(None),
+    customer_email: str | None = Form(None),
     customer_logged_in: bool = Form(False),
     storefront_visitor_id: str | None = Form(None),
     files: list[UploadFile] = File([])
@@ -279,6 +281,7 @@ async def generate_image_async(
             "source_product_title": str(source_product_title or "").strip()[:500],
             "shop_domain": str(shop_domain or "").strip()[:255],
             "customer_id": str(customer_id or "").strip()[:100],
+            "customer_email": str(customer_email or "").strip()[:320],
             "customer_logged_in": customer_logged_in,
             "customer_identity_source": "theme_liquid_unverified",
             "storefront_visitor_id": str(storefront_visitor_id or "").strip()[:100],

@@ -51,11 +51,31 @@ class AdminTasksTests(unittest.TestCase):
                     "source_product_id": "123456789",
                     "source_product_handle": "custom-portrait",
                     "source_product_title": "Custom Portrait",
+                    "customer_id": "123456",
+                    "customer_email": "buyer@example.com",
                     "client_ip": "203.0.113.5",
                     "client_country": "US",
                     "generation_duration_seconds": 12.34,
                     "api_provider": "test-provider",
                 },
+                file,
+            )
+        with open(
+            os.path.join(task_dir, "storefront_events.json"), "w", encoding="utf-8"
+        ) as file:
+            json.dump(
+                [
+                    {
+                        "event_id": "add-1",
+                        "event_type": "added_to_cart",
+                        "occurred_at": "2026-09-18T00:10:00Z",
+                    },
+                    {
+                        "event_id": "checkout-1",
+                        "event_type": "checkout_started",
+                        "occurred_at": "2026-09-18T00:12:00Z",
+                    },
+                ],
                 file,
             )
         Image.new("RGB", (1200, 800), "red").save(
@@ -76,6 +96,12 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("Custom Portrait", response.text)
         self.assertIn("shop.example/products/custom-portrait", response.text)
         self.assertIn("12.3 秒", response.text)
+        self.assertIn("buyer@example.com", response.text)
+        self.assertIn("Customer ID: 123456", response.text)
+        self.assertIn("✓</span> 加购", response.text)
+        self.assertIn("○</span> 结账意图", response.text)
+        self.assertIn("✓</span> 开始结账", response.text)
+        self.assertIn("加购：已触发 · 2026-09-18T00:10:00Z", response.text)
         self.assertIn("时间（美国东部）", response.text)
         self.assertIn('id="current-beijing-time"', response.text)
         self.assertIn('id="current-us-eastern-time"', response.text)
