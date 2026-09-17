@@ -99,6 +99,16 @@ class StorefrontEventsTests(unittest.TestCase):
         self.assertNotIn("secret", event["cart_token_hash"])
         self.assertEqual(len(event["checkout_token"]), 255)
 
+    def test_accepts_simple_text_request_for_navigation_keepalive(self):
+        response = TestClient(app).post(
+            "/storefront-events",
+            content=json.dumps(self.payload()),
+            headers={"Content-Type": "text/plain;charset=UTF-8"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["created"])
+
 
 if __name__ == "__main__":
     unittest.main()

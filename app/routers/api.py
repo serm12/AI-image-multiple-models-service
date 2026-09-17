@@ -5,7 +5,7 @@ import asyncio
 import aiofiles
 import time
 import secrets
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from fastapi import APIRouter, File, UploadFile, Form, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -339,7 +339,11 @@ async def generate_image_async(
 
 
 @router.post("/storefront-events")
-async def create_storefront_event(payload: StorefrontEventRequest):
+async def create_storefront_event(request: Request):
+    try:
+        payload = StorefrontEventRequest.model_validate(await request.json())
+    except (json.JSONDecodeError, UnicodeDecodeError, ValidationError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
         result = await asyncio.to_thread(
             record_storefront_event,
