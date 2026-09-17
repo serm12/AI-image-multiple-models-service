@@ -78,6 +78,27 @@ class StorefrontEventsTests(unittest.TestCase):
         invalid_type["event_type"] = "made_up"
         self.assertEqual(client.post("/storefront-events", json=invalid_type).status_code, 422)
 
+    def test_accepts_long_shopify_identifiers_without_storing_raw_tokens(self):
+        payload = self.payload()
+        payload["event_id"] = "added_to_cart:" + ("e" * 300)
+        payload["visitor_id"] = "v" * 180
+        payload["cart_token"] = "cart-" + ("secret" * 100)
+        payload["checkout_token"] = "checkout-" + ("secret" * 100)
+
+        response = TestClient(app).post("/storefront-events", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        with open(
+            os.path.join(self.task_dir, "storefront_events.json"),
+            "r",
+            encoding="utf-8",
+        ) as file:
+            event = json.load(file)[0]
+        self.assertEqual(len(event["event_id"]), 120)
+        self.assertEqual(len(event["visitor_id"]), 100)
+        self.assertNotIn("secret", event["cart_token_hash"])
+        self.assertEqual(len(event["checkout_token"]), 255)
+
 
 if __name__ == "__main__":
     unittest.main()

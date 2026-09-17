@@ -68,7 +68,7 @@ router = APIRouter()
 class StorefrontEventRequest(BaseModel):
     task_id: str = Field(min_length=1, max_length=160)
     tracking_token: str = Field(min_length=20, max_length=200)
-    event_id: str = Field(min_length=1, max_length=120)
+    event_id: str = Field(min_length=1, max_length=512)
     event_type: str = Field(min_length=1, max_length=50)
     occurred_at: str = Field(default="", max_length=50)
     source: str = Field(default="theme", max_length=50)
@@ -76,10 +76,10 @@ class StorefrontEventRequest(BaseModel):
     customer_id: str = Field(default="", max_length=100)
     customer_email: str = Field(default="", max_length=320)
     customer_logged_in: bool = False
-    visitor_id: str = Field(default="", max_length=100)
-    cart_token: str = Field(default="", max_length=255)
+    visitor_id: str = Field(default="", max_length=255)
+    cart_token: str = Field(default="", max_length=2048)
     variant_id: str = Field(default="", max_length=100)
-    checkout_token: str = Field(default="", max_length=255)
+    checkout_token: str = Field(default="", max_length=2048)
 
 
 @router.get("/")

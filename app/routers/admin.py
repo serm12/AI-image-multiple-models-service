@@ -28,19 +28,28 @@ def _text(value) -> str:
 def _display_time(value, source_timezone="UTC", target_timezone=CHINA_TIMEZONE) -> str:
     raw = str(value or "")
     try:
-        parsed = datetime.strptime(raw, "%Y%m%d_%H%M%S")
+        try:
+            parsed = datetime.strptime(raw, "%Y%m%d_%H%M%S")
+        except ValueError:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         source_zone = (
             CHINA_TIMEZONE
             if source_timezone == CHINA_TIMEZONE_NAME
             else timezone.utc
         )
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=source_zone)
         return (
-            parsed.replace(tzinfo=source_zone)
-            .astimezone(target_timezone)
+            parsed.astimezone(target_timezone)
             .strftime("%Y-%m-%d %H:%M:%S")
         )
     except ValueError:
         return raw
+
+
+def _compact_display_time(value, source_timezone="UTC", target_timezone=CHINA_TIMEZONE) -> str:
+    displayed = _display_time(value, source_timezone, target_timezone)
+    return displayed[5:] if len(displayed) == 19 and displayed[4] == "-" else displayed
 
 
 def _task_row(task: dict) -> str:
@@ -174,12 +183,23 @@ def _task_row(task: dict) -> str:
             f'<span aria-hidden="true">{"✓" if active else "○"}</span> {label}</span>'
         )
     funnel = "".join(funnel_parts)
+    beijing_time = _display_time(task["created_at"], task.get("time_zone"))
+    eastern_time = _display_time(
+        task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE
+    )
+    time_cell = (
+        '<div class="task-time">'
+        f'<time title="北京时间：{_text(beijing_time)}"><span>北京</span>'
+        f'{_text(_compact_display_time(task["created_at"], task.get("time_zone")))}</time>'
+        f'<time title="美国东部：{_text(eastern_time)}"><span>美东</span>'
+        f'{_text(_compact_display_time(task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE))}</time>'
+        '</div>'
+    )
     return (
         "<tr>"
         f'<td><code title="{task_id}">{task_id[:17]}…</code></td>'
         f'<td><span class="status">{_text(task["status"])}</span></td>'
-        f'<td class="nowrap">{_text(_display_time(task["created_at"], task.get("time_zone")))}</td>'
-        f'<td class="nowrap">{_text(_display_time(task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE))}</td>'
+        f'<td>{time_cell}</td>'
         f"<td>{duration}</td>"
         f'<td class="provider">{_text(task.get("api_provider"))}</td>'
         f'<td class="client-ip">{client_ip}</td>'
@@ -297,7 +317,7 @@ def admin_tasks(
 ):
     data = list_task_summaries(page=page, page_size=page_size)
     rows = "".join(_task_row(task) for task in data["tasks"])
-    body = rows or '<tr><td colspan="14" class="empty">暂无任务记录</td></tr>'
+    body = rows or '<tr><td colspan="13" class="empty">暂无任务记录</td></tr>'
     pagination = _pagination(data)
     return HTMLResponse(
         f"""<!doctype html>
@@ -309,14 +329,14 @@ def admin_tasks(
 main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}
 h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:10px;margin-top:2px}}.count,.muted{{color:#718096}}.version{{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}}.current-times{{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}}.current-time{{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}}.current-time__label{{color:#718096;font-size:12px}}.current-time time{{font-weight:600;white-space:nowrap}}.panel{{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}}
 .service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
-table{{width:100%;border-collapse:collapse;min-width:2150px;table-layout:fixed}}th,td{{padding:13px 12px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:94px}}tbody tr:hover{{background:#fafcff}}
-th:nth-child(1){{width:180px}}th:nth-child(2){{width:105px}}th:nth-child(3),th:nth-child(4){{width:165px}}th:nth-child(5){{width:90px}}th:nth-child(6){{width:170px}}th:nth-child(7){{width:155px}}th:nth-child(8){{width:90px}}th:nth-child(9){{width:130px}}th:nth-child(10){{width:240px}}th:nth-child(11){{width:260px}}th:nth-child(12){{width:145px}}th:nth-child(13){{width:115px}}th:nth-child(14){{width:300px}}
-code{{font-size:12px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:4px 9px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.client-ip{{white-space:normal;line-height:1.35}}.client-ip__address{{overflow-wrap:anywhere;word-break:break-all}}.ip-task-sequence,.ip-task-total{{display:inline-flex;align-items:center;justify-content:center;margin-top:3px;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}}.ip-task-sequence{{min-width:28px;margin-left:4px;background:#e8f1ff;color:#245b9c}}.ip-task-total{{background:#eef7ed;color:#28733a}}.country{{display:inline-flex;min-width:34px;justify-content:center;padding:3px 7px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.identity-cell{{display:flex;flex-direction:column;align-items:flex-start;gap:4px}}.identity{{padding:2px 6px;border-radius:999px;background:#eef3fa;color:#3f5675;font-size:11px;font-weight:700}}.identity--customer{{background:#eaf7ed;color:#247436}}.funnel{{display:flex;flex-wrap:wrap;gap:4px}}.funnel-step{{padding:3px 6px;border-radius:6px;background:#f1f3f6;color:#98a2b3;font-size:11px;white-space:nowrap}}.funnel-step.is-active{{background:#eaf7ed;color:#247436;font-weight:700}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(14),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(14){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:28px minmax(0,1fr) 28px;align-items:center;gap:5px;min-width:0}}.images{{display:flex;gap:7px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 7px}}.images::-webkit-scrollbar{{height:7px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:68px;height:68px;object-fit:cover;border-radius:8px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:28px;height:42px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 22px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.pagination{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}}.pagination__links{{display:flex;align-items:center;gap:6px}}.pagination__page,.pagination__direction{{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}}.pagination__page.is-current{{border-color:#366fac;background:#366fac;color:#fff}}.pagination__direction.is-disabled{{color:#a2adbb;background:#f3f6f9}}.pagination__ellipsis{{padding:0 2px}}.pagination__size{{display:flex;align-items:center;gap:6px}}.pagination__size select{{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}}.pagination__summary{{font-size:12px}}.gcounter{{position:fixed;left:50%;bottom:12px;z-index:100001;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827d9;color:#fff;font-size:13px;font-variant-numeric:tabular-nums;pointer-events:none}}.empty{{padding:50px;text-align:center;color:#718096}}
+table{{width:100%;border-collapse:collapse;min-width:1840px;table-layout:fixed}}th,td{{padding:9px 8px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:82px}}tbody tr:hover{{background:#fafcff}}
+th:nth-child(1){{width:150px}}th:nth-child(2){{width:92px}}th:nth-child(3){{width:148px}}th:nth-child(4){{width:76px}}th:nth-child(5){{width:142px}}th:nth-child(6){{width:145px}}th:nth-child(7){{width:72px}}th:nth-child(8){{width:150px}}th:nth-child(9){{width:230px}}th:nth-child(10){{width:245px}}th:nth-child(11){{width:130px}}th:nth-child(12){{width:105px}}th:nth-child(13){{width:255px}}
+code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time{{display:grid;gap:2px;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}}.task-time time{{display:flex;align-items:center;gap:5px}}.task-time time+time{{color:#718096}}.task-time span{{display:inline-block;width:27px;color:#8a98aa;font-size:10px}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-block;padding:3px 8px;border-radius:999px;background:#eaf7ed;color:#247436;font-weight:600}}.client-ip{{white-space:normal;line-height:1.3}}.client-ip__address{{overflow-wrap:anywhere;word-break:break-all}}.ip-task-sequence,.ip-task-total{{display:inline-flex;align-items:center;justify-content:center;margin-top:3px;padding:1px 5px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.4;white-space:nowrap}}.ip-task-sequence{{min-width:26px;margin-left:3px;background:#e8f1ff;color:#245b9c}}.ip-task-total{{background:#eef7ed;color:#28733a}}.country{{display:inline-flex;min-width:32px;justify-content:center;padding:2px 6px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.identity-cell{{display:flex;flex-direction:column;align-items:flex-start;gap:3px}}.identity{{padding:1px 5px;border-radius:999px;background:#eef3fa;color:#3f5675;font-size:10px;font-weight:700}}.identity--customer{{background:#eaf7ed;color:#247436}}.funnel{{display:flex;flex-wrap:wrap;gap:3px}}.funnel-step{{padding:2px 5px;border-radius:6px;background:#f1f3f6;color:#98a2b3;font-size:10px;white-space:nowrap}}.funnel-step.is-active{{background:#eaf7ed;color:#247436;font-weight:700}}.url a{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title,.source-link .source-path{{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-link .source-title{{font-weight:650;color:#174f9b}}.source-link .source-path{{font-size:11px;color:#718096}}a{{color:#1769d2}}th:nth-child(13),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(13){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:26px minmax(0,1fr) 26px;align-items:center;gap:4px;min-width:0}}.images{{display:flex;gap:6px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:2px 2px 5px}}.images::-webkit-scrollbar{{height:6px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{flex:0 0 auto;scroll-snap-align:start}}.images img{{display:block;width:60px;height:60px;object-fit:cover;border-radius:7px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:26px;height:38px;padding:0;border:1px solid #dbe2ea;border-radius:8px;background:#f8fafc;color:#36516f;font:700 20px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.pagination{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}}.pagination__links{{display:flex;align-items:center;gap:6px}}.pagination__page,.pagination__direction{{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}}.pagination__page.is-current{{border-color:#366fac;background:#366fac;color:#fff}}.pagination__direction.is-disabled{{color:#a2adbb;background:#f3f6f9}}.pagination__ellipsis{{padding:0 2px}}.pagination__size{{display:flex;align-items:center;gap:6px}}.pagination__size select{{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}}.pagination__summary{{font-size:12px}}.gcounter{{position:fixed;left:50%;bottom:12px;z-index:100001;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827d9;color:#fff;font-size:13px;font-variant-numeric:tabular-nums;pointer-events:none}}.empty{{padding:50px;text-align:center;color:#718096}}
 .customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>
-<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间（北京时间）</th><th>时间（美国东部）</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>用户</th><th>转化状态</th><th>来源页面</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
+<div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>用户</th><th>转化状态</th><th>来源页面</th><th>请求 URL</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
 const statusEl=document.getElementById('service-status');
