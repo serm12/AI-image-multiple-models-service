@@ -86,9 +86,18 @@ class APIConfig:
     AIAPIROUTE_GPT_IMAGE1_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE1_MODEL", "gpt-image-1")
     AIAPIROUTE_GPT_IMAGE15_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE15_MODEL", "gpt-image-1.5")
     AIAPIROUTE_GPT_IMAGE2_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE2_MODEL", "gpt-image-2")
+    AIAPIROUTE_GPT_IMAGE25_FLARE_MODEL = os.getenv(
+        "AIAPIROUTE_GPT_IMAGE25_FLARE_MODEL",
+        os.getenv("AIAPIROUTE_GPT_IMAGE25_MODEL", "gpt-image-2.5-flare"),
+    )
+    AIAPIROUTE_GPT_IMAGE25_SUNBURST_MODEL = os.getenv(
+        "AIAPIROUTE_GPT_IMAGE25_SUNBURST_MODEL",
+        "gpt-image-2.5-sunburst",
+    )
     AIAPIROUTE_IMAGE_RESOLUTION = os.getenv("AIAPIROUTE_IMAGE_RESOLUTION", os.getenv("AIAPIROUTE_GPT_IMAGE2_RESOLUTION", "1K"))
     AIAPIROUTE_IMAGE_QUALITY = os.getenv("AIAPIROUTE_IMAGE_QUALITY", os.getenv("AIAPIROUTE_GPT_IMAGE2_QUALITY", ""))
-    AIAPIROUTE_IMAGE_STREAM = os.getenv("AIAPIROUTE_IMAGE_STREAM", os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "true")).lower() == "true"
+    # Sub2API v0.2.5 image edits are most reliable with non-streaming JSON.
+    AIAPIROUTE_IMAGE_STREAM = os.getenv("AIAPIROUTE_IMAGE_STREAM", os.getenv("AIAPIROUTE_GPT_IMAGE2_STREAM", "false")).lower() == "true"
     AIAPIROUTE_TIMEOUT_SECONDS = int(os.getenv("AIAPIROUTE_TIMEOUT_SECONDS", os.getenv("SUB2API_TIMEOUT_SECONDS", "300")))
     AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO = os.getenv(
         "AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO", "false"
@@ -185,12 +194,30 @@ class APIConfig:
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
             "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
+        "gpt-image-2.5-flare_aiapiroute": {
+            "label": "aiapiroute/Sub2API gpt-image-2.5 Flare",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE25_FLARE_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        "gpt-image-2.5-sunburst_aiapiroute": {
+            "label": "aiapiroute/Sub2API gpt-image-2.5 Sunburst",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE25_SUNBURST_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
     }
 
     ALL_PROVIDERS = list(PROVIDERS.keys())
     DEFAULT_PROVIDER_FALLBACK_GROUPS = {
         "flux": ["flux_bfl", "flux_replicate", "flux_fireworks"],
         "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
+        "gpt-image-2.5": [
+            "gpt-image-2.5-flare_aiapiroute",
+            "gpt-image-2.5-sunburst_aiapiroute",
+        ],
         "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
         "gemini-nanobanana": [
             "gemini-nanobanana_google",
@@ -350,6 +377,8 @@ class ProviderEnum(str, Enum):
     aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
     aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
     gpt_image_2_aiapiroute = "gpt-image-2_aiapiroute"
+    gpt_image_2_5_flare_aiapiroute = "gpt-image-2.5-flare_aiapiroute"
+    gpt_image_2_5_sunburst_aiapiroute = "gpt-image-2.5-sunburst_aiapiroute"
 
 # 目录配置
 class DirectoryConfig:

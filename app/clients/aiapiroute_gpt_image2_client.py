@@ -58,38 +58,42 @@ class AIApiRouteGPTImageClient:
         if input_image_url:
             reference_images.append(input_image_url)
 
-        request_size = self._resolve_size(size, aspect_ratio)
+        request_options = self._resolve_request_options(size, aspect_ratio)
         should_stream = APIConfig.AIAPIROUTE_IMAGE_STREAM if stream is None else bool(stream)
         full_prompt = prompt
 
         payload = {
             "model": self.model,
             "prompt": full_prompt,
-            "size": request_size,
             "n": 1,
             "response_format": "b64_json",
+            **request_options,
         }
         if quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY:
             payload["quality"] = quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY
 
-        force_reference_ratio = self._should_force_reference_ratio()
         reference_ratio = (
-            self._resolve_reference_ratio(aspect_ratio) if force_reference_ratio else None
+            self._resolve_reference_ratio(aspect_ratio)
+            if reference_images and self._should_force_reference_ratio()
+            else None
         )
-
-        if reference_images:
-            payload["images"] = [
-                {"image_url": self._to_request_data_url(image, reference_ratio)}
-                for image in reference_images
-            ]
+        request_reference_images = [
+            self._prepare_reference_image(image, reference_ratio)
+            for image in reference_images
+        ]
 
         endpoint = "/v1/images/edits" if reference_images else "/v1/images/generations"
-        response_data, raw_text = await self._post_json(endpoint, payload, stream=should_stream)
+        if reference_images:
+            response_data, raw_text = await self._post_multipart(
+                endpoint, payload, request_reference_images, stream=should_stream
+            )
+        else:
+            response_data, raw_text = await self._post_json(endpoint, payload, stream=should_stream)
         b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
 
         if not b64_image and reference_images and endpoint == "/v1/images/edits":
             response_payload = self._build_responses_payload(
-                full_prompt, reference_images, request_size, quality, reference_ratio
+                full_prompt, request_reference_images, request_options, quality
             )
             response_data, raw_text = await self._post_json("/v1/responses", response_payload, stream=False)
             b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
@@ -109,14 +113,14 @@ class AIApiRouteGPTImageClient:
             "output": data_url,
             "output_for_json": "base64_data_removed_for_brevity",
             "logs": (
-                f"aiapiroute GPT-image endpoint={endpoint}, size={request_size}, "
-                f"forced_reference_ratio="
-                f"{reference_ratio or 'disabled'}"
+                f"aiapiroute GPT-image endpoint={endpoint}, "
+                f"request_options={request_options}, "
+                f"reference_preprocessing={reference_ratio or 'disabled'}"
             ),
             "input": {
                 "prompt": prompt,
                 "model": self.model,
-                "size": request_size,
+                **request_options,
                 "seed": None,
                 "aspect_ratio": getattr(aspect_ratio, "value", aspect_ratio),
                 "reference_ratio": reference_ratio,
@@ -129,11 +133,11 @@ class AIApiRouteGPTImageClient:
 
     async def _post_json(self, endpoint: str, payload: dict[str, Any], stream: bool = False):
         request_payload = {**payload}
-        if stream:
-            request_payload["stream"] = True
+        request_payload["stream"] = bool(stream)
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
+            "x-api-key": self.api_key,
             "Content-Type": "application/json",
             "Accept": "text/event-stream, application/json" if stream else "application/json",
             "Connection": "keep-alive",
@@ -154,22 +158,87 @@ class AIApiRouteGPTImageClient:
         except json.JSONDecodeError:
             return {}, text
 
+    async def _post_multipart(
+        self,
+        endpoint: str,
+        payload: dict[str, Any],
+        reference_images: list[str],
+        stream: bool = False,
+    ):
+        """Submit Sub2API v0.2.5 image edits as multipart/form-data."""
+        form_data = {
+            key: str(value).lower() if isinstance(value, bool) else str(value)
+            for key, value in payload.items()
+            if value is not None
+        }
+        form_data["stream"] = str(stream).lower()
+        files = []
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            for index, image in enumerate(reference_images, start=1):
+                filename, content, mime_type = await self._load_image_part(client, image, index)
+                files.append(("image", (filename, content, mime_type)))
+
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "x-api-key": self.api_key,
+                "Accept": "text/event-stream, application/json" if stream else "application/json",
+                "Connection": "keep-alive",
+            }
+            response = await client.post(
+                f"{self.base_url}{endpoint}", headers=headers, data=form_data, files=files
+            )
+            text = response.text
+            if response.status_code >= 400:
+                raise ValueError(f"aiapiroute HTTP {response.status_code}: {text[:1000]}")
+
+        if stream or "text/event-stream" in response.headers.get("content-type", ""):
+            events = self._parse_sse_events(text)
+            return {"events": events}, text
+        try:
+            return response.json(), text
+        except json.JSONDecodeError:
+            return {}, text
+
+    async def _load_image_part(
+        self, client: httpx.AsyncClient, image: str, index: int
+    ) -> tuple[str, bytes, str]:
+        if not image:
+            raise ValueError("空图片输入")
+        if image.startswith("data:image/"):
+            header, encoded = image.split(",", 1)
+            mime_type = header[5:].split(";", 1)[0] or "image/png"
+            extension = mimetypes.guess_extension(mime_type) or ".png"
+            return f"image-{index}{extension}", base64.b64decode(encoded), mime_type
+        if image.startswith(("http://", "https://")):
+            response = await client.get(image)
+            response.raise_for_status()
+            mime_type = response.headers.get("content-type", "image/jpeg").split(";", 1)[0]
+            filename = os.path.basename(response.url.path) or f"image-{index}"
+            if "." not in filename:
+                filename += mimetypes.guess_extension(mime_type) or ".jpg"
+            return filename, response.content, mime_type
+        if not os.path.exists(image):
+            raise ValueError(f"Image file not found: {image}")
+        mime_type, _ = mimetypes.guess_type(image)
+        with open(image, "rb") as image_file:
+            return os.path.basename(image), image_file.read(), mime_type or "image/jpeg"
+
     def _build_responses_payload(
         self,
         prompt: str,
         reference_images: list[str],
-        size: str,
+        request_options: dict[str, str],
         quality: Optional[str],
-        reference_ratio: Optional[str] = None,
     ):
         content = [{"type": "input_text", "text": prompt}]
         for image in reference_images:
             content.append({
                 "type": "input_image",
-                "image_url": self._to_request_data_url(image, reference_ratio),
+                "image_url": self._to_data_url(image),
             })
 
-        tool = {"type": "image_generation", "size": size}
+        tool = {"type": "image_generation", **request_options}
         if quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY:
             tool["quality"] = quality or APIConfig.AIAPIROUTE_IMAGE_QUALITY
 
@@ -180,8 +249,6 @@ class AIApiRouteGPTImageClient:
         }
 
     def _should_force_reference_ratio(self) -> bool:
-        # Every model routed through this client uses the aiapiroute/Sub2API
-        # channel. Fal clients never call this preprocessing path.
         return APIConfig.AIAPIROUTE_GPT_IMAGE2_FORCE_REFERENCE_RATIO
 
     def _resolve_reference_ratio(self, aspect_ratio) -> str:
@@ -192,31 +259,14 @@ class AIApiRouteGPTImageClient:
         ).strip()
         if ratio_value == "match_input_image":
             ratio_value = APIConfig.AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO or "3:4"
-        self._validate_reference_ratio(ratio_value)
+        self._validate_aspect_ratio(ratio_value)
         return ratio_value
 
-    def _to_request_data_url(self, image: str, reference_ratio: Optional[str]) -> str:
-        if reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
-            return image_file_to_fitted_data_url(
-                image,
-                reference_ratio,
-            )
-        return self._to_data_url(image)
-
     @staticmethod
-    def _validate_reference_ratio(aspect_ratio: str) -> None:
-        try:
-            width_ratio, height_ratio = [
-                int(part.strip()) for part in str(aspect_ratio).split(":", 1)
-            ]
-            if width_ratio <= 0 or height_ratio <= 0:
-                raise ValueError
-            if max(width_ratio, height_ratio) / min(width_ratio, height_ratio) > AIAPIROUTE_IMAGE_MAX_RATIO:
-                raise ValueError
-        except (TypeError, ValueError, ZeroDivisionError) as exc:
-            raise ValueError(
-                "AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO 必须是有效且不超过 3:1 的比例，例如 1:1、3:4 或 16:9"
-            ) from exc
+    def _prepare_reference_image(image: str, reference_ratio: Optional[str]) -> str:
+        if reference_ratio and image and not image.startswith(("data:", "http://", "https://")):
+            return image_file_to_fitted_data_url(image, reference_ratio)
+        return image
 
     def _to_data_url(self, image: str) -> str:
         if not image:
@@ -259,6 +309,41 @@ class AIApiRouteGPTImageClient:
         else:
             width, height = self._size_from_ratio(width_ratio, height_ratio, long_side)
         return f"{width}x{height}"
+
+    def _resolve_request_options(self, size: Optional[str], aspect_ratio) -> dict[str, str]:
+        """Use native Sub2API v0.2.5 ratio/resolution parameters.
+
+        The public API's size field is a resolution tier (1K/2K/4K). Exact
+        pixel sizes remain supported for direct client callers.
+        """
+        ratio_value = str(getattr(aspect_ratio, "value", aspect_ratio) or "").strip()
+        size_value = str(size or APIConfig.AIAPIROUTE_IMAGE_RESOLUTION or "1K").strip()
+        options = {}
+        if ratio_value and ratio_value != "match_input_image":
+            self._validate_aspect_ratio(ratio_value)
+            options["aspect_ratio"] = ratio_value
+        if re.fullmatch(r"(?i)[124]k", size_value):
+            options["resolution"] = size_value.upper()
+        elif size_value.lower() == "auto":
+            options["size"] = "auto"
+        elif re.fullmatch(r"\d+x\d+", size_value.lower()):
+            options["size"] = size_value.lower()
+        return options
+
+    @staticmethod
+    def _validate_aspect_ratio(aspect_ratio: str) -> None:
+        try:
+            width_ratio, height_ratio = [
+                int(part.strip()) for part in str(aspect_ratio).split(":", 1)
+            ]
+            if width_ratio <= 0 or height_ratio <= 0:
+                raise ValueError
+            if max(width_ratio, height_ratio) / min(width_ratio, height_ratio) > AIAPIROUTE_IMAGE_MAX_RATIO:
+                raise ValueError
+        except (TypeError, ValueError, ZeroDivisionError) as exc:
+            raise ValueError(
+                "aiapiroute aspect_ratio 必须是有效且不超过 3:1 的比例，例如 1:1、3:4 或 16:9"
+            ) from exc
 
     def _size_from_ratio(self, width_ratio: int, height_ratio: int, long_side: int) -> tuple[int, int]:
         width_ratio = max(1, int(width_ratio))

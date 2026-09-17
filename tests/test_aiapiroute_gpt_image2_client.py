@@ -18,27 +18,54 @@ class AIApiRouteGPTImageClientTests(unittest.TestCase):
             model=APIConfig.AIAPIROUTE_GPT_IMAGE2_MODEL,
         )
 
-    def test_request_aspect_ratio_overrides_configured_fallback(self):
-        with patch.object(
-            APIConfig, "AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO", "3:4"
-        ):
-            self.assertEqual(self.client._resolve_reference_ratio("4:3"), "4:3")
+    def test_native_aspect_ratio_and_resolution_are_sent_without_derived_size(self):
+        self.assertEqual(
+            self.client._resolve_request_options("2K", "4:3"),
+            {"aspect_ratio": "4:3", "resolution": "2K"},
+        )
 
-    def test_reference_image_is_fitted_to_request_aspect_ratio_without_cropping(self):
+    def test_explicit_pixel_size_remains_supported(self):
+        self.assertEqual(
+            self.client._resolve_request_options("1536x1024", "3:2"),
+            {"aspect_ratio": "3:2", "size": "1536x1024"},
+        )
+
+    def test_reference_image_compatibility_fit_remains_available(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = f"{temp_dir}/source.png"
             Image.new("RGB", (800, 1200), "green").save(image_path)
 
-            data_url = self.client._to_request_data_url(image_path, "4:3")
+            data_url = self.client._prepare_reference_image(image_path, "4:3")
             encoded = data_url.split(",", 1)[1]
             with Image.open(BytesIO(base64.b64decode(encoded))) as result:
                 self.assertEqual(result.size, (1600, 1200))
 
-    def test_missing_request_ratio_uses_configured_fallback(self):
-        with patch.object(
-            APIConfig, "AIAPIROUTE_GPT_IMAGE2_REFERENCE_RATIO", "3:4"
-        ):
-            self.assertEqual(self.client._resolve_reference_ratio(None), "3:4")
+    def test_gpt_image_25_providers_are_registered(self):
+        flare_provider = "gpt-image-2.5-flare_aiapiroute"
+        sunburst_provider = "gpt-image-2.5-sunburst_aiapiroute"
+
+        self.assertIn(flare_provider, APIConfig.ALL_PROVIDERS)
+        self.assertIn(sunburst_provider, APIConfig.ALL_PROVIDERS)
+        self.assertEqual(
+            APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP[flare_provider],
+            APIConfig.AIAPIROUTE_GPT_IMAGE25_FLARE_MODEL,
+        )
+        self.assertEqual(
+            APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP[sunburst_provider],
+            APIConfig.AIAPIROUTE_GPT_IMAGE25_SUNBURST_MODEL,
+        )
+        self.assertEqual(
+            APIConfig.resolve_provider(flare_provider, validate_config=False),
+            flare_provider,
+        )
+        self.assertEqual(
+            APIConfig.resolve_provider(sunburst_provider, validate_config=False),
+            sunburst_provider,
+        )
+        self.assertEqual(
+            APIConfig.resolve_provider("gpt-image-2.5", validate_config=False),
+            flare_provider,
+        )
 
 
 if __name__ == "__main__":
