@@ -5,6 +5,7 @@ import asyncio
 import aiofiles
 import time
 import secrets
+import logging
 from pydantic import BaseModel, Field, ValidationError
 from fastapi import APIRouter, File, UploadFile, Form, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -56,6 +57,8 @@ from app.clients.unified_api_client import api_client
 from app.services.runtime_state import get_http_client, get_long_http_client
 from app.services.r2_storage import R2StorageConfig, upload_public_task_images
 from app.services.storefront_events import hash_tracking_token, record_storefront_event
+
+logger = logging.getLogger(__name__)
 
 # 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
 _watermark_logo_created: bool = False
@@ -343,6 +346,7 @@ async def create_storefront_event(request: Request):
     try:
         payload = StorefrontEventRequest.model_validate(await request.json())
     except (json.JSONDecodeError, UnicodeDecodeError, ValidationError) as exc:
+        logger.warning("Storefront event rejected: invalid request payload")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
         result = await asyncio.to_thread(
@@ -352,11 +356,37 @@ async def create_storefront_event(request: Request):
             payload.model_dump(),
         )
     except FileNotFoundError as exc:
+        logger.warning(
+            "Storefront event rejected: task not found task_id=%s event_type=%s source=%s",
+            payload.task_id,
+            payload.event_type,
+            payload.source,
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except PermissionError as exc:
+        logger.warning(
+            "Storefront event rejected: tracking token mismatch task_id=%s event_type=%s source=%s",
+            payload.task_id,
+            payload.event_type,
+            payload.source,
+        )
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
+        logger.warning(
+            "Storefront event rejected: invalid event task_id=%s event_type=%s source=%s reason=%s",
+            payload.task_id,
+            payload.event_type,
+            payload.source,
+            exc,
+        )
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    logger.info(
+        "Storefront event %s task_id=%s event_type=%s source=%s",
+        "recorded" if result["created"] else "deduplicated",
+        payload.task_id,
+        payload.event_type,
+        payload.source,
+    )
     return {"ok": True, "created": result["created"]}
 
 
