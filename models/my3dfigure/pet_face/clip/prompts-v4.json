@@ -1,0 +1,306 @@
+{
+  "labels": [
+    [
+      "cat",
+      "visible"
+    ],
+    [
+      "cat",
+      "visible"
+    ],
+    [
+      "cat",
+      "visible"
+    ],
+    [
+      "cat",
+      "visible"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "occluded"
+    ],
+    [
+      "cat",
+      "back"
+    ],
+    [
+      "cat",
+      "back"
+    ],
+    [
+      "cat",
+      "back"
+    ],
+    [
+      "cat",
+      "fur"
+    ],
+    [
+      "cat",
+      "fur"
+    ],
+    [
+      "cat",
+      "blur"
+    ],
+    [
+      "cat",
+      "blur"
+    ],
+    [
+      "cat",
+      "blur"
+    ],
+    [
+      "dog",
+      "visible"
+    ],
+    [
+      "dog",
+      "visible"
+    ],
+    [
+      "dog",
+      "visible"
+    ],
+    [
+      "dog",
+      "visible"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "occluded"
+    ],
+    [
+      "dog",
+      "back"
+    ],
+    [
+      "dog",
+      "back"
+    ],
+    [
+      "dog",
+      "back"
+    ],
+    [
+      "dog",
+      "fur"
+    ],
+    [
+      "dog",
+      "fur"
+    ],
+    [
+      "dog",
+      "blur"
+    ],
+    [
+      "dog",
+      "blur"
+    ],
+    [
+      "dog",
+      "blur"
+    ],
+    [
+      "cat",
+      "nonpet"
+    ],
+    [
+      "cat",
+      "nonpet"
+    ],
+    [
+      "cat",
+      "nonpet"
+    ],
+    [
+      "cat",
+      "nonpet"
+    ],
+    [
+      "dog",
+      "nonpet"
+    ],
+    [
+      "dog",
+      "nonpet"
+    ],
+    [
+      "dog",
+      "nonpet"
+    ],
+    [
+      "dog",
+      "nonpet"
+    ],
+    [
+      "cat",
+      "cut"
+    ],
+    [
+      "cat",
+      "cut"
+    ],
+    [
+      "cat",
+      "dark"
+    ],
+    [
+      "cat",
+      "dark"
+    ],
+    [
+      "cat",
+      "bright"
+    ],
+    [
+      "cat",
+      "bright"
+    ],
+    [
+      "cat",
+      "motion"
+    ],
+    [
+      "cat",
+      "motion"
+    ],
+    [
+      "dog",
+      "cut"
+    ],
+    [
+      "dog",
+      "cut"
+    ],
+    [
+      "dog",
+      "dark"
+    ],
+    [
+      "dog",
+      "dark"
+    ],
+    [
+      "dog",
+      "bright"
+    ],
+    [
+      "dog",
+      "bright"
+    ],
+    [
+      "dog",
+      "motion"
+    ],
+    [
+      "dog",
+      "motion"
+    ]
+  ],
+  "prompts": [
+    "a photo of a cat with its face clearly visible",
+    "a close-up photo of a cat face showing eyes and nose",
+    "a side profile photo of a cat with its face visible",
+    "a photo of a cat tilting its head with its face visible",
+    "a photo of a cat with its face covered by a hand",
+    "a photo of a cat with its eyes and nose hidden behind an object",
+    "a photo of a cat with its face covered by a blanket",
+    "a photo of a cat with a cloth covering its face",
+    "a photo of a cat hiding behind a cardboard box",
+    "a photo of a cat with its head blocked by an object",
+    "a photo of the back of a cat head",
+    "a rear view photo of a cat with no face visible",
+    "a photo of a cat looking away with its face hidden",
+    "a photo of a shaggy cat with fur covering its eyes and nose",
+    "a photo of a cat with facial features hidden by long hair",
+    "a very blurry photo of a cat with indistinct facial features",
+    "a very dark photo of a cat",
+    "an overexposed photo of a cat",
+    "a photo of a dog with its face clearly visible",
+    "a close-up photo of a dog face showing eyes and nose",
+    "a side profile photo of a dog with its face visible",
+    "a photo of a dog tilting its head with its face visible",
+    "a photo of a dog with its face covered by a hand",
+    "a photo of a dog with its eyes and nose hidden behind an object",
+    "a photo of a dog with its face covered by a blanket",
+    "a photo of a dog with a cloth covering its face",
+    "a photo of a dog hiding behind a cardboard box",
+    "a photo of a dog with its head blocked by an object",
+    "a photo of the back of a dog head",
+    "a rear view photo of a dog with no face visible",
+    "a photo of a dog looking away with its face hidden",
+    "a photo of a shaggy dog with fur covering its eyes and nose",
+    "a photo of a dog with facial features hidden by long hair",
+    "a very blurry photo of a dog with indistinct facial features",
+    "a very dark photo of a dog",
+    "an overexposed photo of a dog",
+    "a close-up photograph of a human face",
+    "a photo of a person",
+    "a screenshot of a human face",
+    "a photo of a human head",
+    "a close-up photograph of a human face",
+    "a photo of a person",
+    "a screenshot of a human face",
+    "a photo of a human head",
+    "a photo of a cat with its head cut off by the edge of the picture",
+    "a cropped photo of a cat with half of its face outside the image",
+    "a photo of a cat whose face is too dark to see",
+    "a very underexposed photo of a cat face",
+    "an overexposed photo of a cat with a white featureless face",
+    "a photo of a cat whose facial features are washed out by bright sunlight",
+    "a motion blurred photo of a cat face",
+    "an out of focus photo of a cat with blurry facial features",
+    "a photo of a dog with its head cut off by the edge of the picture",
+    "a cropped photo of a dog with half of its face outside the image",
+    "a photo of a dog whose face is too dark to see",
+    "a very underexposed photo of a dog face",
+    "an overexposed photo of a dog with a white featureless face",
+    "a photo of a dog whose facial features are washed out by bright sunlight",
+    "a motion blurred photo of a dog face",
+    "an out of focus photo of a dog with blurry facial features"
+  ]
+}

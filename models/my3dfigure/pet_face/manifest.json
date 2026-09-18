@@ -1,0 +1,35 @@
+{
+  "files": {
+    "rtmpose-ap10k.onnx": {
+      "bytes": 54478120,
+      "sha256": "1cfd1c86e0d9e5d5f95178bcd95ee9a4e8386a624cd3c57519f27ff58cac7f28"
+    },
+    "clip/vision_model_quantized.onnx": {
+      "bytes": 89117001,
+      "sha256": "583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299"
+    },
+    "CLIP-LICENSE.txt": {
+      "bytes": 1064,
+      "sha256": "987e63b32f6c89ff5160e429458a872ff048e6860b590a3912e938f9da8f14db"
+    },
+    "MMPose-LICENSE.txt": {
+      "bytes": 11400,
+      "sha256": "aa2c6f3408169b96e5547c875deb481c91502514c1885fa0acb4b596c8909cb9"
+    },
+    "clip/text-features-v4.npz": {
+      "bytes": 123150,
+      "sha256": "a76e5ccf5b5c2eb05000c0876869faf46ce0d86b7dca3b15e0e43bb8592824cb"
+    },
+    "clip/prompts-v4.json": {
+      "bytes": 6094,
+      "sha256": "9b509b572a0548e7e9768436346b8f8333abe9ae75c44ab0fa607fdbdbe51552"
+    }
+  },
+  "sources": {
+    "pose": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-ap10k_pt-aic-coco_210e-256x256-7a041aa1_20230206.zip",
+    "clip": "https://huggingface.co/Xenova/clip-vit-base-patch32",
+    "original_clip": "https://github.com/openai/CLIP"
+  },
+  "text_features": "Runtime uses v4 facial crop, dark, overexposure and motion/detail blur comparisons. Generated locally with the existing CLIP text model; no runtime text-model dependency.",
+  "limitations": "Landmark scores and cosine margins are heuristic evidence, not calibrated probabilities; neither model guarantees visibility or count accuracy. No breed/person identification. Uploaded photos stay local."
+}

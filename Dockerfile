@@ -40,6 +40,7 @@ WORKDIR /app
 
 # 复制项目文件
 COPY app/ ./app/
+COPY models/ ./models/
 COPY VERSION ./VERSION
 COPY assets/ ./assets/
 COPY scripts/ ./scripts/
