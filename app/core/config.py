@@ -472,6 +472,15 @@ class WatermarkConfig:
     )
     TILED_LOGO_SCALE = env_float("WATERMARK_TILED_LOGO_SCALE", 1.0, 0.05, 3.0)
     TILED_LOGO_OPACITY = env_float("WATERMARK_TILED_LOGO_OPACITY", 0.35, 0.0, 1.0)
+    TILED_LAYOUT = (
+        os.getenv("WATERMARK_TILED_LAYOUT", "random").strip().lower() or "random"
+    )
+    if TILED_LAYOUT not in {"random", "uniform_diagonal"}:
+        TILED_LAYOUT = "random"
+    TILED_ANGLE = env_float("WATERMARK_TILED_ANGLE", 45.0, -180.0, 180.0)
+    TILED_GAP_X = round(env_float("WATERMARK_TILED_GAP_X", 80.0, 0.0, 2000.0))
+    TILED_GAP_Y = round(env_float("WATERMARK_TILED_GAP_Y", 80.0, 0.0, 2000.0))
+    TILED_ROW_OFFSET = env_float("WATERMARK_TILED_ROW_OFFSET", 0.5, 0.0, 1.0)
     CENTER_LOGO_COUNT = 1
     CENTER_LOGO_WIDTH_RATIO = 0.88
     CENTER_LOGO_SCALE = env_float("WATERMARK_CENTER_LOGO_SCALE", 1.0, 0.05, 1.0)

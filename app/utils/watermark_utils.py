@@ -18,6 +18,24 @@ def _scale_alpha(image, opacity):
     scaled.putalpha(alpha)
     return scaled
 
+
+def _uniform_tile_positions(canvas_size, tile_size, gap_x, gap_y, row_offset):
+    """Yield evenly spaced, alternating-row positions that cover the canvas."""
+    canvas_width, canvas_height = canvas_size
+    tile_width, tile_height = tile_size
+    step_x = max(1, tile_width + gap_x)
+    step_y = max(1, tile_height + gap_y)
+    row = 0
+    y = -tile_height
+    while y < canvas_height + tile_height:
+        offset = round(step_x * row_offset) if row % 2 else 0
+        x = -tile_width - offset
+        while x < canvas_width + tile_width:
+            yield x, y
+            x += step_x
+        y += step_y
+        row += 1
+
 def blend_images(background, overlay, mode="normal"):
     """
     图像混合模式处理函数
@@ -407,6 +425,23 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
             )
             watermark_layer.paste(center_logo, position, center_logo)
         blend_mode = "normal"
+    elif WatermarkConfig.TILED_LAYOUT == "uniform_diagonal":
+        # Fixed angle, size, opacity and spacing. Alternating row offsets avoid
+        # obvious vertical channels while keeping the pattern fully regular.
+        uniform_logo = logo.rotate(
+            WatermarkConfig.TILED_ANGLE,
+            expand=True,
+            resample=Image.Resampling.BICUBIC,
+        )
+        for position in _uniform_tile_positions(
+            image.size,
+            uniform_logo.size,
+            WatermarkConfig.TILED_GAP_X,
+            WatermarkConfig.TILED_GAP_Y,
+            WatermarkConfig.TILED_ROW_OFFSET,
+        ):
+            watermark_layer.paste(uniform_logo, position, uniform_logo)
+        blend_mode = "normal"
     elif WatermarkConfig.ENABLE_RANDOM_PATTERNS:
         # 随机化处理
         for y in range(0, image.height, step):
@@ -444,7 +479,12 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
                 watermark_layer.paste(logo, (x, y), logo)
     
     # 随机选择混合模式
-    if WatermarkConfig.STYLE != "center" and WatermarkConfig.ENABLE_RANDOM_PATTERNS and hasattr(WatermarkConfig, 'MULTIPLE_BLEND_MODES'):
+    if (
+        WatermarkConfig.STYLE != "center"
+        and WatermarkConfig.TILED_LAYOUT != "uniform_diagonal"
+        and WatermarkConfig.ENABLE_RANDOM_PATTERNS
+        and hasattr(WatermarkConfig, 'MULTIPLE_BLEND_MODES')
+    ):
         blend_mode = random.choice(WatermarkConfig.MULTIPLE_BLEND_MODES)
     
     watermarked = blend_images(image, watermark_layer, blend_mode)

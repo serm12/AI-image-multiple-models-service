@@ -6,7 +6,12 @@ from unittest.mock import patch
 
 from app.core.config import WatermarkConfig, env_float
 from PIL import Image, ImageChops, ImageFont
-from app.utils.watermark_utils import _scale_alpha, add_corner_label, temp_add_corner_label
+from app.utils.watermark_utils import (
+    _scale_alpha,
+    _uniform_tile_positions,
+    add_corner_label,
+    temp_add_corner_label,
+)
 
 
 class WatermarkConfigTests(unittest.TestCase):
@@ -100,6 +105,16 @@ class WatermarkConfigTests(unittest.TestCase):
         logo.putalpha(Image.new("L", (2, 1), 128))
         scaled = _scale_alpha(logo, 0.35)
         self.assertEqual(scaled.getchannel("A").getpixel((0, 0)), 45)
+
+    def test_uniform_diagonal_positions_are_even_and_rows_are_offset(self):
+        positions = list(
+            _uniform_tile_positions((500, 500), (100, 50), 20, 30, 0.5)
+        )
+        first_row = [x for x, y in positions if y == -50]
+        second_row = [x for x, y in positions if y == 30]
+        self.assertTrue(all(b - a == 120 for a, b in zip(first_row, first_row[1:])))
+        self.assertTrue(all(b - a == 120 for a, b in zip(second_row, second_row[1:])))
+        self.assertEqual(first_row[0] - second_row[0], 60)
 
 
 if __name__ == "__main__":
