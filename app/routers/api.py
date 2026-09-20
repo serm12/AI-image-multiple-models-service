@@ -36,7 +36,7 @@ from app.services.task_files import (
     safe_upload_filename,
     save_validated_upload,
 )
-from app.services.watermark_service import create_logo_watermark, add_logo_watermark
+from app.services.watermark_service import add_logo_watermark
 from app.services.task_storage import generate_task_dir, save_params, generate_output_filenames
 from app.utils.time_utils import CHINA_TIMEZONE_NAME
 from app.services.upscale_service import (
@@ -60,9 +60,6 @@ from app.services.storefront_events import hash_tracking_token, record_storefron
 
 logger = logging.getLogger(__name__)
 
-# 进程级标记：水印logo是否已生成，避免每次任务都进线程池检查
-_watermark_logo_created: bool = False
-_watermark_logo_lock = asyncio.Lock()
 # 保存后台任务引用，防止 GC 过早回收未完成的 Task
 _background_tasks: set = set()
 router = APIRouter()
@@ -680,20 +677,14 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
     
     # 在线程池中处理水印（避免阻塞事件循环）
     try:
-        global _watermark_logo_created
         loop = asyncio.get_running_loop()
-        async with _watermark_logo_lock:
-            if (
-                WatermarkConfig.STYLE != "center"
-                and (
-                    not _watermark_logo_created
-                    or not os.path.isfile(WatermarkConfig.LOGO_PATH)
-                )
-            ):
-                await loop.run_in_executor(None, create_logo_watermark)
-                if not os.path.isfile(WatermarkConfig.LOGO_PATH):
-                    raise FileNotFoundError("水印 Logo 初始化失败")
-            _watermark_logo_created = True
+        # WATERMARK_LOGO_PATH is a packaged source asset. It must remain
+        # immutable: generating a text logo here used to overwrite the custom
+        # PNG on the first request after every container restart.
+        if not os.path.isfile(WatermarkConfig.LOGO_PATH):
+            raise FileNotFoundError(
+                f"水印 Logo 文件不存在: {WatermarkConfig.LOGO_PATH}"
+            )
         await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
         return [f"/taskfile/{task_id}/{os.path.basename(watermark_file)}"]
     except Exception as exc:
