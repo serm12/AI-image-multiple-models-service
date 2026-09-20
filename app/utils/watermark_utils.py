@@ -8,6 +8,16 @@ from app.core.config import WatermarkConfig
 # 添加logo缓存
 _logo_cache = {}
 
+
+def _scale_alpha(image, opacity):
+    """Return a copy whose existing alpha channel is scaled by opacity."""
+    scaled = image.copy()
+    alpha = scaled.getchannel("A").point(
+        lambda value: max(0, min(255, round(value * opacity)))
+    )
+    scaled.putalpha(alpha)
+    return scaled
+
 def blend_images(background, overlay, mode="normal"):
     """
     图像混合模式处理函数
@@ -358,6 +368,11 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
             (WatermarkConfig.TILED_LOGO_WIDTH, tiled_logo_height),
             Image.Resampling.LANCZOS,
         )
+    if WatermarkConfig.STYLE != "center":
+        # Apply a global opacity to image-based tiled watermarks. The previous
+        # code only varied the source PNG alpha around 100%, leaving opaque
+        # logo pixels effectively opaque.
+        logo = _scale_alpha(logo, WatermarkConfig.TILED_LOGO_OPACITY)
     
     # 创建多层随机化水印
     watermark_layer = Image.new("RGBA", image.size, (0,0,0,0))
@@ -377,10 +392,7 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
         )
         center_logo_height = max(1, int(center_logo.height * center_logo_width / center_logo.width))
         center_logo = center_logo.resize((center_logo_width, center_logo_height), Image.Resampling.LANCZOS)
-        alpha = center_logo.getchannel("A").point(
-            lambda value: int(value * WatermarkConfig.CENTER_LOGO_OPACITY)
-        )
-        center_logo.putalpha(alpha)
+        center_logo = _scale_alpha(center_logo, WatermarkConfig.CENTER_LOGO_OPACITY)
         vertical_offset = int(image.height * WatermarkConfig.CENTER_LOGO_VERTICAL_OFFSET_RATIO)
 
         for index in range(WatermarkConfig.CENTER_LOGO_COUNT):

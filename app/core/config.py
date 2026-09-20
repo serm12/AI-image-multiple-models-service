@@ -469,6 +469,7 @@ class WatermarkConfig:
     CENTER_LOGO_PATH = "assets/logo_watermark-big_black_white.png"
     # Keep tiled marks at a readable density even when the source artwork is large.
     TILED_LOGO_WIDTH = 193
+    TILED_LOGO_OPACITY = env_float("WATERMARK_TILED_LOGO_OPACITY", 0.35, 0.0, 1.0)
     CENTER_LOGO_COUNT = 1
     CENTER_LOGO_WIDTH_RATIO = 0.88
     CENTER_LOGO_SCALE = env_float("WATERMARK_CENTER_LOGO_SCALE", 1.0, 0.05, 1.0)

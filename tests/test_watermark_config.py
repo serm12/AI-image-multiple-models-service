@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from app.core.config import WatermarkConfig, env_float
 from PIL import Image, ImageChops, ImageFont
-from app.utils.watermark_utils import add_corner_label, temp_add_corner_label
+from app.utils.watermark_utils import _scale_alpha, add_corner_label, temp_add_corner_label
 
 
 class WatermarkConfigTests(unittest.TestCase):
@@ -72,6 +72,17 @@ class WatermarkConfigTests(unittest.TestCase):
         with patch.dict(os.environ, {"WATERMARK_OUTPUT_SCALE": "0.75"}):
             value = env_float("WATERMARK_OUTPUT_SCALE", 0.5, 0.1, 1.0)
         self.assertEqual(value, 0.75)
+
+    def test_tiled_logo_opacity_reads_valid_value(self):
+        with patch.dict(os.environ, {"WATERMARK_TILED_LOGO_OPACITY": "0.35"}):
+            value = env_float("WATERMARK_TILED_LOGO_OPACITY", 0.35, 0.0, 1.0)
+        self.assertEqual(value, 0.35)
+
+    def test_image_logo_opacity_scales_existing_alpha(self):
+        logo = Image.new("RGBA", (2, 1), (255, 255, 255, 255))
+        logo.putalpha(Image.new("L", (2, 1), 128))
+        scaled = _scale_alpha(logo, 0.35)
+        self.assertEqual(scaled.getchannel("A").getpixel((0, 0)), 45)
 
 
 if __name__ == "__main__":
