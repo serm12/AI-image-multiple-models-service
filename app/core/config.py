@@ -35,6 +35,8 @@ class AppConfig:
     ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "").strip()
     ADMIN_USER = os.getenv("ADMIN_USER", "").strip()
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+    # Used to sign browser-admin sessions. Set this to a long random value in production.
+    ADMIN_SESSION_SECRET = os.getenv("ADMIN_SESSION_SECRET", "")
     MAX_UPLOAD_FILES = int(os.getenv("MAX_UPLOAD_FILES", "4"))
     MAX_UPLOAD_FILE_MB = int(os.getenv("MAX_UPLOAD_FILE_MB", "20"))
     ALLOWED_UPLOAD_CONTENT_TYPES = {
@@ -458,8 +460,14 @@ class WatermarkConfig:
     RANDOM_OPACITY_RANGE = 30
     MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]
 
-    LOGO_PATH = "assets/logo_watermark.png"
-    CENTER_LOGO_PATH = "assets/logo_watermark_big_black.png"
+    # The source artwork used by both tiled and centered logo watermarks.
+    LOGO_PATH = (
+        os.getenv("WATERMARK_LOGO_PATH", "assets/logo_watermark_big_white_black.png").strip()
+        or "assets/logo_watermark_big_white_black.png"
+    )
+    CENTER_LOGO_PATH = "assets/logo_watermark_big_white_black.png"
+    # Keep tiled marks at a readable density even when the source artwork is large.
+    TILED_LOGO_WIDTH = 193
     CENTER_LOGO_COUNT = 1
     CENTER_LOGO_WIDTH_RATIO = 0.88
     CENTER_LOGO_SCALE = env_float("WATERMARK_CENTER_LOGO_SCALE", 1.0, 0.05, 1.0)

@@ -3,15 +3,22 @@ import tempfile
 from html import escape
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote, unquote, urlparse
+from urllib.parse import quote, unquote, urlparse, urlsplit
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
-from app.services.security import require_admin_login
+from app.services.security import (
+    ADMIN_SESSION_COOKIE,
+    ADMIN_SESSION_MAX_AGE,
+    create_admin_session,
+    get_admin_session_user,
+    require_admin_login,
+    validate_admin_credentials,
+)
 from app.services.task_files import resolve_task_file_path
 from app.services.task_query_service import list_task_summaries
 from app.utils.time_utils import CHINA_TIMEZONE, CHINA_TIMEZONE_NAME
@@ -19,6 +26,71 @@ from app.utils.time_utils import CHINA_TIMEZONE, CHINA_TIMEZONE_NAME
 
 router = APIRouter()
 US_EASTERN_TIMEZONE = ZoneInfo("America/New_York")
+
+
+def _admin_next(value: str | None) -> str:
+    """Allow redirects only to this application's admin task pages."""
+    candidate = str(value or "").strip()
+    parsed = urlsplit(candidate)
+    if not parsed.scheme and not parsed.netloc and parsed.path.startswith("/admin/tasks"):
+        return candidate
+    return "/admin/tasks"
+
+
+def _login_page(next_url: str, error: bool = False) -> HTMLResponse:
+    message = (
+        '<p class="error" role="alert">用户名或密码不正确，请重试。</p>'
+        if error else ""
+    )
+    return HTMLResponse(f'''<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>登录 · AI 图片管理</title>
+<style>*{{box-sizing:border-box}}body{{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eef4ff,#f8fafc);color:#172033;font:15px/1.5 system-ui,-apple-system,sans-serif}}main{{width:min(100%,420px);padding:36px;border:1px solid #dbe4f0;border-radius:18px;background:#fff;box-shadow:0 18px 48px #2737521f}}h1{{margin:0 0 8px;font-size:25px}}.subtitle{{margin:0 0 27px;color:#64748b}}label{{display:block;margin:16px 0 6px;font-weight:650}}input[type=text],input[type=password]{{width:100%;height:44px;padding:0 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}}input:focus{{outline:3px solid #b9d6ff;border-color:#3979c7}}.remember{{display:flex;align-items:center;gap:8px;margin:18px 0 22px;color:#42546d}}button{{width:100%;height:45px;border:0;border-radius:9px;background:#1769d2;color:#fff;font:650 15px inherit;cursor:pointer}}button:hover{{background:#1259b3}}.error{{margin:0 0 16px;padding:9px 11px;border-radius:8px;background:#fff1f0;color:#b42318}}.notice{{margin:22px 0 0;color:#718096;font-size:12px;text-align:center}}</style>
+</head><body><main><h1>AI 图片管理</h1><p class="subtitle">请登录以查看生成记录</p>{message}
+<form method="post" action="/admin/login"><input type="hidden" name="next" value="{_text(next_url)}">
+<label for="username">用户名</label><input id="username" name="username" type="text" autocomplete="username" required autofocus>
+<label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" required>
+<label class="remember"><input name="remember" type="checkbox" value="true" checked> 记住我（30 天）</label>
+<button type="submit">登录</button></form><p class="notice">请勿在公共设备上勾选“记住我”。</p></main></body></html>''', status_code=401 if error else 200)
+
+
+@router.get("/admin/login", response_class=HTMLResponse)
+def admin_login_form(request: Request, next: str = "/admin/tasks"):
+    target = _admin_next(next)
+    if get_admin_session_user(request.cookies.get(ADMIN_SESSION_COOKIE)):
+        return RedirectResponse(target, status_code=303)
+    return _login_page(target)
+
+
+@router.post("/admin/login", response_class=HTMLResponse)
+def admin_login(
+    username: str = Form(...),
+    password: str = Form(...),
+    remember: str | None = Form(None),
+    next: str = Form("/admin/tasks"),
+):
+    target = _admin_next(next)
+    if not validate_admin_credentials(username, password):
+        return _login_page(target, error=True)
+    response = RedirectResponse(target, status_code=303)
+    max_age = ADMIN_SESSION_MAX_AGE if remember else None
+    response.set_cookie(
+        ADMIN_SESSION_COOKIE,
+        create_admin_session(username, max_age or ADMIN_SESSION_MAX_AGE),
+        max_age=max_age,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        path="/admin",
+    )
+    return response
+
+
+@router.post("/admin/logout")
+def admin_logout():
+    response = RedirectResponse("/admin/login", status_code=303)
+    response.delete_cookie(ADMIN_SESSION_COOKIE, path="/admin")
+    return response
 
 
 def _text(value) -> str:
@@ -331,7 +403,7 @@ def admin_tasks(
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/css/glightbox.min.css">
 <style>
 *{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}
-main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}
+main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}.logout-form{{margin:0}}.logout-button{{margin-top:9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#53657e;padding:6px 10px;cursor:pointer}}
 h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:10px;margin-top:2px}}.count,.muted{{color:#718096}}.version{{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}}.current-times{{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}}.current-time{{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}}.current-time__label{{color:#718096;font-size:12px}}.current-time time{{font-weight:600;white-space:nowrap}}.panel{{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}}
 .service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
 table{{width:100%;border-collapse:collapse;min-width:1280px;table-layout:fixed}}th,td{{padding:8px 7px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:76px}}tbody tr:hover{{background:#fafcff}}
@@ -340,7 +412,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
-</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div></header>
+</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></header>
 <div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>用户 / 转化状态</th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>

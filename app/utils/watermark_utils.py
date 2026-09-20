@@ -349,6 +349,15 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     
     image = Image.open(input_image_path).convert("RGBA")
     logo = Image.open(logo_path).convert("RGBA")
+    if WatermarkConfig.STYLE != "center" and logo.width > WatermarkConfig.TILED_LOGO_WIDTH:
+        tiled_logo_height = max(
+            1,
+            round(logo.height * WatermarkConfig.TILED_LOGO_WIDTH / logo.width),
+        )
+        logo = logo.resize(
+            (WatermarkConfig.TILED_LOGO_WIDTH, tiled_logo_height),
+            Image.Resampling.LANCZOS,
+        )
     
     # 创建多层随机化水印
     watermark_layer = Image.new("RGBA", image.size, (0,0,0,0))

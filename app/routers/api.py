@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 # 导入配置和核心模块
 from app.core.config import (
-    DirectoryConfig, APIConfig, AppConfig,
+    DirectoryConfig, APIConfig, AppConfig, WatermarkConfig,
     FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum, ProviderEnum,
     STYLE_PROMPTS
 )
@@ -683,11 +683,17 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
         global _watermark_logo_created
         loop = asyncio.get_running_loop()
         async with _watermark_logo_lock:
-            if not _watermark_logo_created or not os.path.isfile("assets/logo_watermark.png"):
+            if (
+                WatermarkConfig.STYLE != "center"
+                and (
+                    not _watermark_logo_created
+                    or not os.path.isfile(WatermarkConfig.LOGO_PATH)
+                )
+            ):
                 await loop.run_in_executor(None, create_logo_watermark)
-                if not os.path.isfile("assets/logo_watermark.png"):
+                if not os.path.isfile(WatermarkConfig.LOGO_PATH):
                     raise FileNotFoundError("水印 Logo 初始化失败")
-                _watermark_logo_created = True
+            _watermark_logo_created = True
         await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
         return [f"/taskfile/{task_id}/{os.path.basename(watermark_file)}"]
     except Exception as exc:

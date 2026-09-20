@@ -83,7 +83,9 @@ class AdminTasksTests(unittest.TestCase):
         )
 
         client = TestClient(app)
-        self.assertEqual(client.get("/admin/tasks").status_code, 401)
+        unauthenticated = client.get("/admin/tasks", follow_redirects=False)
+        self.assertEqual(unauthenticated.status_code, 303)
+        self.assertTrue(unauthenticated.headers["location"].startswith("/admin/login"))
         token = base64.b64encode(b"admin:secret").decode("ascii")
         response = client.get(
             "/admin/tasks", headers={"Authorization": f"Basic {token}"}
@@ -113,6 +115,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("○</span> 结账意图", response.text)
         self.assertIn("✓</span> 开始结账", response.text)
         self.assertIn("加购：已触发 · 2026-09-18T00:10:00Z", response.text)
+
         self.assertIn("<th>时间</th>", response.text)
         self.assertNotIn("时间（美国东部）", response.text)
         self.assertIn("<span>北京</span>08-28 18:00:00", response.text)
@@ -153,6 +156,24 @@ class AdminTasksTests(unittest.TestCase):
         with Image.open(BytesIO(thumbnail.content)) as preview:
             self.assertLessEqual(preview.width, 160)
             self.assertLessEqual(preview.height, 160)
+
+    def test_login_page_creates_a_remembered_admin_session(self):
+        client = TestClient(app, base_url="https://testserver")
+        login_page = client.get("/admin/login")
+        self.assertEqual(login_page.status_code, 200)
+        self.assertIn('autocomplete="current-password"', login_page.text)
+        self.assertIn("记住我（30 天）", login_page.text)
+
+        response = client.post(
+            "/admin/login",
+            data={"username": "admin", "password": "secret", "remember": "true"},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertIn("ai_image_admin_session=", response.headers["set-cookie"])
+        self.assertIn("HttpOnly", response.headers["set-cookie"])
+        self.assertIn("Secure", response.headers["set-cookie"])
+        self.assertEqual(client.get("/admin/tasks").status_code, 200)
 
     def test_admin_tasks_uses_server_side_pagination(self):
         for index in range(30):

@@ -1,5 +1,11 @@
 import ipaddress
+import base64
+import binascii
+import hashlib
+import hmac
+import json
 import secrets
+import time
 from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import Depends, HTTPException, Request
@@ -9,6 +15,8 @@ from app.core.config import AppConfig
 
 
 http_basic = HTTPBasic(auto_error=False)
+ADMIN_SESSION_COOKIE = "ai_image_admin_session"
+ADMIN_SESSION_MAX_AGE = 60 * 60 * 24 * 30
 TRUSTED_PROXY_IPS = {"127.0.0.1", "::1"}
 CLOUDFLARE_NETWORKS = tuple(
     ipaddress.ip_network(cidr)
@@ -69,27 +77,65 @@ async def require_admin_api_key(request: Request):
         raise HTTPException(status_code=401, detail="Invalid or missing admin API key")
 
 
-def require_admin_login(
-    credentials: HTTPBasicCredentials | None = Depends(http_basic),
-):
-    """Protect the browser admin page with constant-time Basic Auth checks."""
-    provided_user = credentials.username if credentials else ""
-    provided_password = credentials.password if credentials else ""
+def validate_admin_credentials(username: str, password: str) -> bool:
+    """Compare administrator credentials in constant time."""
     user_matches = secrets.compare_digest(
-        provided_user.encode("utf-8"), AppConfig.ADMIN_USER.encode("utf-8")
+        username.encode("utf-8"), AppConfig.ADMIN_USER.encode("utf-8")
     )
     password_matches = secrets.compare_digest(
-        provided_password.encode("utf-8"), AppConfig.ADMIN_PASSWORD.encode("utf-8")
+        password.encode("utf-8"), AppConfig.ADMIN_PASSWORD.encode("utf-8")
     )
-    valid = bool(AppConfig.ADMIN_USER and AppConfig.ADMIN_PASSWORD)
-    valid = valid and user_matches and password_matches
-    if not valid:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or missing administrator credentials",
-            headers={"WWW-Authenticate": 'Basic realm="AI Image Tasks"'},
-        )
-    return credentials.username
+    return bool(AppConfig.ADMIN_USER and AppConfig.ADMIN_PASSWORD) and user_matches and password_matches
+
+
+def _admin_session_secret() -> bytes:
+    # The fallback keeps existing deployments working; a dedicated secret is preferred.
+    configured = AppConfig.ADMIN_SESSION_SECRET
+    material = configured or f"{AppConfig.ADMIN_USER}\0{AppConfig.ADMIN_PASSWORD}"
+    return hashlib.sha256(material.encode("utf-8")).digest()
+
+
+def create_admin_session(username: str, max_age: int = ADMIN_SESSION_MAX_AGE) -> str:
+    payload = json.dumps(
+        {"u": username, "e": int(time.time()) + max_age}, separators=(",", ":")
+    ).encode("utf-8")
+    encoded = base64.urlsafe_b64encode(payload).rstrip(b"=")
+    signature = hmac.new(_admin_session_secret(), encoded, hashlib.sha256).digest()
+    return f"{encoded.decode('ascii')}.{base64.urlsafe_b64encode(signature).rstrip(b'=').decode('ascii')}"
+
+
+def get_admin_session_user(token: str | None) -> str | None:
+    if not token or "." not in token:
+        return None
+    encoded, signature = token.split(".", 1)
+    try:
+        encoded_bytes = encoded.encode("ascii")
+        expected = hmac.new(_admin_session_secret(), encoded_bytes, hashlib.sha256).digest()
+        actual = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
+        payload = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+    except (ValueError, UnicodeEncodeError, json.JSONDecodeError, binascii.Error):
+        return None
+    if not hmac.compare_digest(actual, expected):
+        return None
+    if payload.get("u") != AppConfig.ADMIN_USER or not isinstance(payload.get("e"), int):
+        return None
+    return AppConfig.ADMIN_USER if payload["e"] >= int(time.time()) else None
+
+
+def require_admin_login(
+    request: Request,
+    credentials: HTTPBasicCredentials | None = Depends(http_basic),
+):
+    """Protect browser admin pages with a signed session, accepting legacy Basic Auth."""
+    session_user = get_admin_session_user(request.cookies.get(ADMIN_SESSION_COOKIE))
+    if session_user:
+        return session_user
+    if credentials and validate_admin_credentials(credentials.username, credentials.password):
+        return credentials.username
+    target = request.url.path
+    if request.url.query:
+        target = f"{target}?{request.url.query}"
+    raise HTTPException(status_code=303, headers={"Location": f"/admin/login?next={target}"})
 
 
 def get_request_client_ip(request: Request) -> str:
