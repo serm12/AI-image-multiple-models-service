@@ -11,8 +11,13 @@ IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 API_RESPONSE_FILES = ("bfl_response.json", "replicate_response.json")
 
 
-def list_task_summaries(page: int | None = None, page_size: int | None = None) -> dict:
-    """Return compact task summaries, optionally loading one server-side page."""
+def list_task_summaries(
+    page: int | None = None,
+    page_size: int | None = None,
+    client_ip_query: str | None = None,
+    user_query: str | None = None,
+) -> dict:
+    """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
     task_entries = []
     if os.path.exists(DirectoryConfig.TASKS_DIR):
@@ -27,6 +32,32 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
     # Task directory names begin with YYYYMMDD_HHMMSS, so lexical order keeps
     # the newest tasks first without opening every task's params.json file.
     task_entries.sort(key=lambda entry: entry.name, reverse=True)
+    normalized_ip_query = str(client_ip_query or "").strip().casefold()
+    normalized_user_query = str(user_query or "").strip().casefold()
+    all_params = {
+        entry.name: _read_json_if_exists(os.path.join(entry.path, "params.json"))
+        for entry in task_entries
+    }
+
+    if normalized_ip_query or normalized_user_query:
+        filtered_entries = []
+        for entry in task_entries:
+            params = all_params[entry.name]
+            client_ip = str(params.get("client_ip") or "").casefold()
+            user_values = (
+                params.get("customer_email", ""),
+                params.get("customer_id", ""),
+                params.get("storefront_visitor_id", ""),
+            )
+            matches_ip = not normalized_ip_query or normalized_ip_query in client_ip
+            matches_user = not normalized_user_query or any(
+                normalized_user_query in str(value or "").casefold()
+                for value in user_values
+            )
+            if matches_ip and matches_user:
+                filtered_entries.append(entry)
+        task_entries = filtered_entries
+
     total = len(task_entries)
 
     if page_size is None:
@@ -50,7 +81,7 @@ def list_task_summaries(page: int | None = None, page_size: int | None = None) -
     # Directory names start with the task timestamp, so reversing the normal
     # newest-first order gives us oldest-first numbering.
     for entry in reversed(task_entries):
-        params = _read_json_if_exists(os.path.join(entry.path, "params.json"))
+        params = all_params[entry.name]
         if entry.name in selected_task_ids:
             selected_params[entry.name] = params
         client_ip = str(params.get("client_ip") or "").strip()

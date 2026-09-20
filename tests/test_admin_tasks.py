@@ -101,7 +101,12 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("203.0.113.5", response.text)
         self.assertIn("US", response.text)
         self.assertIn("页面信息", response.text)
-        self.assertIn("<th>用户 / 转化状态</th><th>页面信息</th><th>提示词</th>", response.text)
+        self.assertIn('aria-label="筛选访客 IP"', response.text)
+        self.assertIn('aria-label="筛选用户"', response.text)
+        self.assertIn('id="ip-search"', response.text)
+        self.assertIn('id="user-search"', response.text)
+        self.assertIn('placeholder="输入 IP 筛选"', response.text)
+        self.assertIn('placeholder="邮箱、客户或访客 ID"', response.text)
         self.assertNotIn("<th>转化状态</th>", response.text)
         self.assertNotIn("<th>Title</th>", response.text)
         self.assertNotIn("<th>请求 URL</th>", response.text)
@@ -154,6 +159,22 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn('id="image-viewer"', response.text)
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
         self.assertNotIn("<script>alert(1)</script>", response.text)
+
+        ip_filtered = client.get(
+            "/admin/tasks?client_ip=203.0.113",
+            headers={"Authorization": f"Basic {token}"},
+        )
+        self.assertEqual(ip_filtered.status_code, 200)
+        self.assertIn("203.0.113.5", ip_filtered.text)
+        self.assertIn('name="client_ip" type="search" value="203.0.113"', ip_filtered.text)
+
+        user_filtered = client.get(
+            "/admin/tasks?user=buyer%40example.com",
+            headers={"Authorization": f"Basic {token}"},
+        )
+        self.assertEqual(user_filtered.status_code, 200)
+        self.assertIn("buyer@example.com", user_filtered.text)
+        self.assertIn('name="user" type="search" value="buyer@example.com"', user_filtered.text)
 
         thumbnail = client.get(
             "/admin/tasks/task-1/thumbnail/output_reference.png",
