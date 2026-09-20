@@ -462,10 +462,10 @@ class WatermarkConfig:
 
     # The source artwork used by both tiled and centered logo watermarks.
     LOGO_PATH = (
-        os.getenv("WATERMARK_LOGO_PATH", "assets/logo_watermark_big_white_black.png").strip()
-        or "assets/logo_watermark_big_white_black.png"
+        os.getenv("WATERMARK_LOGO_PATH", "assets/logo_watermark-big_black_white.png").strip()
+        or "assets/logo_watermark-big_black_white.png"
     )
-    CENTER_LOGO_PATH = "assets/logo_watermark_big_white_black.png"
+    CENTER_LOGO_PATH = "assets/logo_watermark-big_black_white.png"
     # Keep tiled marks at a readable density even when the source artwork is large.
     TILED_LOGO_WIDTH = 193
     CENTER_LOGO_COUNT = 1
