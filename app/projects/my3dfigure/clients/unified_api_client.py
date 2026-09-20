@@ -26,6 +26,7 @@ class UnifiedAPIClient:
         self._openrouter_client = None
         self._seedream_4_replicate_client = None
         self._seedream_4_fal_client = None
+        self._fal_gpt_image2_client = None
         self._aiapiroute_clients = {}
 
     # ---- 向后兼容属性 ----
@@ -71,6 +72,12 @@ class UnifiedAPIClient:
             self._seedream_4_fal_client = Seedream4FalClient()
         return self._seedream_4_fal_client
 
+    def _get_fal_gpt_image2_client(self):
+        if self._fal_gpt_image2_client is None:
+            from .fal_gpt_image2_client import FalGPTImage2Client
+            self._fal_gpt_image2_client = FalGPTImage2Client()
+        return self._fal_gpt_image2_client
+
     def _get_aiapiroute_client(self, model: str):
         if model not in self._aiapiroute_clients:
             from .aiapiroute_gpt_image2_client import AIApiRouteGPTImageClient
@@ -104,7 +111,37 @@ class UnifiedAPIClient:
         Returns:
             dict: 生成结果
         """
-        effective_provider = APIConfig.resolve_provider(provider)
+        provider_chain = APIConfig.resolve_provider_chain(provider)
+        errors = []
+        for index, effective_provider in enumerate(provider_chain):
+            try:
+                result = await self._generate_image_with_provider(
+                    effective_provider, prompt, input_image_paths, input_image_url,
+                    flux_model_variant, aspect_ratio, output_format, seed, art_style,
+                    width, height, size, sequential_image_generation, enhance_prompt, task_id,
+                )
+                result["api_provider"] = effective_provider
+                result["provider_fallback_chain"] = provider_chain
+                result["provider_fallback_attempts"] = [
+                    {"provider": item, "error": error} for item, error in errors
+                ]
+                return result
+            except Exception as exc:
+                error_message = str(exc)
+                errors.append((effective_provider, error_message))
+                print(f"My3dFigure provider {effective_provider} generation failed: {error_message}")
+                if index + 1 < len(provider_chain):
+                    print(f"My3dFigure switching fallback provider: {provider_chain[index + 1]}")
+
+        summary = "; ".join(f"{item}: {error}" for item, error in errors)
+        raise ValueError(f"所有 My3dFigure 兜底 provider 均失败: {summary}")
+
+    async def _generate_image_with_provider(self, effective_provider, prompt, input_image_paths=None,
+                                            input_image_url=None, flux_model_variant=None,
+                                            aspect_ratio=None, output_format=None, seed=None,
+                                            art_style=None, width=None, height=None, size=None,
+                                            sequential_image_generation=None, enhance_prompt=True,
+                                            task_id=None):
 
         if effective_provider == "gemini-nanobanana_google":
             return await self._generate_with_gemini(
@@ -126,6 +163,10 @@ class UnifiedAPIClient:
         elif effective_provider == "seedream-4_fal":
             return await self._generate_with_seedream_4_fal(
                 prompt, input_image_paths, seed, art_style, aspect_ratio
+            )
+        elif effective_provider == "gpt-image-2_fal":
+            return await self._generate_with_fal_gpt_image2(
+                prompt, input_image_paths, input_image_url, seed, aspect_ratio, size
             )
         elif effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP:
             return await self._generate_with_aiapiroute(
@@ -240,6 +281,22 @@ class UnifiedAPIClient:
             return result
         except Exception as e:
             raise ValueError(f"Seedream4 Fal.ai API调用失败: {e}")
+
+    async def _generate_with_fal_gpt_image2(self, prompt, input_image_paths=None, input_image_url=None,
+                                             seed=None, aspect_ratio=None, size=None):
+        """Generate through the My3dFigure-local GPT Image 2 Fal fallback client."""
+        try:
+            client = self._get_fal_gpt_image2_client()
+            return await client.generate_image(
+                prompt=prompt,
+                input_image_paths=input_image_paths,
+                input_image_url=input_image_url,
+                seed=seed,
+                aspect_ratio=aspect_ratio,
+                size=size,
+            )
+        except Exception as e:
+            raise ValueError(f"GPT Image 2 Fal.ai API调用失败: {e}")
 
     async def _generate_with_aiapiroute(self, prompt, provider, input_image_paths=None, input_image_url=None, seed=None, aspect_ratio=None, size=None):
         """使用 aiapiroute/Sub2API GPT-image 系列模型生成图像"""

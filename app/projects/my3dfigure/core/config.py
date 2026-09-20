@@ -76,6 +76,8 @@ class APIConfig:
 
     # Fal.ai 配置
     FAL_API_KEY = project_getenv("FAL_API_KEY")
+    FAL_GPT_IMAGE2_MODEL_ID = project_getenv("FAL_GPT_IMAGE2_MODEL_ID", "openai/gpt-image-2/edit")
+    FAL_GPT_IMAGE2_QUALITY = project_getenv("FAL_GPT_IMAGE2_QUALITY", "medium")
 
     # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
     AIAPIROUTE_API_KEY = project_getenv("AIAPIROUTE_API_KEY") or project_getenv("SUB2API_API_KEY")
@@ -150,6 +152,12 @@ class APIConfig:
             "aspect_ratios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
             # Source: https://fal.ai/models/fal-ai/bytedance/seedream/v4/edit/api
         },
+        "gpt-image-2_fal": {
+            "label": "fal.ai API (GPT Image 2)",
+            "key": "FAL_API_KEY",
+            "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
         "aiapiroute_gpt-image-1": {
             "label": "aiapiroute/Sub2API gpt-image-1",
             "key": "AIAPIROUTE_API_KEY",
@@ -164,7 +172,7 @@ class APIConfig:
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
             "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
-        "aiapiroute_gpt-image-2": {
+        "gpt-image-2_aiapiroute": {
             "label": "aiapiroute/Sub2API gpt-image-2",
             "key": "AIAPIROUTE_API_KEY",
             "model": AIAPIROUTE_GPT_IMAGE2_MODEL,
@@ -174,6 +182,9 @@ class APIConfig:
     }
 
     ALL_PROVIDERS = list(PROVIDERS.keys())
+    DEFAULT_PROVIDER_FALLBACK_GROUPS = {
+        "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
+    }
     AIAPIROUTE_PROVIDER_MODEL_MAP = {
         provider: config["model"]
         for provider, config in PROVIDERS.items()
@@ -203,6 +214,33 @@ class APIConfig:
         elif effective_provider not in cls.ALL_PROVIDERS:
             raise ValueError(f"不支持的默认服务提供商: {effective_provider}，可选: {cls.ALL_PROVIDERS}")
         return effective_provider
+
+    @classmethod
+    def resolve_provider_chain(cls, provider: str | None) -> list[str]:
+        """Return the My3dFigure-only ordered provider fallback chain."""
+        primary_provider = cls.resolve_provider(provider, validate_config=False)
+        chain = next(
+            (
+                list(providers)
+                for providers in cls.DEFAULT_PROVIDER_FALLBACK_GROUPS.values()
+                if primary_provider in providers
+            ),
+            [primary_provider],
+        )
+        if primary_provider in chain:
+            chain = [primary_provider, *[item for item in chain if item != primary_provider]]
+
+        configured = []
+        missing = []
+        for candidate in chain:
+            try:
+                cls.validate_provider(candidate)
+                configured.append(candidate)
+            except ValueError as exc:
+                missing.append(str(exc))
+        if configured:
+            return configured
+        raise ValueError("兜底链里没有可用 provider: " + "; ".join(missing))
 
     @classmethod
     def validate_aspect_ratio(cls, provider: str, aspect_ratio: str):
@@ -256,9 +294,10 @@ class ProviderEnum(str, Enum):
     gemini_nanobanana_openrouter = "gemini-nanobanana_openrouter"
     seedream_4_replicate = "seedream-4_replicate"
     seedream_4_fal = "seedream-4_fal"
+    gpt_image_2_fal = "gpt-image-2_fal"
     aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
     aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
-    aiapiroute_gpt_image_2 = "aiapiroute_gpt-image-2"
+    gpt_image_2_aiapiroute = "gpt-image-2_aiapiroute"
 
 # 目录配置
 class DirectoryConfig:

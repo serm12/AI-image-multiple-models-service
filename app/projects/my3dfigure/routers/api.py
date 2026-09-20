@@ -36,7 +36,13 @@ from app.projects.my3dfigure.services.upscale_service import (
     create_upscale_lookup_folder,
     get_upscale_models_info
 )
-from app.projects.my3dfigure.services.face_detection import contains_human
+from app.projects.my3dfigure.services.face_detection import (
+    contains_human,
+    get_usable_face_reference_boxes,
+)
+from app.projects.my3dfigure.services.generation_face_anchors import (
+    create_face_identity_anchors,
+)
 from app.projects.my3dfigure.services.pet_detection import contains_single_pet
 from app.projects.my3dfigure.services.direct_character_prompt_service import (
     build_my3d_connected_pair_prompt,
@@ -125,6 +131,34 @@ def _get_checked_upload_validation_mode(upload_id: str) -> str:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError("checked upload metadata could not be read") from exc
     return "pet" if str(params.get("validation_mode", "human")).strip().lower() == "pet" else "human"
+
+
+def _get_checked_upload_face_boxes(upload_id: str, expected_face_count: int) -> list[tuple[float, float, float, float]]:
+    """Read the private face evidence captured by the successful check-photo task."""
+    params_path = resolve_task_file_path(upload_id, "params.json")
+    if not params_path or not os.path.isfile(params_path):
+        return []
+    try:
+        with open(params_path, "r", encoding="utf-8") as file:
+            params = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return []
+    expected = 2 if expected_face_count == 2 else 1
+    boxes = params.get("usable_face_boxes")
+    if not isinstance(boxes, list) or len(boxes) != expected:
+        return []
+    normalized = []
+    for box in boxes:
+        if not isinstance(box, (list, tuple)) or len(box) != 4:
+            return []
+        try:
+            x, y, width, height = (float(value) for value in box)
+        except (TypeError, ValueError):
+            return []
+        if width <= 0 or height <= 0:
+            return []
+        normalized.append((x, y, width, height))
+    return normalized
 
 
 def _link_or_copy_checked_upload(source_path: str, destination_path: str) -> None:
@@ -460,15 +494,56 @@ async def _do_generation_work(
         effective_prompt = prompt
         request_images = input_image_paths
         if params.get("prompt_profile") == "my3d_character":
-            if provider != "aiapiroute_gpt-image-2":
-                raise ValueError("my3d_character prompt profile requires aiapiroute_gpt-image-2")
+            if provider not in {"gpt-image-2_aiapiroute", "gpt-image-2_fal"}:
+                raise ValueError("my3d_character prompt profile requires a GPT Image 2 provider")
             if len(input_image_paths or []) != 1:
                 raise ValueError("my3d_character prompt profile requires one uploaded reference image")
 
-            # The browser has already produced the one bounded upload master used by
-            # both validation and generation.  Send those exact bytes to the project
-            # client; do not rotate, pad, resize, re-encode, or select a sub-panel.
+            # The browser upload is the single source of truth for both validation
+            # and generation. Do not rotate, crop, resize, re-encode or select a
+            # sub-panel before sending it to the project client.
             source_context = "general"
+            identity_anchor_paths = []
+            anchor_instructions = ""
+            if params.get("validation_mode") != "pet":
+                # Request form values are serialized as strings. Normalize before
+                # selecting the validated-face anchor count so a double-person
+                # request with "2" cannot be treated as a single-person request.
+                expected_face_count = 2 if str(params.get("expected_face_count")).strip() == "2" else 1
+                checked_upload_id = str(params.get("checked_upload_id") or "").strip()
+                if checked_upload_id:
+                    anchor_source_path, _ = _resolve_checked_upload(checked_upload_id)
+                    face_boxes = _get_checked_upload_face_boxes(checked_upload_id, expected_face_count)
+                    if not face_boxes:
+                        face_boxes = await asyncio.to_thread(
+                            get_usable_face_reference_boxes,
+                            anchor_source_path,
+                            expected_face_count,
+                        )
+                else:
+                    anchor_source_path = input_image_paths[0]
+                    face_boxes = await asyncio.to_thread(
+                        get_usable_face_reference_boxes,
+                        anchor_source_path,
+                        expected_face_count,
+                    )
+                identity_anchor_paths = await asyncio.to_thread(
+                    create_face_identity_anchors,
+                    anchor_source_path,
+                    face_boxes,
+                    task_dir,
+                )
+                if len(identity_anchor_paths) != expected_face_count:
+                    raise ValueError("Could not prepare identity anchors from the validated usable faces")
+                request_images = [*input_image_paths, *identity_anchor_paths]
+                anchor_instructions = (
+                    f"\nIDENTITY ANCHORS — ABSOLUTE: Image 1 is the original upload and remains the only source "
+                    f"for scene, pose, clothing, body and objects. Images 2 through {expected_face_count + 1} are "
+                    f"the {expected_face_count} usable-face identity anchors extracted from Image 1. Render exactly "
+                    f"one figure for each anchor face. Use anchor images only to lock facial identity, hairline and "
+                    f"hairstyle; never copy clothing, pose, body, objects or background from an anchor. No person "
+                    f"visible only in Image 1 without a matching anchor may appear in the output."
+                )
             if params.get("validation_mode") == "pet":
                 effective_prompt = build_my3d_pet_prompt()
                 params["prompt_branch"] = "pet"
@@ -491,10 +566,14 @@ async def _do_generation_work(
                     source_context=source_context,
                 )
                 params["prompt_branch"] = source_context
+            effective_prompt = f"{effective_prompt}{anchor_instructions}"
             params["generation_mode"] = "direct_no_gemini"
             params.setdefault("prompt_version", MY3D_PROMPT_VERSION)
             params["effective_prompt"] = effective_prompt
             params["reference_transport"] = "uploaded_master_direct"
+            params["identity_anchor_count"] = len(identity_anchor_paths)
+            params["identity_anchor_files"] = [os.path.basename(path) for path in identity_anchor_paths]
+            params["identity_anchor_source"] = "validated_upload" if params.get("checked_upload_id") else "task_upload"
             async with aiofiles.open(
                 os.path.join(task_dir, "params.json"), "w", encoding="utf-8"
             ) as file:
@@ -519,6 +598,11 @@ async def _do_generation_work(
             task_id=task_id,  # 传递任务ID
             provider=provider
         )
+        actual_provider = result.get("api_provider", provider)
+        params["api_provider"] = actual_provider
+        params["provider_fallback_chain"] = result.get("provider_fallback_chain", [actual_provider])
+        params["provider_fallback_attempts"] = result.get("provider_fallback_attempts", [])
+        task_manager.update_task(task_id, api_provider=actual_provider)
 
         # 处理seed逻辑差异 - Gemini不返回实际使用的seed
         extracted_seed = result.get("extracted_seed")
@@ -557,6 +641,9 @@ async def _do_generation_work(
             existing_params.update({
                 f"{api_type}_id": result.get("id"),
                 "stage": "submitted",
+                "api_provider": actual_provider,
+                "provider_fallback_chain": result.get("provider_fallback_chain", [actual_provider]),
+                "provider_fallback_attempts": result.get("provider_fallback_attempts", []),
                 **({
                     "extracted_seed": extracted_seed
                 } if extracted_seed is not None else {})
@@ -895,6 +982,11 @@ async def check_photo(
                 validation_profile,
                 expected_face_count,
             )
+        if face_check.get("valid") and normalized_validation_mode != "pet":
+            usable_face_boxes = face_check.get("usable_face_boxes")
+            if isinstance(usable_face_boxes, list):
+                params["usable_face_boxes"] = usable_face_boxes
+                save_params(params, task_dir)
         response_data = {
             "task_id": task_id,
             "upload_id": task_id if face_check["valid"] else None,

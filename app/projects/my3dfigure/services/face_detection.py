@@ -2164,8 +2164,10 @@ def _verify_face_count(image_path, result, locale):
         # second person from a weak native-only texture candidate.
         neighbours = [item for item in close_pair if item[0] >= YUNET_SCORE_THRESHOLD]
         if profiles and any(_box_iou(profile[2], neighbour[2]) < .25 for profile in profiles for neighbour in neighbours):
+            accepted_boxes = [item[2] for item in sorted(close_pair, key=lambda item: item[0], reverse=True)[:2]]
             return {
                 "valid": False, "code": "MULTIPLE_FACES", "face_count": 2,
+                "usable_face_boxes": accepted_boxes,
                 "message": get_message("MULTIPLE_FACES", locale, face_count=2),
             }
     if face[2] * face[3] / float(max(size[0] * size[1], 1)) >= 0.02:
@@ -2189,8 +2191,13 @@ def _verify_face_count(image_path, result, locale):
             face, c["box"] if angle == 0 else _map_rotated_box(c["box"], inverse, width, height),
         ) >= 0.25 for c in recognizable):
             continue
+        accepted_boxes = [
+            c["box"] if angle == 0 else _map_rotated_box(c["box"], inverse, width, height)
+            for c in recognizable
+        ]
         return {
             "valid": False, "code": "MULTIPLE_FACES", "face_count": len(recognizable),
+            "usable_face_boxes": accepted_boxes,
             "message": get_message("MULTIPLE_FACES", locale, face_count=len(recognizable)),
         }
     return result
@@ -2316,6 +2323,9 @@ def _yunet_candidate_result(
         "valid": True,
         "message": get_message("FACE_DETECTION_PASSED", locale),
         "face": best["box"],
+        # Keep the already accepted YuNet boxes as private generation evidence.
+        # This does not alter acceptance, count, or public detection semantics.
+        "usable_face_boxes": [candidate["box"] for candidate in recognizable],
         "img_size": (int(image_width), int(image_height)),
         "face_count": face_count,
         "face_score": float(best["score"]),
@@ -3657,9 +3667,12 @@ def contains_human(
 
     request_token = _request_work.set({})
     try:
-        result = _apply_human_face_requirement(
-            _analyze_human_faces(image_path, locale), expected_face_count, locale,
-        )
+        analysis = _analyze_human_faces(image_path, locale)
+        result = _apply_human_face_requirement(analysis, expected_face_count, locale)
+        # Keep accepted boxes only as private, same-pass evidence for generation
+        # anchors. This does not alter the public count, status, or message.
+        if result.get("valid") and analysis.get("usable_face_count") == expected_face_count:
+            result["usable_face_boxes"] = analysis.get("usable_face_boxes", [])
         return with_style_requirement_message(result)
     except Exception:
         return {
@@ -3669,3 +3682,23 @@ def contains_human(
         }
     finally:
         _request_work.reset(request_token)
+
+
+def get_usable_face_reference_boxes(image_path: str, expected_face_count: int) -> list[tuple[float, float, float, float]]:
+    """Return existing accepted YuNet boxes for generation identity anchors.
+
+    This is intentionally a read-only view of the same shared analysis used by
+    validation. It never changes acceptance thresholds or counts, and returns
+    no anchors unless the uploaded image has exactly the requested usable-face
+    count.
+    """
+    expected = 2 if expected_face_count == 2 else 1
+    # Use the public validation wrapper so the anchor read runs with exactly the
+    # same request-local detector context and acceptance pipeline as check-photo.
+    evidence = contains_human(image_path, expected_face_count=expected)
+    if evidence.get("usable_face_count") != expected:
+        return []
+    boxes = evidence.get("usable_face_boxes") or ([evidence["face"]] if evidence.get("face") else [])
+    if len(boxes) != expected:
+        return []
+    return [tuple(map(float, box)) for box in boxes]
