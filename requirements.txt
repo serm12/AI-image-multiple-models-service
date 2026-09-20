@@ -39,5 +39,3 @@ base64io>=1.0.0
 # MIME类型处理
 python-magic>=0.4.27
 
-# My3dFigure 本地宠物面部可见性判断（CPU，不调用外部图像服务）
-onnxruntime==1.30.0

@@ -10,7 +10,6 @@ from app.core.config import APIConfig, AppConfig, initialize_config
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.routers.api import router as api_router
 from app.routers.admin import router as admin_router
-from app.projects.my3dfigure.routers.api import router as my3dfigure_router
 from app.services.async_task_manager import task_manager
 from app.services.runtime_state import clear_http_clients, set_http_clients
 from app.utils.memory_utils import release_process_memory
@@ -95,7 +94,6 @@ app.add_middleware(
 
 app.include_router(api_router)
 app.include_router(admin_router)
-app.include_router(my3dfigure_router)
 
 if APIConfig.REPLICATE_API_TOKEN:
     import os
