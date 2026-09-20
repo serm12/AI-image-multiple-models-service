@@ -447,7 +447,8 @@ class WatermarkConfig:
     DEFAULT_ANGLE = 30
     DEFAULT_STEP = 165
     DEFAULT_PADDING = 10
-    DEFAULT_BLEND_MODE = "screen"
+    # PNG Logo 水印需保留原始黑白颜色；screen 会将黑色几乎完全滤掉。
+    DEFAULT_BLEND_MODE = "normal"
     DEFAULT_RESIZE_SCALE = env_float("WATERMARK_OUTPUT_SCALE", 0.5, 0.1, 1.0)
 
     @classmethod
@@ -458,7 +459,7 @@ class WatermarkConfig:
     RANDOM_ANGLE_RANGE = 25
     RANDOM_SIZE_RANGE = 0.2
     RANDOM_OPACITY_RANGE = 30
-    MULTIPLE_BLEND_MODES = ["screen", "screen", "screen"]
+    MULTIPLE_BLEND_MODES = ["normal"]
 
     # The source artwork used by both tiled and centered logo watermarks.
     LOGO_PATH = (
