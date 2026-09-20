@@ -230,7 +230,9 @@ def _task_row(task: dict) -> str:
         for key, value in utm_parts
         if value
     )
-    traffic_detail = _text(utm_summary or traffic_referrer or task.get("traffic_landing_path"))
+    # The landing path is useful for data analysis but is not a traffic source.
+    # Do not render it under a direct visit, where it would only show a noisy "/".
+    traffic_detail = _text(utm_summary or traffic_referrer)
     traffic_attribution_line = (
         f'<div class="source-cell__detail source-cell__attribution" title="{traffic_detail}">{traffic_detail}</div>'
         if traffic_detail
