@@ -26,6 +26,16 @@ from app.utils.time_utils import CHINA_TIMEZONE, CHINA_TIMEZONE_NAME
 
 router = APIRouter()
 US_EASTERN_TIMEZONE = ZoneInfo("America/New_York")
+ADMIN_CONFIG_PREFIXES = (
+    "ADMIN_", "AIAPIROUTE_", "WATERMARK_", "IMAGE_", "MAX_", "CORS_",
+    "FAL_", "BFL_", "GEMINI_", "GOOGLE_", "FIREWORKS_", "OPENROUTER_",
+    "REPLICATE_", "R2_",
+)
+ADMIN_CONFIG_NAMES = {
+    "PORT", "DEBUG", "ALGORITHM_FACTOR", "AI_IMAGE_MEMORY_LIMIT",
+    "AI_IMAGE_MEMORY_RESERVATION",
+}
+SENSITIVE_CONFIG_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 
 def _admin_next(value: str | None) -> str:
@@ -95,6 +105,28 @@ def admin_logout():
 
 def _text(value) -> str:
     return escape(str(value or ""))
+
+
+def _config_value(name: str, value: str) -> str:
+    if any(marker in name.upper() for marker in SENSITIVE_CONFIG_MARKERS):
+        return "已设置（已隐藏）" if value else "未设置"
+    return value or "未设置"
+
+
+@router.get("/admin/config", response_class=HTMLResponse)
+def admin_config(_username: str = Depends(require_admin_login)):
+    entries = [
+        (name, _config_value(name, value))
+        for name, value in os.environ.items()
+        if name in ADMIN_CONFIG_NAMES or name.startswith(ADMIN_CONFIG_PREFIXES)
+    ]
+    rows = "".join(
+        f"<tr><th>{_text(name)}</th><td>{_text(value)}</td></tr>"
+        for name, value in sorted(entries)
+    ) or '<tr><td colspan="2">没有可显示的配置</td></tr>'
+    return HTMLResponse(f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>当前配置 · AI 图片管理</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}main{{max-width:1050px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}}h1{{margin:0;font-size:25px}}p{{color:#64748b}}a{{color:#1769d2;text-decoration:none}}.back{{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}}.panel{{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left}}th{{width:42%;background:#f8fafc;color:#40536d;font-family:ui-monospace,SFMono-Regular,monospace}}td{{word-break:break-all}}.notice{{padding:10px 12px;border-radius:8px;background:#fff8e8;color:#8a5a00}}</style></head><body><main><header><div><h1>当前环境配置</h1><p>显示容器当前已生效的配置；密钥、Token、密码和 Secret 已隐藏。</p></div><a class="back" href="/admin/tasks">返回任务记录</a></header><p class="notice">修改服务器 .env 后需要重启容器才会反映在此页面。</p><div class="panel"><table><tbody>{rows}</tbody></table></div></main></body></html>''')
 
 
 def _display_time(value, source_timezone="UTC", target_timezone=CHINA_TIMEZONE) -> str:
@@ -403,7 +435,7 @@ def admin_tasks(
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/css/glightbox.min.css">
 <style>
 *{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}
-main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}.logout-form{{margin:0}}.logout-button{{margin-top:9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#53657e;padding:6px 10px;cursor:pointer}}
+main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}.header-actions{{display:flex;align-items:center;gap:8px;margin-top:9px}}.logout-form{{margin:0}}.logout-button,.config-link{{border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#53657e;padding:6px 10px;cursor:pointer;text-decoration:none}}
 h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:10px;margin-top:2px}}.count,.muted{{color:#718096}}.version{{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}}.current-times{{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}}.current-time{{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}}.current-time__label{{color:#718096;font-size:12px}}.current-time time{{font-weight:600;white-space:nowrap}}.panel{{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}}
 .service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
 table{{width:100%;border-collapse:collapse;min-width:1280px;table-layout:fixed}}th,td{{padding:8px 7px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}tbody tr{{height:76px}}tbody tr:hover{{background:#fafcff}}
@@ -412,7 +444,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:320px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
-</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></header>
+</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
 <div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th>访客 IP</th><th>国家/地区</th><th>用户 / 转化状态</th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
