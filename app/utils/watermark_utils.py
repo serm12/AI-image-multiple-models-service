@@ -432,9 +432,6 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     
     watermarked = blend_images(image, watermark_layer, blend_mode)
     
-    # 添加隐形防护层
-    watermarked = add_invisible_watermark_layer(watermarked, WatermarkConfig.DEFAULT_TEXT, WatermarkConfig.DEFAULT_FONT_PATH, WatermarkConfig.DEFAULT_FONT_SIZE)
-    
     # 添加左上角标识
     temp_path1 = output_image_path.replace(".png", "_temp1.png")
     watermarked.convert("RGB").save(temp_path1, "PNG")
