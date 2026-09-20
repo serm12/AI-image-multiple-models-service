@@ -53,6 +53,12 @@ class AdminTasksTests(unittest.TestCase):
                     "source_product_title": "Custom Portrait",
                     "customer_id": "123456",
                     "customer_email": "buyer@example.com",
+                    "traffic_source": "utm:google",
+                    "traffic_referrer": "https://www.google.com",
+                    "traffic_landing_path": "/products/custom-portrait",
+                    "utm_source": "google",
+                    "utm_medium": "cpc",
+                    "utm_campaign": "fall-portraits",
                     "client_ip": "203.0.113.5",
                     "client_country": "US",
                     "generation_duration_seconds": 12.34,
@@ -101,6 +107,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn("<th>请求 URL</th>", response.text)
         self.assertIn("Custom Portrait", response.text)
         self.assertIn('class="source-cell"', response.text)
+        self.assertIn("utm:google", response.text)
+        self.assertIn("source=google · medium=cpc · campaign=fall-portraits", response.text)
         self.assertIn('<span>来源</span>', response.text)
         self.assertIn('<span>请求</span>', response.text)
         self.assertIn("th:nth-child(9){width:340px}", response.text)

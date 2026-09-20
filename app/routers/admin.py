@@ -218,6 +218,24 @@ def _task_row(task: dict) -> str:
     else:
         source_title_view = source_title or '<span class="muted">—</span>'
         source_link = '<span class="muted">—</span>'
+    traffic_source = _text(task.get("traffic_source")) or '<span class="muted">旧任务 / 未采集</span>'
+    traffic_referrer = _text(task.get("traffic_referrer"))
+    utm_parts = [
+        ("utm_source", task.get("utm_source")),
+        ("utm_medium", task.get("utm_medium")),
+        ("utm_campaign", task.get("utm_campaign")),
+    ]
+    utm_summary = " · ".join(
+        f"{key.replace('utm_', '')}={_text(value)}"
+        for key, value in utm_parts
+        if value
+    )
+    traffic_detail = _text(utm_summary or traffic_referrer or task.get("traffic_landing_path"))
+    traffic_attribution_line = (
+        f'<div class="source-cell__detail source-cell__attribution" title="{traffic_detail}">{traffic_detail}</div>'
+        if traffic_detail
+        else ""
+    )
     client_ip = _text(task.get("client_ip"))
     ip_task_sequence = task.get("ip_task_sequence")
     ip_task_total = task.get("ip_task_total")
@@ -314,6 +332,8 @@ def _task_row(task: dict) -> str:
         f'<td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td>'
         '<td class="source-cell">'
         f'<div class="source-cell__title">{source_title_view}</div>'
+        f'<div class="source-cell__detail"><span>流量</span><strong title="{traffic_detail}">{traffic_source}</strong></div>'
+        f'{traffic_attribution_line}'
         f'<div class="source-cell__detail"><span>来源</span>{source_link}</div>'
         f'<div class="source-cell__detail"><span>请求</span>{request_link}</div>'
         '</td>'
