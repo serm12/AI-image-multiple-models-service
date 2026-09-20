@@ -78,6 +78,16 @@ class WatermarkConfigTests(unittest.TestCase):
             value = env_float("WATERMARK_TILED_LOGO_OPACITY", 0.35, 0.0, 1.0)
         self.assertEqual(value, 0.35)
 
+    def test_tiled_logo_scale_reads_valid_value(self):
+        with patch.dict(os.environ, {"WATERMARK_TILED_LOGO_SCALE": "1.5"}):
+            value = env_float("WATERMARK_TILED_LOGO_SCALE", 1.0, 0.05, 3.0)
+        self.assertEqual(value, 1.5)
+
+    def test_center_logo_opacity_reads_valid_value(self):
+        with patch.dict(os.environ, {"WATERMARK_CENTER_LOGO_OPACITY": "0.4"}):
+            value = env_float("WATERMARK_CENTER_LOGO_OPACITY", 0.55, 0.0, 1.0)
+        self.assertEqual(value, 0.4)
+
     def test_image_logo_opacity_scales_existing_alpha(self):
         logo = Image.new("RGBA", (2, 1), (255, 255, 255, 255))
         logo.putalpha(Image.new("L", (2, 1), 128))

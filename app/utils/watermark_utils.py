@@ -359,13 +359,17 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     
     image = Image.open(input_image_path).convert("RGBA")
     logo = Image.open(logo_path).convert("RGBA")
-    if WatermarkConfig.STYLE != "center" and logo.width > WatermarkConfig.TILED_LOGO_WIDTH:
+    tiled_logo_width = max(
+        1,
+        round(WatermarkConfig.TILED_LOGO_WIDTH * WatermarkConfig.TILED_LOGO_SCALE),
+    )
+    if WatermarkConfig.STYLE != "center" and logo.width > tiled_logo_width:
         tiled_logo_height = max(
             1,
-            round(logo.height * WatermarkConfig.TILED_LOGO_WIDTH / logo.width),
+            round(logo.height * tiled_logo_width / logo.width),
         )
         logo = logo.resize(
-            (WatermarkConfig.TILED_LOGO_WIDTH, tiled_logo_height),
+            (tiled_logo_width, tiled_logo_height),
             Image.Resampling.LANCZOS,
         )
     if WatermarkConfig.STYLE != "center":
@@ -381,7 +385,8 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     random.seed(hash(str(image.size)) % 2147483647)
     
     if WatermarkConfig.STYLE == "center":
-        center_logo = Image.open(WatermarkConfig.CENTER_LOGO_PATH).convert("RGBA")
+        # Reuse the configured WATERMARK_LOGO_PATH in both center and tiled modes.
+        center_logo = logo.copy()
         center_logo_width = max(
             1,
             int(
