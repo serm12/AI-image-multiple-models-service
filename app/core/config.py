@@ -81,6 +81,9 @@ class APIConfig:
         os.environ["FAL_KEY"] = FAL_API_KEY
     FAL_GPT_IMAGE2_MODEL_ID = os.getenv("FAL_GPT_IMAGE2_MODEL_ID", "openai/gpt-image-2/edit").strip()
     FAL_GPT_IMAGE2_QUALITY = os.getenv("FAL_GPT_IMAGE2_QUALITY", "medium").strip() or "medium"
+    FAL_SEEDREAM5_PRO_MODEL_ID = os.getenv(
+        "FAL_SEEDREAM5_PRO_MODEL_ID", "bytedance/seedream/v5/pro/edit"
+    ).strip() or "bytedance/seedream/v5/pro/edit"
 
     # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
     AIAPIROUTE_API_KEY = os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY")
@@ -169,6 +172,12 @@ class APIConfig:
             "aspect_ratios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
             # Source: https://fal.ai/models/fal-ai/bytedance/seedream/v4/edit/api
         },
+        "seedream-5-pro_fal": {
+            "label": "fal.ai API (Seedream 5 Pro)",
+            "key": "FAL_API_KEY",
+            "aspect_ratios": ["match_input_image", "1:1", "4:3", "3:4", "16:9", "9:16"],
+            # Source: https://fal.ai/models/bytedance/seedream/v5/pro/edit/api
+        },
         "gpt-image-2_fal": {
             "label": "fal.ai API (GPT Image 2)",
             "key": "FAL_API_KEY",
@@ -221,6 +230,7 @@ class APIConfig:
             "gpt-image-2.5-sunburst_aiapiroute",
         ],
         "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
+        "seedream-5-pro": ["seedream-5-pro_fal"],
         "gemini-nanobanana": [
             "gemini-nanobanana_google",
             "gemini-nanobanana_replicate",

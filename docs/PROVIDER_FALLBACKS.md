@@ -10,6 +10,7 @@ Default groups:
   "flux": ["flux_bfl", "flux_replicate", "flux_fireworks"],
   "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
   "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
+  "seedream-5-pro": ["seedream-5-pro_fal"],
   "gemini-nanobanana": [
     "gemini-nanobanana_google",
     "gemini-nanobanana_replicate",

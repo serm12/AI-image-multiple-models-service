@@ -28,6 +28,7 @@ class UnifiedAPIClient:
         self._openrouter_client = None
         self._seedream_4_replicate_client = None
         self._seedream_4_fal_client = None
+        self._seedream_5_pro_fal_client = None
         self._fal_gpt_image2_client = None
         self._aiapiroute_clients = {}
 
@@ -73,6 +74,12 @@ class UnifiedAPIClient:
             from .seedream4_fal_client import Seedream4FalClient
             self._seedream_4_fal_client = Seedream4FalClient()
         return self._seedream_4_fal_client
+
+    def _get_seedream_5_pro_fal_client(self):
+        if self._seedream_5_pro_fal_client is None:
+            from .seedream5pro_fal_client import Seedream5ProFalClient
+            self._seedream_5_pro_fal_client = Seedream5ProFalClient()
+        return self._seedream_5_pro_fal_client
 
     def _get_fal_gpt_image2_client(self):
         if self._fal_gpt_image2_client is None:
@@ -173,6 +180,10 @@ class UnifiedAPIClient:
             )
         elif effective_provider == "seedream-4_fal":
             return await self._generate_with_seedream_4_fal(
+                prompt, input_image_paths, seed, art_style, aspect_ratio
+            )
+        elif effective_provider == "seedream-5-pro_fal":
+            return await self._generate_with_seedream_5_pro_fal(
                 prompt, input_image_paths, seed, art_style, aspect_ratio
             )
         elif effective_provider == "gpt-image-2_fal":
@@ -291,6 +302,20 @@ class UnifiedAPIClient:
             return result
         except Exception as e:
             raise ValueError(f"Seedream4 Fal.ai API调用失败: {e}")
+
+    async def _generate_with_seedream_5_pro_fal(self, prompt, input_image_paths=None, seed=None, art_style=None, aspect_ratio=None):
+        """Use the Seedream 5 Pro Fal image-editing endpoint."""
+        try:
+            client = self._get_seedream_5_pro_fal_client()
+            return await client.generate_image(
+                prompt=prompt,
+                input_image_paths=input_image_paths,
+                art_style=art_style,
+                seed=seed,
+                aspect_ratio=aspect_ratio,
+            )
+        except Exception as e:
+            raise ValueError(f"Seedream 5 Pro Fal.ai API调用失败: {e}")
 
     async def _generate_with_fal_gpt_image2(self, prompt, input_image_paths=None, input_image_url=None, seed=None, aspect_ratio=None, size=None):
         """使用 GPT Image 2 Fal.ai API 生成图像"""
