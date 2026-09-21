@@ -43,7 +43,7 @@ COPY app/ ./app/
 COPY models/ ./models/
 COPY VERSION ./VERSION
 # Bump this value whenever watermark artwork changes so the Docker layer is rebuilt.
-ARG WATERMARK_ASSET_REVISION=20260920-2
+ARG WATERMARK_ASSET_REVISION=20260921-1
 COPY assets/ ./assets/
 COPY scripts/ ./scripts/
 
