@@ -204,6 +204,57 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("Secure", response.headers["set-cookie"])
         self.assertEqual(client.get("/admin/tasks").status_code, 200)
 
+    def test_edit_task_shows_customer_request_and_source_reference(self):
+        source_task_id = "20260922_000000_abcdef12"
+        source_dir = os.path.join(self.temp_dir.name, source_task_id)
+        os.makedirs(source_dir)
+        with open(os.path.join(source_dir, "params.json"), "w", encoding="utf-8") as file:
+            json.dump({"time": "20260922_000000"}, file)
+        source_filename = "output_cropped_original_14155662.png"
+        Image.new("RGB", (800, 1200), "purple").save(
+            os.path.join(source_dir, source_filename)
+        )
+
+        edit_task_id = "20260922_000100_12345678"
+        edit_dir = os.path.join(self.temp_dir.name, edit_task_id)
+        os.makedirs(edit_dir)
+        customer_request = "Make the dress blue & keep the face <recognizable>."
+        merged_prompt = (
+            "Base portrait prompt.\n\n"
+            "Edit the supplied previously generated preview. "
+            f"Apply only this customer request: {customer_request}\n"
+            "Preserve the subject identity, composition, clothing, lighting, and background."
+        )
+        with open(os.path.join(edit_dir, "params.json"), "w", encoding="utf-8") as file:
+            json.dump(
+                {
+                    "time": "20260922_000100",
+                    "source_task_id": source_task_id,
+                    "original_prompt": merged_prompt,
+                },
+                file,
+            )
+        Image.new("RGB", (800, 1200), "blue").save(
+            os.path.join(edit_dir, "output_cropped_watermark.png")
+        )
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        response = client.get(
+            "/admin/tasks", headers={"Authorization": f"Basic {token}"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("客户修改要求", response.text)
+        self.assertIn("Make the dress blue &amp; keep the face &lt;recognizable&gt;.", response.text)
+        self.assertIn("完整提示词", response.text)
+        self.assertIn("编辑参考图", response.text)
+        self.assertIn('<span class="image-item__badge">参考</span>', response.text)
+        self.assertIn(
+            f"/admin/tasks/{source_task_id}/thumbnail/{source_filename}",
+            response.text,
+        )
+
     def test_admin_tasks_uses_server_side_pagination(self):
         for index in range(30):
             task_id = f"20260913_{index:06d}_task"

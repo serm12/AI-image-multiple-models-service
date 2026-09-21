@@ -5,10 +5,47 @@ from collections import defaultdict
 from app.core.config import DirectoryConfig
 from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
 from app.services.storefront_events import read_storefront_events, summarize_storefront_events
+from app.services.task_files import resolve_task_generated_original
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 API_RESPONSE_FILES = ("bfl_response.json", "replicate_response.json")
+EDIT_REQUEST_PREFIX = "Apply only this customer request: "
+EDIT_REQUEST_SUFFIX = "\nPreserve the subject identity"
+
+
+def extract_edit_instructions(params: dict) -> str:
+    explicit = str(params.get("edit_instructions") or "").strip()
+    if explicit:
+        return explicit
+
+    prompt = str(params.get("original_prompt") or params.get("prompt") or "")
+    marker_index = prompt.find(EDIT_REQUEST_PREFIX)
+    if marker_index < 0:
+        return ""
+    value_start = marker_index + len(EDIT_REQUEST_PREFIX)
+    value_end = prompt.find(EDIT_REQUEST_SUFFIX, value_start)
+    if value_end < 0:
+        value_end = len(prompt)
+    return prompt[value_start:value_end].strip()
+
+
+def get_source_reference_files(source_task_id: str) -> list[dict]:
+    source_path = resolve_task_generated_original(source_task_id)
+    if not source_path:
+        return []
+
+    filename = os.path.basename(source_path)
+    source_dir = os.path.dirname(source_path)
+    local_url = f"/taskfile/{source_task_id}/{filename}"
+    public_url = read_r2_mapping(source_dir).get(local_url, local_url)
+    return [
+        {
+            "task_id": source_task_id,
+            "filename": filename,
+            "url": public_url,
+        }
+    ]
 
 
 def list_task_summaries(
@@ -95,6 +132,7 @@ def list_task_summaries(
         filenames = os.listdir(task_dir)
 
         params = selected_params.get(task_id, {})
+        source_task_id = str(params.get("source_task_id") or "").strip()
         event_summary = summarize_storefront_events(read_storefront_events(task_dir))
         response = _read_first_api_response(task_dir, filenames)
         output_filenames = [
@@ -148,6 +186,9 @@ def list_task_summaries(
                 ),
                 "user_agent": params.get("user_agent", ""),
                 "prompt": params.get("original_prompt", params.get("prompt", "")),
+                "edit_instructions": extract_edit_instructions(params),
+                "source_task_id": source_task_id,
+                "source_reference_files": get_source_reference_files(source_task_id),
                 "output_files": replace_with_cdn_urls(
                     local_output_files, read_r2_mapping(task_dir)
                 ),
