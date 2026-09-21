@@ -32,6 +32,7 @@ from app.services.security import (
 from app.services.rate_limiter import generate_request_limiter
 from app.services.seed_history import get_all_seeds_from_tasks, get_last_seed_from_tasks
 from app.services.task_files import (
+    resolve_task_generated_original,
     resolve_task_file_path,
     safe_upload_filename,
     save_validated_upload,
@@ -129,6 +130,7 @@ async def generate_image_async(
     size: str = Form("2K"),
     sequential_image_generation: str = Form("disabled"),
     enable_human_check: bool = Form(False),  # 是否开启真人检测，True时上传图片必须包含清晰人脸
+    source_task_id: str | None = Form(None),
     source_page_url: str | None = Form(None),
     source_page_title: str | None = Form(None),
     source_page_type: str | None = Form(None),
@@ -205,6 +207,16 @@ async def generate_image_async(
                 await save_validated_upload(file, input_image_path)
                 input_image_paths.append(input_image_path)
                 input_filenames.append(input_filename)
+
+        normalized_source_task_id = str(source_task_id or "").strip()
+        if normalized_source_task_id:
+            source_original_path = resolve_task_generated_original(
+                normalized_source_task_id
+            )
+            if not source_original_path:
+                raise ValueError("找不到该预览对应的服务器无水印原图")
+            input_image_paths.insert(0, source_original_path)
+            input_filenames.insert(0, os.path.basename(source_original_path))
         
         # aiapiroute GPT-image 系列支持纯文生图；其他 provider 仍要求文件或 URL 输入。
         allows_text_to_image = effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP
@@ -267,6 +279,7 @@ async def generate_image_async(
             "flux_model_variant": flux_model_variant.value,
             "input_images": input_filenames,
             "input_image_url": input_image_url,
+            "source_task_id": normalized_source_task_id,
             "task_id": task_id,
             "time": timestamp,
             "time_zone": CHINA_TIMEZONE_NAME,
