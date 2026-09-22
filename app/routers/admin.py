@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 
+from app.core.config import ArtStyleEnum, STYLE_PROMPTS
+from app.core.helpers import get_style_description
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.services.security import (
     ADMIN_SESSION_COOKIE,
@@ -113,6 +115,31 @@ def _config_value(name: str, value: str) -> str:
     return value or "未设置"
 
 
+@router.get("/admin/styles", response_class=HTMLResponse)
+def admin_styles(_username: str = Depends(require_admin_login)):
+    """Show the complete server-side style catalog and its injected prompts."""
+    seen_values = set()
+    style_entries = []
+    for style in ArtStyleEnum:
+        if style.value in seen_values:
+            continue
+        seen_values.add(style.value)
+        style_entries.append((
+            style.value,
+            get_style_description(style.value),
+            STYLE_PROMPTS.get(style, ""),
+        ))
+
+    rows = "".join(
+        f"<tr><th><code>{_text(value)}</code></th><td>{_text(description)}</td>"
+        f"<td><pre>{_text(prompt or '无额外风格提示词')}</pre></td></tr>"
+        for value, description, prompt in style_entries
+    )
+    return HTMLResponse(f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>风格预设 · AI 图片管理</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}main{{max-width:1500px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}}h1{{margin:0;font-size:25px}}p{{color:#64748b}}a{{color:#1769d2;text-decoration:none}}.actions{{display:flex;gap:8px;flex-wrap:wrap}}.button{{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}}.panel{{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}}table{{width:100%;border-collapse:collapse;min-width:1000px}}th,td{{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}}th{{width:220px;background:#f8fafc;color:#40536d}}td:nth-child(2){{width:260px;color:#52647d}}code{{font:12px ui-monospace,SFMono-Regular,monospace}}pre{{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;color:#304761}}.notice{{padding:10px 12px;border-radius:8px;background:#eef6ff;color:#245b9c}}</style></head><body><main><header><div><h1>风格预设</h1><p>v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)} · 所有预设及其后端实际追加的提示词。</p></div><nav class="actions"><a class="button" href="/admin/tasks">任务记录</a><a class="button" href="/admin/config">当前配置</a></nav></header><p class="notice">“无额外风格提示词”表示该预设不会在产品提示词前自动追加内容。</p><div class="panel"><table><thead><tr><th>风格标识</th><th>说明</th><th>实际风格提示词</th></tr></thead><tbody>{rows}</tbody></table></div></main></body></html>''')
+
+
 @router.get("/admin/config", response_class=HTMLResponse)
 def admin_config(_username: str = Depends(require_admin_login)):
     entries = [
@@ -126,7 +153,7 @@ def admin_config(_username: str = Depends(require_admin_login)):
     ) or '<tr><td colspan="2">没有可显示的配置</td></tr>'
     return HTMLResponse(f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
-<title>当前配置 · AI 图片管理</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}main{{max-width:1050px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}}h1{{margin:0;font-size:25px}}p{{color:#64748b}}a{{color:#1769d2;text-decoration:none}}.back{{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}}.panel{{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left}}th{{width:42%;background:#f8fafc;color:#40536d;font-family:ui-monospace,SFMono-Regular,monospace}}td{{word-break:break-all}}.notice{{padding:10px 12px;border-radius:8px;background:#fff8e8;color:#8a5a00}}</style></head><body><main><header><div><h1>当前环境配置</h1><p>显示容器当前已生效的配置；密钥、Token、密码和 Secret 已隐藏。</p></div><a class="back" href="/admin/tasks">返回任务记录</a></header><p class="notice">修改服务器 .env 后需要重启容器才会反映在此页面。</p><div class="panel"><table><tbody>{rows}</tbody></table></div></main></body></html>''')
+<title>当前配置 · AI 图片管理</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}main{{max-width:1050px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}}h1{{margin:0;font-size:25px}}p{{color:#64748b}}a{{color:#1769d2;text-decoration:none}}.actions{{display:flex;gap:8px}}.back{{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}}.panel{{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left}}th{{width:42%;background:#f8fafc;color:#40536d;font-family:ui-monospace,SFMono-Regular,monospace}}td{{word-break:break-all}}.notice{{padding:10px 12px;border-radius:8px;background:#fff8e8;color:#8a5a00}}</style></head><body><main><header><div><h1>当前环境配置</h1><p>显示容器当前已生效的配置；密钥、Token、密码和 Secret 已隐藏。</p></div><nav class="actions"><a class="back" href="/admin/styles">风格预设</a><a class="back" href="/admin/tasks">返回任务记录</a></nav></header><p class="notice">修改服务器 .env 后需要重启容器才会反映在此页面。</p><div class="panel"><table><tbody>{rows}</tbody></table></div></main></body></html>''')
 
 
 def _display_time(value, source_timezone="UTC", target_timezone=CHINA_TIMEZONE) -> str:
@@ -515,7 +542,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}.prompt-card__section{{display:grid;gap:6px}}.prompt-card__section+ .prompt-card__section{{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}}.prompt-card__section strong{{font-size:12px;color:#53657e}}.prompt-card__section--edit{{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}}.prompt-card__section--edit strong{{color:#9a6700}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
-</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
+</style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
 <div class="panel"><table><thead><tr><th>任务 ID</th><th>状态</th><th>时间</th><th>总耗时</th><th>Provider</th><th><span class="column-heading">访客 IP <button class="column-search-toggle" type="button" aria-label="筛选访客 IP" aria-expanded="false" aria-controls="ip-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="ip-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}" placeholder="输入 IP 筛选" aria-label="访客 IP"><button type="submit">筛选</button></form></span></th><th>国家/地区</th><th><span class="column-heading">用户 / 转化状态 <button class="column-search-toggle" type="button" aria-label="筛选用户" aria-expanded="false" aria-controls="user-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="user-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input name="user" type="search" value="{_text(user_query)}" placeholder="邮箱、客户或访客 ID" aria-label="用户"><button type="submit">筛选</button></form></span></th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
