@@ -583,7 +583,7 @@ STYLE_PROMPTS = {
     ArtStyleEnum.flux_steampunk: "steampunk style, Victorian era, mechanical elements, brass and copper, vintage technology, industrial aesthetic, retro-futuristic, ",
     ArtStyleEnum.flux_abstract: "abstract art, modern painting, artistic interpretation, creative style, ",
     ArtStyleEnum.flux_watercolor_1: "Watercolor-A watercolor-based style, characterized by transparent, blended colors and blurred edges with watermarks. ",
-    ArtStyleEnum.flux_acrylic: "Acrylic-Acrylic painting with saturated, vibrant colors and a texture between oil and watercolor. ",
+    ArtStyleEnum.flux_acrylic: "Acrylic-Acrylic painting with saturated, vibrant colors and a texture between oil and watercolor. For people and faces, use a clean, polished acrylic-painted finish with softly blended warm skin-tone gradients, gentle painted highlights, and only faint, sparse brushstroke suggestion. Avoid granular, scratchy, mottled, dirty, overly textured, plastic, photo-realistic, or airbrushed facial skin. Preserve recognizable facial identity and natural proportions. ",
     ArtStyleEnum.flux_tattoo: "Tattoo Art – Traditional tattoo design style with bold black outlines, solid color fills, White background, minimal background elements, classic tattoo flash art, body art aesthetic, ink-style shading, focus on tattoo design, Sketch Color. ",
     
     # Gemini 风格提示词
