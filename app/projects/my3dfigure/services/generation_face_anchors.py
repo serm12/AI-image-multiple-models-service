@@ -12,6 +12,15 @@ import numpy as np
 _FACE_ANCHOR_MARGIN = 0.45
 
 
+def _read_source_image(source_path: str):
+    """Read Unicode Windows paths without changing the uploaded source file."""
+    try:
+        encoded = np.fromfile(source_path, dtype=np.uint8)
+        return cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    except OSError:
+        return None
+
+
 def create_face_identity_anchors(
     source_path: str,
     face_boxes: Iterable[tuple[float, float, float, float]],
@@ -25,11 +34,7 @@ def create_face_identity_anchors(
     """
     # OpenCV imread is not reliable with Unicode Windows paths. Read bytes
     # first so Chinese customer filenames use the same safe path as detection.
-    try:
-        encoded = np.fromfile(source_path, dtype=np.uint8)
-        image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
-    except OSError:
-        image = None
+    image = _read_source_image(source_path)
     if image is None:
         return []
     height, width = image.shape[:2]
@@ -51,3 +56,36 @@ def create_face_identity_anchors(
             continue
         paths.append(path)
     return paths
+
+
+def create_pet_face_identity_anchor(
+    source_path: str,
+    face_box: tuple[float, float, float, float],
+    output_dir: str,
+) -> str | None:
+    """Write exactly one validated pet-face identity anchor beside its task.
+
+    The full upload remains the first reference image and supplies pose, body,
+    coat and visible accessories.  This tight crop only authorizes the one pet
+    whose face passed the local validation pipeline.
+    """
+    image = _read_source_image(source_path)
+    if image is None:
+        return None
+    try:
+        x, y, width, height = (float(value) for value in face_box)
+    except (TypeError, ValueError):
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    image_height, image_width = image.shape[:2]
+    left, top = max(0, int(round(x))), max(0, int(round(y)))
+    right = min(image_width, int(round(x + width)))
+    bottom = min(image_height, int(round(y + height)))
+    if right - left < 8 or bottom - top < 8:
+        return None
+    crop = image[top:bottom, left:right]
+    if crop.size == 0:
+        return None
+    path = os.path.join(output_dir, "pet_identity_anchor.png")
+    return path if cv2.imwrite(path, crop) else None

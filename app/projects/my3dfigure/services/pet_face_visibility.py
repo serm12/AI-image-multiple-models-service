@@ -145,6 +145,43 @@ def _facial_features_cut_by_frame(points, scores, box, image_shape, turns=0):
                 or np.any(pts[:, 1] < margin) or np.any(pts[:, 1] > ih - margin))
 
 
+def _pet_face_anchor_box(points, scores, box, image_shape, turns=0):
+    """Return a tight source-image face crop for an already usable pet.
+
+    This is generation metadata only: it must never change validation's usable
+    count or turn a weak candidate into an accepted pet.  The crop is built
+    solely from the measured eye/nose landmarks so it cannot use a body box,
+    person box, or an arbitrary background animal as an identity anchor.
+    """
+    selected = [index for index in range(3) if scores[index] >= .75]
+    if 2 not in selected or not any(index < 2 for index in selected):
+        return None
+    x, y, width, height = map(float, box)
+    pts = np.asarray(points, dtype=float)[selected].copy()
+    if turns == 1:
+        pts[:, 0], pts[:, 1] = width - pts[:, 1], pts[:, 0]
+    elif turns == 2:
+        pts[:, 0], pts[:, 1] = width - pts[:, 0], height - pts[:, 1]
+    elif turns == 3:
+        pts[:, 0], pts[:, 1] = pts[:, 1], height - pts[:, 0]
+    if not np.all(np.isfinite(pts)):
+        return None
+    span = float(np.max(np.linalg.norm(pts[:, None] - pts[None, :], axis=-1)))
+    if not np.isfinite(span) or span < 3:
+        return None
+    # Enough surrounding head/ear/fur context to retain identity, while
+    # staying much tighter than the detector's full-body subject box.
+    padding = max(2.0, span * 1.15)
+    left, top = np.floor(pts.min(axis=0) + (x, y) - padding).astype(int)
+    right, bottom = np.ceil(pts.max(axis=0) + (x, y) + padding).astype(int)
+    image_height, image_width = image_shape[:2]
+    left, top = max(0, left), max(0, top)
+    right, bottom = min(image_width, right), min(image_height, bottom)
+    if right - left < 8 or bottom - top < 8:
+        return None
+    return [int(left), int(top), int(right - left), int(bottom - top)]
+
+
 def analyze_pet_face(image, box, species):
     x, y, width, height = map(int, box)
     crop = image[y:y+height, x:x+width]
@@ -188,7 +225,13 @@ def analyze_pet_face(image, box, species):
         if rejection is not None:
             return {'usable':False,'issues':[], 'landmark_strength':strength,'visual_similarities':evidence}
     if strength >= 1.0:
-        return {'usable':True,'issues':[],'landmark_strength':strength,'visual_similarities':evidence}
+        return {
+            'usable': True,
+            'issues': [],
+            'landmark_strength': strength,
+            'visual_similarities': evidence,
+            'identity_anchor_box': _pet_face_anchor_box(points, scores, box, image.shape),
+        }
     usable = strength >= .75 and evidence['visible'] > max(evidence['back']+.01,evidence['blur'],evidence['occluded'])
     # Rotation rescue requires strong measured facial landmarks and matching
     # visual evidence, never the weak .75 threshold used by the old path.
@@ -201,5 +244,12 @@ def analyze_pet_face(image, box, species):
             visual_face = ev['visible'] > max(ev['back']+.003,ev['blur']-.005,ev['nonpet']+.02)
             paired_face = paired_face and ev['nonpet'] < ev['visible']-.02 and ev['motion'] < ev['visible']+.025 and ev['occluded'] < ev['visible']+.015
             if (visual_face or paired_face) and not _facial_features_cut_by_frame(pp,ss,box,image.shape,turns):
-                usable=True;break
+                usable=True
+                return {
+                    'usable': True,
+                    'issues': [],
+                    'landmark_strength': strength,
+                    'visual_similarities': evidence,
+                    'identity_anchor_box': _pet_face_anchor_box(pp, ss, box, image.shape, turns),
+                }
     return {'usable':bool(usable),'issues':[],'landmark_strength':strength,'visual_similarities':evidence}

@@ -52,10 +52,13 @@ class FalGPTImage2Client:
             width_ratio, height_ratio = [int(part.strip()) for part in str(ratio_value).split(":", 1)]
         except (TypeError, ValueError):
             width_ratio, height_ratio = 2, 3
-        long_edge = {"1K": 1024, "2K": 2048, "4K": 4096}.get(size_value, 1024)
+        # GPT Image's native resolution tiers use the short edge.  Keeping the
+        # same convention here makes a 2:3 1K Fal fallback match the primary
+        # provider's actual 1024x1536 output instead of shrinking it to 683x1024.
+        short_edge = {"1K": 1024, "2K": 2048, "4K": 4096}.get(size_value, 1024)
         if width_ratio >= height_ratio:
-            return {"width": long_edge, "height": max(1, round(long_edge * height_ratio / width_ratio))}
-        return {"width": max(1, round(long_edge * width_ratio / height_ratio)), "height": long_edge}
+            return {"width": max(1, round(short_edge * width_ratio / height_ratio)), "height": short_edge}
+        return {"width": short_edge, "height": max(1, round(short_edge * height_ratio / width_ratio))}
 
     async def generate_image(self, prompt: str, input_image_paths=None, input_image_url=None,
                              seed=None, aspect_ratio=None, size=None, **kwargs) -> dict:

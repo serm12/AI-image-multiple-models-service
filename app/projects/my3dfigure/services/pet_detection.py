@@ -401,6 +401,9 @@ def _contains_single_pet(image_path: str, locale: str | None = None) -> dict:
         pet = usable[0]
         result.update(message=get_message("PET_DETECTION_PASSED", locale),
                       pet=pet["box"], pet_species=pet["species"])
+        anchor_box = pet.get("face_analysis", {}).get("identity_anchor_box")
+        if isinstance(anchor_box, list) and len(anchor_box) == 4:
+            result["pet_face_anchor_box"] = anchor_box
     else:
         code = "PET_COUNT_MISMATCH" if count > 1 else issues[0] if len(issues) == 1 and not any(not q["quality_issues"] for q in analyzed) else "PET_NOT_DETECTED"
         result.update(code=code, message=get_message(code, locale, pet_count=count))
