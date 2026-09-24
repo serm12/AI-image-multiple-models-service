@@ -53,6 +53,8 @@ def list_task_summaries(
     page_size: int | None = None,
     client_ip_query: str | None = None,
     user_query: str | None = None,
+    task_id_query: str | None = None,
+    provider_query: str | None = None,
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
@@ -71,16 +73,24 @@ def list_task_summaries(
     task_entries.sort(key=lambda entry: entry.name, reverse=True)
     normalized_ip_query = str(client_ip_query or "").strip().casefold()
     normalized_user_query = str(user_query or "").strip().casefold()
+    normalized_task_id_query = str(task_id_query or "").strip().casefold()
+    normalized_provider_query = str(provider_query or "").strip().casefold()
     all_params = {
         entry.name: _read_json_if_exists(os.path.join(entry.path, "params.json"))
         for entry in task_entries
     }
 
-    if normalized_ip_query or normalized_user_query:
+    if (
+        normalized_ip_query
+        or normalized_user_query
+        or normalized_task_id_query
+        or normalized_provider_query
+    ):
         filtered_entries = []
         for entry in task_entries:
             params = all_params[entry.name]
             client_ip = str(params.get("client_ip") or "").casefold()
+            provider = str(params.get("api_provider") or "").casefold()
             user_values = (
                 params.get("customer_email", ""),
                 params.get("customer_id", ""),
@@ -91,7 +101,15 @@ def list_task_summaries(
                 normalized_user_query in str(value or "").casefold()
                 for value in user_values
             )
-            if matches_ip and matches_user:
+            matches_task_id = (
+                not normalized_task_id_query
+                or normalized_task_id_query in entry.name.casefold()
+            )
+            matches_provider = (
+                not normalized_provider_query
+                or normalized_provider_query in provider
+            )
+            if matches_ip and matches_user and matches_task_id and matches_provider:
                 filtered_entries.append(entry)
         task_entries = filtered_entries
 

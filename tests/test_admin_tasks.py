@@ -295,6 +295,60 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn("prompt-29", second_page.text)
         self.assertIn("第 2 / 2 页", second_page.text)
 
+    def test_admin_tasks_filters_by_task_id_and_provider(self):
+        task_specs = (
+            ("20260915_120000_recraft", "fal-ai/recraft/upscale/crisp"),
+            ("20260915_120100_aura", "fal-ai/aura-sr"),
+            ("20260915_120200_gpt", "gpt-image-2_aiapiroute"),
+        )
+        for task_id, provider in task_specs:
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "time": "20260915_120000",
+                        "original_prompt": f"prompt-{task_id}",
+                        "api_provider": provider,
+                    },
+                    file,
+                )
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        headers = {"Authorization": f"Basic {token}"}
+
+        task_id_filtered = client.get(
+            "/admin/tasks?task_id=120100", headers=headers
+        )
+        self.assertEqual(task_id_filtered.status_code, 200)
+        self.assertIn("prompt-20260915_120100_aura", task_id_filtered.text)
+        self.assertNotIn("prompt-20260915_120000_recraft", task_id_filtered.text)
+        self.assertIn('aria-label="筛选任务 ID"', task_id_filtered.text)
+        self.assertIn(
+            'name="task_id" type="search" value="120100"',
+            task_id_filtered.text,
+        )
+
+        provider_filtered = client.get(
+            "/admin/tasks?provider=aura-sr", headers=headers
+        )
+        self.assertEqual(provider_filtered.status_code, 200)
+        self.assertIn("prompt-20260915_120100_aura", provider_filtered.text)
+        self.assertNotIn("prompt-20260915_120000_recraft", provider_filtered.text)
+        self.assertIn('aria-label="筛选 Provider"', provider_filtered.text)
+        self.assertIn(
+            'name="provider" type="search" value="aura-sr"',
+            provider_filtered.text,
+        )
+
+        combined_filtered = client.get(
+            "/admin/tasks?task_id=120100&provider=fal-ai", headers=headers
+        )
+        self.assertEqual(combined_filtered.status_code, 200)
+        self.assertIn("prompt-20260915_120100_aura", combined_filtered.text)
+        self.assertNotIn("prompt-20260915_120000_recraft", combined_filtered.text)
+
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):
             task_id = f"20260914_{index:06d}_task"
