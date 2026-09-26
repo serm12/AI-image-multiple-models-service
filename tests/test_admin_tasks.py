@@ -12,7 +12,7 @@ from starlette.requests import Request
 from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.main import app
-from app.routers.admin import US_EASTERN_TIMEZONE, _display_time
+from app.routers.admin import US_EASTERN_TIMEZONE, US_PACIFIC_TIMEZONE, _display_time
 from app.services.security import (
     get_request_client_ip,
     get_request_country,
@@ -133,10 +133,13 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn("时间（美国东部）", response.text)
         self.assertIn("<span>北京</span>08-28 18:00:00", response.text)
         self.assertIn("<span>美东</span>08-28 06:00:00", response.text)
+        self.assertIn("<span>美西</span>08-28 03:00:00", response.text)
         self.assertIn('id="current-beijing-time"', response.text)
         self.assertIn('id="current-us-eastern-time"', response.text)
+        self.assertIn('id="current-us-pacific-time"', response.text)
         self.assertIn("Asia/Shanghai", response.text)
         self.assertIn("America/New_York", response.text)
+        self.assertIn("America/Los_Angeles", response.text)
         self.assertIn('aria-label="任务分页"', response.text)
         self.assertIn('id="page-size-select"', response.text)
         self.assertIn('第 1 / 1 页', response.text)
@@ -440,6 +443,16 @@ class AdminTasksTests(unittest.TestCase):
         self.assertEqual(
             _display_time("20260903_045212", "Asia/Shanghai"),
             "2026-09-03 04:52:12",
+        )
+
+    def test_china_time_is_displayed_in_us_pacific_time(self):
+        self.assertEqual(
+            _display_time(
+                "20260904_042745",
+                "Asia/Shanghai",
+                US_PACIFIC_TIMEZONE,
+            ),
+            "2026-09-03 13:27:45",
         )
 
     def test_cf_connecting_ip_is_trusted_from_cloudflare_proxy(self):
