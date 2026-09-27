@@ -629,33 +629,53 @@ def admin_tasks(
         f'{time_range_options}</select></label></form>'
     )
     time_range_label = dict(TIME_RANGE_OPTIONS).get(time_range_query, "全部时间")
+
+    def clear_filter_url(filter_name: str, filter_value: str = "") -> str:
+        query_items = [("page", "1"), ("page_size", str(page_size))]
+        for name, value in (
+            ("client_ip", client_ip_query),
+            ("user", user_query),
+            ("task_id", task_id_query),
+            ("provider", provider_query),
+            ("time_range", time_range_query),
+        ):
+            if value and name != filter_name:
+                query_items.append((name, value))
+        for status in conversion_statuses:
+            if not (
+                filter_name == "conversion_status" and status == filter_value
+            ):
+                query_items.append(("conversion_status", status))
+        return "/admin/tasks?" + urlencode(query_items)
+
     active_filters = []
     if time_range_query:
-        active_filters.append(("时间", time_range_label))
-    if conversion_statuses:
         active_filters.append(
-            ("转化", "、".join(
-                label
-                for value, label in CONVERSION_FILTER_OPTIONS
-                if value in conversion_statuses
-            ))
+            ("时间", time_range_label, clear_filter_url("time_range"))
         )
+    for status, label in CONVERSION_FILTER_OPTIONS:
+        if status in conversion_statuses:
+            active_filters.append(
+                ("转化", label, clear_filter_url("conversion_status", status))
+            )
     if user_query:
-        active_filters.append(("用户", user_query))
+        active_filters.append(("用户", user_query, clear_filter_url("user")))
     if client_ip_query:
-        active_filters.append(("IP", client_ip_query))
+        active_filters.append(("IP", client_ip_query, clear_filter_url("client_ip")))
     if task_id_query:
-        active_filters.append(("任务 ID", task_id_query))
+        active_filters.append(("任务 ID", task_id_query, clear_filter_url("task_id")))
     if provider_query:
-        active_filters.append(("Provider", provider_query))
+        active_filters.append(("Provider", provider_query, clear_filter_url("provider")))
     active_filter_chips = (
         '<div aria-label="已选筛选条件" style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;'
         'margin:0 0 12px;color:#53657e;font-size:12px"><span>已选：</span>'
         + "".join(
-            f'<span style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+            f'<span style="display:inline-flex;align-items:center;gap:5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
             'padding:3px 7px;border:1px solid #cfe0f6;border-radius:999px;background:#eef5ff;color:#245b9c">'
-            f'{_text(label)}：{_text(value)}</span>'
-            for label, value in active_filters
+            f'<span style="overflow:hidden;text-overflow:ellipsis">{_text(label)}：{_text(value)}</span>'
+            f'<a href="{_text(clear_url)}" aria-label="清除{_text(label)}筛选：{_text(value)}" title="清除筛选" '
+            'style="color:#245b9c;font-size:15px;font-weight:700;line-height:1;text-decoration:none">×</a></span>'
+            for label, value, clear_url in active_filters
         )
         + '</div>'
         if active_filters
