@@ -397,6 +397,7 @@ class AdminTasksTests(unittest.TestCase):
             response.text,
         )
         self.assertIn("selectedConversionStatuses", response.text)
+        self.assertIn("if(form.id==='conversion-search')return", response.text)
 
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):

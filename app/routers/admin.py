@@ -665,6 +665,7 @@ document.querySelectorAll('.column-search').forEach(form=>{{
 }});
 document.querySelectorAll('.column-search-toggle').forEach(toggle=>{{
   const form=document.getElementById(toggle.getAttribute('aria-controls'));
+  if(form.id==='conversion-search')return;
   toggle.addEventListener('click',()=>{{
     const isOpen=form.classList.toggle('is-open');
     toggle.setAttribute('aria-expanded',String(isOpen));
