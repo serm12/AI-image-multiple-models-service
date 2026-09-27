@@ -45,6 +45,13 @@ CONVERSION_FILTER_OPTIONS = (
     ("checkout_started", "开始结账"),
     ("checkout_completed", "已付款"),
 )
+TIME_RANGE_OPTIONS = (
+    ("", "全部时间"),
+    ("today", "今天"),
+    ("yesterday", "昨天"),
+    ("last_7_days", "最近 7 天"),
+    ("last_30_days", "最近 1 月"),
+)
 
 
 def _admin_next(value: str | None) -> str:
@@ -423,6 +430,7 @@ def _pagination(
     task_id_query: str = "",
     provider_query: str = "",
     conversion_statuses: tuple[str, ...] = (),
+    time_range: str = "",
 ) -> str:
     page = int(data["page"])
     page_size = int(data["page_size"])
@@ -439,6 +447,8 @@ def _pagination(
             query_items.append(("task_id", task_id_query))
         if provider_query:
             query_items.append(("provider", provider_query))
+        if time_range:
+            query_items.append(("time_range", time_range))
         query_items.extend(("conversion_status", status) for status in conversion_statuses)
         query = urlencode(query_items)
         return (
@@ -538,12 +548,16 @@ def admin_tasks(
     task_id: str = "",
     provider: str = "",
     conversion_status: list[str] = Query(default=[]),
+    time_range: str = "",
     _username: str = Depends(require_admin_login),
 ):
     client_ip_query = client_ip.strip()
     user_query = user.strip()
     task_id_query = task_id.strip()
     provider_query = provider.strip()
+    time_range_query = time_range.strip()
+    if time_range_query not in {value for value, _label in TIME_RANGE_OPTIONS}:
+        time_range_query = ""
     conversion_statuses = tuple(
         value
         for value, _label in CONVERSION_FILTER_OPTIONS
@@ -557,6 +571,7 @@ def admin_tasks(
         task_id_query=task_id_query,
         provider_query=provider_query,
         conversion_statuses=list(conversion_statuses),
+        time_range=time_range_query,
     )
     rows = "".join(_task_row(task) for task in data["tasks"])
     body = rows or '<tr><td colspan="13" class="empty">暂无任务记录</td></tr>'
@@ -567,6 +582,7 @@ def admin_tasks(
         task_id_query,
         provider_query,
         conversion_statuses,
+        time_range_query,
     )
     conversion_filter_options = "".join(
         '<label style="display:inline-flex;align-items:center;gap:3px;padding:3px 6px;'
@@ -589,6 +605,29 @@ def admin_tasks(
         '<legend style="padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700">转化状态</legend>'
         f'{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>'
     )
+    time_range_options = "".join(
+        f'<option value="{value}"{" selected" if value == time_range_query else ""}>'
+        f'{_text(label)}</option>'
+        for value, label in TIME_RANGE_OPTIONS
+    )
+    time_range_filter = (
+        '<form class="time-range-filter" action="/admin/tasks" method="get" '
+        'style="display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;'
+        'padding:6px 8px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#40536d;font-size:12px">'
+        '<input type="hidden" name="page" value="1">'
+        f'<input type="hidden" name="page_size" value="{page_size}">'
+        f'<input type="hidden" name="client_ip" value="{_text(client_ip_query)}">'
+        f'<input type="hidden" name="user" value="{_text(user_query)}">'
+        f'<input type="hidden" name="task_id" value="{_text(task_id_query)}">'
+        f'<input type="hidden" name="provider" value="{_text(provider_query)}">'
+        + "".join(
+            f'<input type="hidden" name="conversion_status" value="{status}">'
+            for status in conversion_statuses
+        )
+        + '<label>筛选时间 <select name="time_range" onchange="this.form.submit()" '
+        'style="height:28px;border:0;background:transparent;color:#245b9c;font:600 12px system-ui;cursor:pointer">'
+        f'{time_range_options}</select></label></form>'
+    )
     return HTMLResponse(
         f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -606,6 +645,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}.prompt-card__section{{display:grid;gap:6px}}.prompt-card__section+ .prompt-card__section{{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}}.prompt-card__section strong{{font-size:12px;color:#53657e}}.prompt-card__section--edit{{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}}.prompt-card__section--edit strong{{color:#9a6700}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
+{time_range_filter}
 <template id="conversion-search-template">{conversion_filter_form}</template>
 <div class="panel"><table><thead><tr><th><span class="column-heading">任务 ID <button class="column-search-toggle" type="button" aria-label="筛选任务 ID" aria-expanded="false" aria-controls="task-id-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="task-id-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}" placeholder="输入任务 ID 筛选" aria-label="任务 ID"><button type="submit">筛选</button></form></span></th><th>状态</th><th>时间</th><th>总耗时</th><th><span class="column-heading">Provider <button class="column-search-toggle" type="button" aria-label="筛选 Provider" aria-expanded="false" aria-controls="provider-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="provider-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}" placeholder="输入 Provider 筛选" aria-label="Provider"><button type="submit">筛选</button></form></span></th><th><span class="column-heading">访客 IP <button class="column-search-toggle" type="button" aria-label="筛选访客 IP" aria-expanded="false" aria-controls="ip-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="ip-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}" placeholder="输入 IP 筛选" aria-label="访客 IP"><button type="submit">筛选</button></form></span></th><th>国家/地区</th><th><span class="column-heading">用户 / 转化状态 <button class="column-search-toggle" type="button" aria-label="筛选用户" aria-expanded="false" aria-controls="user-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="user-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}" placeholder="邮箱、客户或访客 ID" aria-label="用户"><button type="submit">筛选</button></form></span></th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
@@ -634,6 +674,7 @@ document.getElementById('page-size-select')?.addEventListener('change',event=>{{
   window.location.href=`/admin/tasks?${{params.toString()}}`;
 }});
 const selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');
+const selectedTimeRange=new URLSearchParams(window.location.search).get('time_range');
 const conversionSearchTemplate=document.getElementById('conversion-search-template');
 const userSearchForm=document.getElementById('user-search');
 const conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);
@@ -654,6 +695,13 @@ conversionSearchToggle.addEventListener('click',()=>{{
 document.querySelectorAll('.column-search').forEach(form=>{{
   if(form.id==='conversion-search')return;
   form.addEventListener('submit',()=>{{
+    if(selectedTimeRange){{
+      const timeRangeInput=document.createElement('input');
+      timeRangeInput.type='hidden';
+      timeRangeInput.name='time_range';
+      timeRangeInput.value=selectedTimeRange;
+      form.appendChild(timeRangeInput);
+    }}
     selectedConversionStatuses.forEach(status=>{{
       const input=document.createElement('input');
       input.type='hidden';

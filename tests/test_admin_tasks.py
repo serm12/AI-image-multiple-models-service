@@ -3,6 +3,7 @@ import json
 import os
 import tempfile
 import unittest
+from datetime import timedelta
 from io import BytesIO
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,7 @@ from starlette.requests import Request
 
 from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
+from app.utils.time_utils import CHINA_TIMEZONE_NAME, now_china
 from app.main import app
 from app.routers.admin import US_EASTERN_TIMEZONE, US_PACIFIC_TIMEZONE, _display_time
 from app.services.security import (
@@ -398,6 +400,42 @@ class AdminTasksTests(unittest.TestCase):
         )
         self.assertIn("selectedConversionStatuses", response.text)
         self.assertIn("if(form.id==='conversion-search')return", response.text)
+
+    def test_admin_tasks_filters_by_time_range(self):
+        now = now_china()
+        task_specs = (
+            ("20260928_120000_today", "prompt-today", now),
+            ("20260927_120000_yesterday", "prompt-yesterday", now - timedelta(days=1)),
+            ("20260801_120000_old", "prompt-old", now - timedelta(days=40)),
+        )
+        for task_id, prompt, task_time in task_specs:
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(
+                os.path.join(task_dir, "params.json"), "w", encoding="utf-8"
+            ) as file:
+                json.dump(
+                    {
+                        "time": task_time.isoformat(),
+                        "time_zone": CHINA_TIMEZONE_NAME,
+                        "original_prompt": prompt,
+                    },
+                    file,
+                )
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        response = client.get(
+            "/admin/tasks?time_range=today",
+            headers={"Authorization": f"Basic {token}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("prompt-today", response.text)
+        self.assertNotIn("prompt-yesterday", response.text)
+        self.assertNotIn("prompt-old", response.text)
+        self.assertIn("筛选时间", response.text)
+        self.assertIn('<option value="today" selected>今天</option>', response.text)
 
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):

@@ -1,11 +1,13 @@
 import json
 import os
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 from app.core.config import DirectoryConfig
 from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
 from app.services.storefront_events import read_storefront_events, summarize_storefront_events
 from app.services.task_files import resolve_task_generated_original
+from app.utils.time_utils import CHINA_TIMEZONE, CHINA_TIMEZONE_NAME, now_china
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
@@ -18,6 +20,48 @@ CONVERSION_EVENT_TYPES = frozenset({
     "checkout_started",
     "checkout_completed",
 })
+TIME_RANGE_VALUES = frozenset({"today", "yesterday", "last_7_days", "last_30_days"})
+
+
+def _task_time_in_china(params: dict) -> datetime | None:
+    raw = str(params.get("time") or "").strip()
+    if not raw:
+        return None
+    try:
+        try:
+            parsed = datetime.strptime(raw, "%Y%m%d_%H%M%S")
+        except ValueError:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(
+            tzinfo=(
+                CHINA_TIMEZONE
+                if params.get("time_zone") == CHINA_TIMEZONE_NAME
+                else timezone.utc
+            )
+        )
+    return parsed.astimezone(CHINA_TIMEZONE)
+
+
+def _matches_time_range(params: dict, time_range: str) -> bool:
+    if not time_range:
+        return True
+    created_at = _task_time_in_china(params)
+    if created_at is None:
+        return False
+    now = now_china()
+    today = now.date()
+    if time_range == "today":
+        return created_at.date() == today
+    if time_range == "yesterday":
+        return created_at.date() == today - timedelta(days=1)
+    if time_range == "last_7_days":
+        return created_at >= now - timedelta(days=7)
+    if time_range == "last_30_days":
+        return created_at >= now - timedelta(days=30)
+    return True
 
 
 def extract_edit_instructions(params: dict) -> str:
@@ -62,6 +106,7 @@ def list_task_summaries(
     task_id_query: str | None = None,
     provider_query: str | None = None,
     conversion_statuses: list[str] | None = None,
+    time_range: str | None = None,
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
@@ -87,6 +132,9 @@ def list_task_summaries(
         for status in (conversion_statuses or [])
         if str(status).strip() in CONVERSION_EVENT_TYPES
     }
+    selected_time_range = str(time_range or "").strip()
+    if selected_time_range not in TIME_RANGE_VALUES:
+        selected_time_range = ""
     all_params = {
         entry.name: _read_json_if_exists(os.path.join(entry.path, "params.json"))
         for entry in task_entries
@@ -98,6 +146,7 @@ def list_task_summaries(
         or normalized_task_id_query
         or normalized_provider_query
         or selected_conversion_statuses
+        or selected_time_range
     ):
         filtered_entries = []
         for entry in task_entries:
@@ -132,12 +181,14 @@ def list_task_summaries(
                     }
                 )
             )
+            matches_time_range = _matches_time_range(params, selected_time_range)
             if (
                 matches_ip
                 and matches_user
                 and matches_task_id
                 and matches_provider
                 and matches_conversion
+                and matches_time_range
             ):
                 filtered_entries.append(entry)
         task_entries = filtered_entries
