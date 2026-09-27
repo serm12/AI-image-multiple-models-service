@@ -436,6 +436,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertNotIn("prompt-old", response.text)
         self.assertIn("筛选时间", response.text)
         self.assertIn('<option value="today" selected>今天</option>', response.text)
+        self.assertIn('aria-label="已选筛选条件"', response.text)
+        self.assertIn("时间：今天", response.text)
 
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):
