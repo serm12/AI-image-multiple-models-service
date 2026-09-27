@@ -134,20 +134,6 @@ def _get_checked_upload_validation_mode(upload_id: str) -> str:
     return "pet" if str(params.get("validation_mode", "human")).strip().lower() == "pet" else "human"
 
 
-def _get_checked_upload_crop_modified(upload_id: str) -> bool:
-    """Read the validated Cropper provenance for a rare anchor re-analysis."""
-    params_path = resolve_task_file_path(upload_id, "params.json")
-    if not params_path or not os.path.isfile(params_path):
-        return False
-    try:
-        with open(params_path, "r", encoding="utf-8") as file:
-            params = json.load(file)
-    except (OSError, json.JSONDecodeError):
-        return False
-    value = params.get("crop_modified", False)
-    return value is True or str(value).strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _get_checked_upload_face_boxes(upload_id: str, expected_face_count: int) -> list[tuple[float, float, float, float]]:
     """Read the private face evidence captured by the successful check-photo task."""
     params_path = resolve_task_file_path(upload_id, "params.json")
@@ -280,7 +266,6 @@ async def generate_image_async(
         input_image_paths = []
         input_filenames = []
         source_validation_mode = "pet" if str(validation_mode or "").strip().lower() == "pet" else "human"
-        checked_upload_crop_modified = False
 
         # 2. Save one browser upload, or reuse a source that check-photo has
         # already validated and stored. The latter prevents a second image
@@ -294,7 +279,6 @@ async def generate_image_async(
             try:
                 source_path, input_filename = _resolve_checked_upload(upload_id)
                 source_validation_mode = _get_checked_upload_validation_mode(upload_id)
-                checked_upload_crop_modified = _get_checked_upload_crop_modified(upload_id)
             except ValueError:
                 return JSONResponse({
                     "code": "GENERATION_INPUT_REQUIRED",
@@ -332,7 +316,6 @@ async def generate_image_async(
                     locale,
                     validation_profile,
                     checked_expected_face_count,
-                    crop_modified=checked_upload_crop_modified,
                 )
                 if not face_result["valid"]:
                     return JSONResponse(
@@ -590,7 +573,6 @@ async def _do_generation_work(
                             get_usable_face_reference_boxes,
                             anchor_source_path,
                             expected_face_count,
-                            crop_modified=_get_checked_upload_crop_modified(checked_upload_id),
                         )
                 else:
                     anchor_source_path = input_image_paths[0]
@@ -1016,7 +998,6 @@ async def check_photo(
     validation_profile: str = Form("strict"),
     expected_face_count: int = Form(1),
     validation_mode: str = Form("human"),
-    crop_modified: bool = Form(False),
 ):
     """Validate a human or pet upload and save it to the current task directory."""
     task_id, task_dir, timestamp = generate_task_dir(DirectoryConfig.TASKS_DIR)
@@ -1039,7 +1020,6 @@ async def check_photo(
             "validation_profile": validation_profile,
             "expected_face_count": expected_face_count,
             "validation_mode": validation_mode,
-            "crop_modified": bool(crop_modified),
             "request_url": str(request.url),
             "client_ip": get_request_client_ip(request),
             "user_agent": request.headers.get("user-agent", "")[:500],
@@ -1055,7 +1035,6 @@ async def check_photo(
                 locale,
                 validation_profile,
                 expected_face_count,
-                crop_modified=bool(crop_modified),
             )
         if face_check.get("valid"):
             if normalized_validation_mode == "pet":

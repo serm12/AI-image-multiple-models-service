@@ -1,6 +1,8 @@
 import os
+import sys
 import threading
 import hashlib
+from copy import deepcopy
 from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -180,7 +182,7 @@ def _get_yunet_detector(
             YUNET_TOP_K,
         )
         detectors[detector_key] = detector
-    else:
+    elif tuple(detector.getInputSize()) != tuple(input_size):
         detector.setInputSize(input_size)
     return detector
 
@@ -2511,943 +2513,17 @@ def _recover_native_soft_face(image, candidates):
     return [best] if best is not None else candidates
 
 
-def _crop_modified_same_face(first, second) -> bool:
-    """Match two candidate dictionaries without changing normal deduplication."""
-    return (
-        _box_iou(first["box"], second["box"]) >= .25
-        or _box_overlap_over_smaller(first["box"], second["box"]) >= .55
-    )
-
-
-def _same_crop_modified_soft_location(first, second) -> bool:
-    """Collapse weak rotated localizations of one soft face in an edited crop."""
-    if _crop_modified_same_face(first, second):
-        return True
-    first_box, second_box = first["box"], second["box"]
-    first_center = np.asarray((
-        first_box[0] + first_box[2] / 2.0,
-        first_box[1] + first_box[3] / 2.0,
-    ))
-    second_center = np.asarray((
-        second_box[0] + second_box[2] / 2.0,
-        second_box[1] + second_box[3] / 2.0,
-    ))
-    largest_diagonal = max(
-        float(np.hypot(first_box[2], first_box[3])),
-        float(np.hypot(second_box[2], second_box[3])),
-    )
-    return float(np.linalg.norm(first_center - second_center)) <= largest_diagonal * .65
-
-
-def _crop_modified_soft_context_evidence(image, source_box):
-    """Require real-pixel corroboration before a soft second face can count.
-
-    This is available only for a request whose final Cropper state differs from
-    the complete source.  Rotated padding is inference-only: each mapped
-    landmark must remain inside the unrotated source context.
-    """
-    height, width = image.shape[:2]
-    x, y, box_width, box_height = map(int, source_box)
-    evidence = {
-        "contexts": [], "direct_contexts": 0, "direct_score": 0.0,
-        "strict_secondary": False, "edge_secondary": False,
-    }
-    bounds_seen = set()
-    for padding in (.5, 1.0, 1.5):
-        left = max(0, round(x - box_width * padding))
-        top = max(0, round(y - box_height * padding))
-        right = min(width, round(x + box_width * (1 + padding)))
-        bottom = min(height, round(y + box_height * (1 + padding)))
-        bounds = (left, top, right, bottom)
-        if bounds in bounds_seen or right <= left + 4 or bottom <= top + 4:
-            return evidence
-        bounds_seen.add(bounds)
-        crop = image[top:bottom, left:right]
-        crop_height, crop_width = crop.shape[:2]
-        clean_matches = []
-        for angle in (0, -15, 15):
-            matrix = cv2.getRotationMatrix2D((crop_width / 2, crop_height / 2), angle, 1)
-            view = crop if angle == 0 else cv2.warpAffine(
-                crop, matrix, (crop_width, crop_height), flags=cv2.INTER_LINEAR,
-                borderMode=cv2.BORDER_CONSTANT,
-            )
-            inverse = cv2.invertAffineTransform(matrix)
-            _retval, faces = _get_yunet_detector(
-                (crop_width, crop_height), .45,
-            ).detect(view)
-            gray = cv2.cvtColor(view, cv2.COLOR_BGR2GRAY)
-            for face in (() if faces is None else faces):
-                if len(face) < 15 or not np.all(np.isfinite(face)):
-                    continue
-                score = float(face[14])
-                if score < .45:
-                    continue
-                local = _map_face_to_original(face, 1, crop_width, crop_height)
-                mapped = _map_rotated_box(local, inverse, crop_width, crop_height)
-                if mapped is None:
-                    continue
-                mapped = (mapped[0] + left, mapped[1] + top, mapped[2], mapped[3])
-                iou = _box_iou(mapped, source_box)
-                overlap = _box_overlap_over_smaller(mapped, source_box)
-                if iou < .20 and overlap < .55:
-                    continue
-                points = cv2.transform(
-                    np.asarray(face[4:14], dtype=np.float32).reshape(1, 5, 2), inverse,
-                )[0] + np.asarray((left, top))
-                if not np.all(
-                    (points[:, 0] >= left + 2) & (points[:, 0] < right - 2)
-                    & (points[:, 1] >= top + 2) & (points[:, 1] < bottom - 2)
-                ):
-                    continue
-                if (
-                    _get_face_quality_issue(gray, local) is not None
-                    or _get_face_occlusion_issue(gray, local, face) is not None
-                    or _is_unusable_edge_cropped_face(
-                        face, local, crop_width, crop_height, score,
-                    )
-                    or _native_face_core_issue(image, mapped, score) is not None
-                ):
-                    continue
-                clean_matches.append({
-                    "angle": angle, "score": score, "iou": iou,
-                    "overlap": overlap, "box": mapped,
-                })
-        strong_angles = {
-            item["angle"] for item in clean_matches if item["score"] >= .65
-        }
-        direct = [
-            item for item in clean_matches
-            if item["score"] >= .60 and (item["iou"] >= .50 or item["overlap"] >= .80)
-        ]
-        if direct:
-            evidence["direct_contexts"] += 1
-            evidence["direct_score"] += max(item["score"] for item in direct)
-        evidence["contexts"].append({
-            "strong_angles": strong_angles,
-            "edge_clean": any(item["score"] >= .55 for item in clean_matches),
-        })
-    evidence["strict_secondary"] = len(evidence["contexts"]) == 3 and all(
-        len(context["strong_angles"]) >= 2 for context in evidence["contexts"]
-    )
-    evidence["edge_secondary"] = len(evidence["contexts"]) == 3 and all(
-        context["edge_clean"] for context in evidence["contexts"]
-    )
-    return evidence
-
-
-def _collect_crop_modified_readable_soft_edge_proposals(image):
-    """Return source-edge soft candidates that already pass normal soft guards."""
-    height, width = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    proposals = []
-    for angle in (0, *YUNET_QUARTER_TURN_ANGLES):
-        view, matrix = (
-            (image, None) if angle == 0 else _quarter_turn_with_matrix(image, angle)
-        )
-        inverse = None if matrix is None else cv2.invertAffineTransform(matrix)
-        _retval, faces = _get_yunet_detector(
-            (view.shape[1], view.shape[0]), .10,
-        ).detect(view)
-        view_gray = gray if angle == 0 else cv2.cvtColor(view, cv2.COLOR_BGR2GRAY)
-        for face in (() if faces is None else faces):
-            if len(face) < 15 or not np.all(np.isfinite(face)):
-                continue
-            score = float(face[14])
-            if score < .60:
-                continue
-            box = tuple(map(int, face[:4])) if angle == 0 else _map_rotated_box(
-                face[:4], inverse, width, height,
-            )
-            if box is None or not any(_frame_edges_touched(box, width, height)):
-                continue
-            high_score_soft_face = score >= .88 and min(box[2:]) >= 100
-            if min(box[2:]) < 180 and not high_score_soft_face:
-                continue
-            if angle == 90 and not _is_yunet_profile(face):
-                continue
-            if _is_confident_pet_image(image, box):
-                continue
-            quality_issue = _get_face_quality_issue(
-                view_gray, tuple(map(int, face[:4])),
-            )
-            if quality_issue is not None and not (
-                high_score_soft_face and quality_issue == "FACE_BLURRY"
-            ):
-                continue
-            occlusion = _get_face_occlusion_issue(
-                view_gray, tuple(map(int, face[:4])), face,
-            )
-            if occlusion is not None and score >= .75 and not (
-                high_score_soft_face and occlusion == "FACE_BLURRY"
-            ):
-                continue
-            if _native_face_core_issue(image, box, score) is not None:
-                continue
-            if _is_yunet_profile(face) and score < .70:
-                continue
-            if _source_edge_crop_verdict(image, box) != "readable":
-                continue
-            candidate = {
-                "box": box,
-                "ratio": box[2] * box[3] / float(max(width * height, 1)),
-                "score": score,
-                "quality_issue": None,
-                "raw_face": face,
-                "native_soft_recovery": True,
-                "native_edge_readable": True,
-                "crop_modified_soft_edge_proposal": True,
-            }
-            if not any(_crop_modified_same_face(candidate, existing) for existing in proposals):
-                proposals.append(candidate)
-    return proposals
-
-
-def _stabilize_crop_modified_soft_group(image, recovered):
-    """Keep one soft face and add a second only with independent source proof."""
-    if (
-        len(recovered) <= 1
-        or not all(candidate.get("native_soft_recovery") for candidate in recovered)
-    ):
-        return recovered
-    # `_recover_native_soft_face` is shared with raw uploads for compatibility.
-    # Its historic edge handling cannot become a crop-only primary: repeat the
-    # authoritative source-frame check here, without changing that raw path.
-    normal = [
-        candidate for candidate in recovered
-        if _source_edge_crop_verdict(image, candidate["box"]) != "incomplete"
-    ]
-    if not normal:
-        return []
-    proposed = [*normal]
-    for item in _collect_crop_modified_readable_soft_edge_proposals(image):
-        if not any(_crop_modified_same_face(item, prior) for prior in proposed):
-            proposed.append(item)
-    evidence = {
-        id(item): _crop_modified_soft_context_evidence(image, item["box"])
-        for item in proposed
-    }
-    primary = max(
-        normal,
-        key=lambda item: (
-            evidence[id(item)]["direct_contexts"],
-            evidence[id(item)]["direct_score"],
-            item.get("score", 0.0),
-        ),
-    )
-    secondary = []
-    for item in proposed:
-        if item is primary or _same_crop_modified_soft_location(item, primary):
-            continue
-        proof = evidence[id(item)]
-        if proof["strict_secondary"] or (
-            item.get("crop_modified_soft_edge_proposal") and proof["edge_secondary"]
-        ):
-            secondary.append(item)
-    if not secondary:
-        return [primary]
-    extra = max(
-        secondary,
-        key=lambda item: (
-            bool(item.get("crop_modified_soft_edge_proposal")),
-            evidence[id(item)]["direct_contexts"],
-            evidence[id(item)]["direct_score"],
-            item.get("score", 0.0),
-        ),
-    )
-    return [primary, extra]
-
-
-_CROP_MODIFIED_NORMAL_SCALES = (1.5, 2.0, 3.0)
-_CROP_MODIFIED_FIRST_HINT_MAX_PIXELS = 1_000_000
-_CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE = 1280
-_CROP_MODIFIED_MAX_FIRST_SCALE_TILES = 16
-_CROP_MODIFIED_MAX_HINTS_PER_VIEW = 24
-_CROP_MODIFIED_MAX_FIRST_SCALE_SEEDS = 12
-_CROP_MODIFIED_MAX_NATIVE_GUIDE_SEEDS = 4
-# The two seed classes share this fixed budget.  Native hints only locate a
-# local 1.5x scan; they are never scale evidence themselves.
-_CROP_MODIFIED_MAX_SCALED_HINTS = (
-    _CROP_MODIFIED_MAX_FIRST_SCALE_SEEDS
-    + _CROP_MODIFIED_MAX_NATIVE_GUIDE_SEEDS
-)
-_CROP_MODIFIED_MAX_CONTEXT_CONFIRMATIONS = 8
-_CROP_MODIFIED_MAX_CONTEXT_FACES_PER_VIEW = 16
-# A 25px source candidate can land on the ordinary 29px floor only after
-# independent contextual localization.  This is a provisional localization
-# tolerance, never a final usable-face floor; do not open a wider band.
-_CROP_MODIFIED_MIN_SCALED_RECOVERY_SIDE = 25
-_CROP_MODIFIED_MIN_SMALL_FACE_SCALE_SCORE = .88
-
-
-def _map_crop_modified_scaled_source_face(
-    face,
-    scale,
-    left,
-    top,
-    image_width,
-    image_height,
-):
-    """Map one locally scaled YuNet result into uploaded-pixel coordinates."""
-    source_face = np.asarray(face, dtype=np.float32).copy()
-    source_face[:14] /= scale
-    source_face[0] += left
-    source_face[1] += top
-    landmarks = source_face[4:14].reshape(5, 2)
-    landmarks += np.asarray((left, top), dtype=np.float32)
-    source_face[4:14] = landmarks.reshape(-1)
-    return source_face, _map_face_to_original(
-        source_face, 1, image_width, image_height,
-    )
-
-
-def _crop_modified_scaled_context(image, source_box, *, max_source_side=None):
-    """Take a bounded real-pixel context around a first-scale face hint."""
-    height, width = image.shape[:2]
-    x, y, box_width, box_height = map(float, source_box)
-    # This is the largest context used by the subsequent three-context proof.
-    # Keeping it square avoids a thin source crop turning into a distorted
-    # detector canvas, while preserving the complete hint and its surroundings.
-    face_side = int(np.ceil(max(box_width, box_height)))
-    if max_source_side is not None and face_side > max_source_side:
-        # The candidate itself cannot fit in the bounded real-pixel view.  Do
-        # not replace it with an artificial global/downsampled confirmation.
-        return image[:0, :0], 0, 0
-    side = max(160, int(round(max(box_width, box_height) * 4)))
-    if max_source_side is not None:
-        # Crop the surrounding context, not the candidate.  This retains a
-        # true 2x/3x observation for large faces instead of silently skipping
-        # it just because the former 4-face-width window exceeded 1280px.
-        side = max(face_side, min(side, int(max_source_side)))
-    crop_width = min(width, side)
-    crop_height = min(height, side)
-    center_x = x + box_width / 2
-    center_y = y + box_height / 2
-    left = max(0, min(width - crop_width, round(center_x - crop_width / 2)))
-    top = max(0, min(height - crop_height, round(center_y - crop_height / 2)))
-    return image[top:top + crop_height, left:left + crop_width], left, top
-
-
-def _crop_modified_first_scale_tiles(image):
-    """Yield bounded, overlapping source tiles for a 1.5x hint scan."""
-    height, width = image.shape[:2]
-    scale = _CROP_MODIFIED_NORMAL_SCALES[0]
-    source_side = max(
-        160,
-        int(np.sqrt(_CROP_MODIFIED_FIRST_HINT_MAX_PIXELS) // scale),
-    )
-    tile_width = min(width, source_side)
-    tile_height = min(height, source_side)
-    overlap = max(48, int(round(source_side * .32)))
-
-    def starts(length, tile):
-        if length <= tile:
-            return [0]
-        span = length - tile
-        steps = max(1, int(np.ceil(span / max(1, tile - overlap))))
-        return [round(span * index / steps) for index in range(steps + 1)]
-
-    top_starts = starts(height, tile_height)
-    left_starts = starts(width, tile_width)
-    if len(top_starts) * len(left_starts) > _CROP_MODIFIED_MAX_FIRST_SCALE_TILES:
-        # Direct callers can bypass the browser's 2000px master limit. Keep
-        # this optional recovery bounded there as well, sampling the whole
-        # source extent rather than concentrating all tiles in one corner.
-        top_count = min(4, len(top_starts))
-        left_count = min(4, len(left_starts))
-        top_starts = [
-            top_starts[round(index * (len(top_starts) - 1) / max(top_count - 1, 1))]
-            for index in range(top_count)
-        ]
-        left_starts = [
-            left_starts[round(index * (len(left_starts) - 1) / max(left_count - 1, 1))]
-            for index in range(left_count)
-        ]
-    for top in top_starts:
-        for left in left_starts:
-            yield image[top:top + tile_height, left:left + tile_width], left, top
-
-
-def _crop_modified_normal_scaled_proposals(image, settled):
-    """Find only ordinary-quality scaled hints that recur at all three scales."""
-    height, width = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    clusters = []
-
-    def record_support(face, scale, left=0, top=0, *, allow_new, anchor_box=None):
-        if len(face) < 15 or not np.all(np.isfinite(face)):
-            return False
-        score = float(face[14])
-        if score < .45:
-            return False
-        source_face, box = _map_crop_modified_scaled_source_face(
-            face, scale, left, top, width, height,
-        )
-        if min(box[2:]) < 18:
-            return None
-        # A native .45 hint is only permitted to guide a local scale scan.  It
-        # cannot cause an unrelated detection in that scan to become evidence.
-        if anchor_box is not None and not _crop_modified_same_face(
-            {"box": box}, {"box": anchor_box},
-        ):
-            return None
-        support = {
-            "scale": scale,
-            "score": score,
-            "box": box,
-            "face": source_face,
-        }
-        for cluster in clusters:
-            if _crop_modified_same_face({"box": box}, {"box": cluster["box"]}):
-                cluster["supports"].append(support)
-                if score > cluster["score"]:
-                    cluster.update(score=score, box=box, face=source_face)
-                return cluster
-        if allow_new:
-            cluster = {
-                "score": score,
-                "box": box,
-                "face": source_face,
-                "supports": [support],
-            }
-            clusters.append(cluster)
-            return cluster
-        return None
-
-    def ranked_hint_faces(faces, scale):
-        """Bound a low-threshold detector view before any clustering work."""
-        minimum_local_side = 18 * scale
-        hints = [
-            face for face in (() if faces is None else faces)
-            if (
-                len(face) >= 15
-                and np.all(np.isfinite(face))
-                and float(face[14]) >= .45
-                and min(face[2:4]) >= minimum_local_side
-            )
-        ]
-        return sorted(
-            hints,
-            key=lambda face: (
-                float(face[14]), min(face[2:4]), float(face[2] * face[3]),
-            ),
-            reverse=True,
-        )[:_CROP_MODIFIED_MAX_HINTS_PER_VIEW]
-
-    # Preserve the 1.5x first-tier evidence. Low-area (including narrow, tall)
-    # crops keep the original complete view; larger masters are split into
-    # overlapping real-pixel tiles before scaling. A face seen only after
-    # enlargement can still enter the recovery without an unbounded canvas.
-    first_scale = _CROP_MODIFIED_NORMAL_SCALES[0]
-    scaled_pixels = int(round(width * first_scale)) * int(round(height * first_scale))
-    first_contexts = (
-        [(image, 0, 0)]
-        if scaled_pixels <= _CROP_MODIFIED_FIRST_HINT_MAX_PIXELS
-        else _crop_modified_first_scale_tiles(image)
-    )
-    for crop, left, top in first_contexts:
-        if not crop.size:
-            continue
-        view = cv2.resize(
-            crop, None, fx=first_scale, fy=first_scale,
-            interpolation=cv2.INTER_LINEAR,
-        )
-        try:
-            _retval, faces = _get_yunet_detector(
-                (view.shape[1], view.shape[0]), .45,
-            ).detect(view)
-            for face in ranked_hint_faces(faces, first_scale):
-                record_support(face, first_scale, left, top, allow_new=True)
-        finally:
-            del view
-
-    # A recovery probe must never fan a texture-heavy crop into an unbounded
-    # number of 2x/3x DNN calls. The normal shared scan still sees every face;
-    # this cap only ranks optional, first-tier hints by strongest source proof.
-    first_scale_clusters = [
-        cluster for cluster in clusters
-        if not any(_crop_modified_same_face(cluster, item) for item in settled)
-    ]
-    first_scale_clusters.sort(
-        key=lambda item: (
-            item["score"], min(item["box"][2:]), item["box"][2] * item["box"][3],
-        ),
-        reverse=True,
-    )
-    seed_clusters = first_scale_clusters[:_CROP_MODIFIED_MAX_FIRST_SCALE_SEEDS]
-
-    # A full native .45 scan restores a small amount of context-sensitive
-    # discovery that tiled 1.5x scans can lose at tile seams.  It is a bounded
-    # *position guide* only: every accepted guide must first produce a matching
-    # actual 1.5x local detection, then independently pass 2x/3x and the
-    # source-context proof below.
-    native_guides = []
-    try:
-        _retval, native_faces = _get_yunet_detector(
-            (width, height), .45,
-        ).detect(image)
-    except Exception:
-        native_faces = None
-    for face in ranked_hint_faces(native_faces, 1.0):
-        native_box = _map_face_to_original(face, 1, width, height)
-        guide = {"box": native_box}
-        if (
-            min(native_box[2:]) < 18
-            or any(_crop_modified_same_face(guide, item) for item in settled)
-            # A lower-ranked first-tier cluster is deliberately still eligible
-            # here: it must be seen again in the guide's own local 1.5x view
-            # before it can consume one of the four supplemental slots.
-            or any(_crop_modified_same_face(guide, item) for item in seed_clusters)
-            or any(_crop_modified_same_face(guide, item) for item in native_guides)
-        ):
-            continue
-        native_guides.append(guide)
-        if len(native_guides) >= _CROP_MODIFIED_MAX_NATIVE_GUIDE_SEEDS:
-            break
-
-    # Convert a native guide into a real first-tier observation before it can
-    # enter the fixed second/third-scale budget.
-    supplemental_clusters = []
-    for guide in native_guides:
-        first_scale = _CROP_MODIFIED_NORMAL_SCALES[0]
-        crop, left, top = _crop_modified_scaled_context(
-            image,
-            guide["box"],
-            max_source_side=int(_CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE // first_scale),
-        )
-        if (
-            not crop.size
-            or max(crop.shape[:2]) * first_scale > _CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE
-        ):
-            continue
-        view = cv2.resize(
-            crop, None, fx=first_scale, fy=first_scale,
-            interpolation=cv2.INTER_LINEAR,
-        )
-        try:
-            _retval, faces = _get_yunet_detector(
-                (view.shape[1], view.shape[0]), .45,
-            ).detect(view)
-            for face in ranked_hint_faces(faces, first_scale):
-                cluster = record_support(
-                    face,
-                    first_scale,
-                    left,
-                    top,
-                    allow_new=True,
-                    anchor_box=guide["box"],
-                )
-                if (
-                    cluster is not None
-                    and not any(cluster is existing for existing in seed_clusters)
-                    and not any(cluster is existing for existing in supplemental_clusters)
-                ):
-                    supplemental_clusters.append(cluster)
-        finally:
-            del view
-
-    # Keep the combined recovery bounded even when a detector view returns
-    # several duplicate localizations for the same guide.
-    seed_clusters.extend(
-        supplemental_clusters[:_CROP_MODIFIED_MAX_NATIVE_GUIDE_SEEDS],
-    )
-    seed_clusters = seed_clusters[:_CROP_MODIFIED_MAX_SCALED_HINTS]
-    if not seed_clusters:
-        return []
-
-    # Scale only real-pixel source windows around the bounded 1.5x hints. The
-    # 2x/3x tiers can corroborate an existing cluster, never create a new one.
-    for scale in _CROP_MODIFIED_NORMAL_SCALES[1:]:
-        for cluster in seed_clusters:
-            source_box = cluster["box"]
-            crop, left, top = _crop_modified_scaled_context(
-                image,
-                source_box,
-                max_source_side=int(_CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE // scale),
-            )
-            if (
-                not crop.size
-                or max(crop.shape[:2]) * scale > _CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE
-            ):
-                # A truly large candidate already has full-image evidence; do
-                # not make a global-scale fallback exceed the normal upload
-                # detector's maximum input side merely to corroborate it.
-                continue
-            view = cv2.resize(
-                crop, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR,
-            )
-            try:
-                _retval, faces = _get_yunet_detector(
-                    (view.shape[1], view.shape[0]), .45,
-                ).detect(view)
-                for face in ranked_hint_faces(faces, scale):
-                    # Later tiers may corroborate first-scale clusters only.
-                    record_support(
-                        face,
-                        scale,
-                        left,
-                        top,
-                        allow_new=False,
-                        anchor_box=source_box,
-                    )
-            finally:
-                del view
-
-    proposals = []
-    for cluster in clusters:
-        box = cluster["box"]
-        strongest_scale_scores = {}
-        for scale in _CROP_MODIFIED_NORMAL_SCALES:
-            scores = [
-                item["score"]
-                for item in cluster["supports"]
-                if item["scale"] == scale
-            ]
-            if scores:
-                strongest_scale_scores[scale] = max(scores)
-        # The standard 29px floor remains authoritative for ordinary scans.
-        # An edited crop may nevertheless preserve a 25–28px face that was
-        # already readable in the original.  Admit that narrow band only when
-        # every independently scaled real-pixel observation is very strong;
-        # it must still clear the strict three-context confirmation below.
-        strong_small_face = (
-            min(box[2:]) >= _CROP_MODIFIED_MIN_SCALED_RECOVERY_SIDE
-            and len(strongest_scale_scores) == len(_CROP_MODIFIED_NORMAL_SCALES)
-            and min(strongest_scale_scores.values())
-            >= _CROP_MODIFIED_MIN_SMALL_FACE_SCALE_SCORE
-        )
-        if (
-            {item["scale"] for item in cluster["supports"]} != set(_CROP_MODIFIED_NORMAL_SCALES)
-            or cluster["score"] < .82
-            or (
-                min(box[2:]) < YUNET_MIN_FACE_SIDE
-                and not strong_small_face
-            )
-            or any(_crop_modified_same_face({"box": box}, item) for item in settled)
-            or _get_face_quality_issue(gray, box) is not None
-            or _get_face_occlusion_issue(gray, box, cluster["face"]) is not None
-            or _native_face_core_issue(image, box, cluster["score"]) is not None
-            or _source_edge_crop_verdict(image, box) == "incomplete"
-        ):
-            continue
-        proposals.append(cluster)
-    return sorted(proposals, key=lambda item: item["score"], reverse=True)
-
-
-def _map_crop_modified_context_box(face, inverse, scale, width, height, left, top):
-    """Map a scaled, rotated context detection back to uploaded pixels."""
-    local = _map_face_to_original(face, 1, width, height)
-    unrotated = _map_rotated_box(local, inverse, width, height)
-    if unrotated is None:
-        return None
-    x, y, box_width, box_height = unrotated
-    return (
-        int(round(x / scale)) + left,
-        int(round(y / scale)) + top,
-        max(1, int(round(box_width / scale))),
-        max(1, int(round(box_height / scale))),
-    )
-
-
-def _crop_modified_face_uses_only_real_context_pixels(face, valid_mask):
-    """Reject a rotated-context result that reaches synthetic border pixels."""
-    if len(face) < 15:
-        return False
-    mask_height, mask_width = valid_mask.shape[:2]
-    x, y, box_width, box_height = map(float, face[:4])
-    # Include the detector rectangle as well as every landmark.  The one-pixel
-    # interior offset avoids treating a valid right/bottom canvas coordinate as
-    # a synthetic rotation border solely because OpenCV boxes are half-open.
-    points = np.vstack((
-        np.asarray((
-            (x + 1, y + 1),
-            (x + box_width - 1, y + 1),
-            (x + box_width - 1, y + box_height - 1),
-            (x + 1, y + box_height - 1),
-            (x + box_width / 2, y + box_height / 2),
-        ), dtype=np.float32),
-        np.asarray(face[4:14], dtype=np.float32).reshape(5, 2),
-    ))
-    if not np.all(np.isfinite(points)):
-        return False
-    for point_x, point_y in points:
-        pixel_x, pixel_y = int(round(point_x)), int(round(point_y))
-        if (
-            pixel_x < 1 or pixel_x >= mask_width - 1
-            or pixel_y < 1 or pixel_y >= mask_height - 1
-            or not np.all(valid_mask[
-                pixel_y - 1:pixel_y + 2,
-                pixel_x - 1:pixel_x + 2,
-            ])
-        ):
-            return False
-    return True
-
-
-def _confirm_crop_modified_normal_source_context(image, source_box):
-    """Confirm an ordinary scaled hint from three real source contexts only."""
-    height, width = image.shape[:2]
-    x, y, box_width, box_height = map(int, source_box)
-    contexts, observations_by_context = [], []
-    for padding in (.5, 1.0, 1.5):
-        left = max(0, round(x - box_width * padding))
-        top = max(0, round(y - box_height * padding))
-        right = min(width, round(x + box_width * (1 + padding)))
-        bottom = min(height, round(y + box_height * (1 + padding)))
-        bounds = (left, top, right, bottom)
-        if bounds in contexts or right <= left or bottom <= top:
-            return None
-        contexts.append(bounds)
-        crop = image[top:bottom, left:right]
-        crop_long_side = max(crop.shape[:2])
-        # Retain the normal small-face enlargement, but cap large source
-        # contexts before any rotated DNN view is allocated.  `inference_scale`
-        # may legitimately be below one here and every map below divides by it.
-        inference_scale = min(
-            min(3.0, max(1.0, 360.0 / crop_long_side)),
-            _CROP_MODIFIED_CONTEXT_MAX_VIEW_SIDE / crop_long_side,
-        )
-        base = (
-            cv2.resize(crop, None, fx=inference_scale, fy=inference_scale,
-                       interpolation=cv2.INTER_LINEAR)
-            if inference_scale != 1.0 else crop
-        )
-        base_height, base_width = base.shape[:2]
-        base_real_mask = np.full((base_height, base_width), 255, dtype=np.uint8)
-        accepted = []
-        for angle in (0, -15, 15):
-            matrix = cv2.getRotationMatrix2D((base_width / 2, base_height / 2), angle, 1)
-            if angle == 0:
-                view, valid_mask = base, base_real_mask
-            else:
-                view = cv2.warpAffine(
-                    base, matrix, (base_width, base_height), flags=cv2.INTER_LINEAR,
-                    borderMode=cv2.BORDER_CONSTANT,
-                )
-                valid_mask = cv2.warpAffine(
-                    base_real_mask,
-                    matrix,
-                    (base_width, base_height),
-                    flags=cv2.INTER_NEAREST,
-                    borderMode=cv2.BORDER_CONSTANT,
-                    borderValue=0,
-                )
-            inverse = cv2.invertAffineTransform(matrix)
-            _retval, faces = _get_yunet_detector(
-                (base_width, base_height), .45,
-            ).detect(view)
-            # The recovery must stay bounded even on a texture-heavy crop.
-            # Quality/core/edge checks are expensive, so rank the only faces
-            # that could possibly satisfy the .82 confirmation threshold.
-            context_faces = sorted(
-                (
-                    face for face in (() if faces is None else faces)
-                    if (
-                        len(face) >= 15
-                        and np.all(np.isfinite(face))
-                        and float(face[14]) >= .82
-                    )
-                ),
-                key=lambda face: (
-                    float(face[14]), min(face[2:4]), float(face[2] * face[3]),
-                ),
-                reverse=True,
-            )[:_CROP_MODIFIED_MAX_CONTEXT_FACES_PER_VIEW]
-            view_gray = cv2.cvtColor(view, cv2.COLOR_BGR2GRAY)
-            for face in context_faces:
-                score = float(face[14])
-                if not _crop_modified_face_uses_only_real_context_pixels(
-                    face, valid_mask,
-                ):
-                    continue
-                mapped = _map_crop_modified_context_box(
-                    face, inverse, inference_scale,
-                    base_width, base_height, left, top,
-                )
-                if mapped is None:
-                    continue
-                if (
-                    _box_iou(mapped, source_box) < .20
-                    and np.hypot(
-                        mapped[0] + mapped[2] / 2 - (x + box_width / 2),
-                        mapped[1] + mapped[3] / 2 - (y + box_height / 2),
-                    ) > max(box_width, box_height) * .65
-                    ):
-                    continue
-                local = _map_face_to_original(face, 1, base_width, base_height)
-                quality_issue = _get_face_quality_issue(view_gray, local)
-                occlusion_issue = _get_face_occlusion_issue(
-                    view_gray, local, face,
-                )
-                # The final candidate is still checked against its unscaled
-                # source pixels below.  A very strong context view can be
-                # marked blurry merely because its tight detector rectangle
-                # differs by a few resampling pixels; do not discard it until
-                # the final source-pixel guard has made that decision.
-                allow_context_blur = score >= .90
-                if (
-                    (quality_issue is not None and not (
-                        allow_context_blur and quality_issue == "FACE_BLURRY"
-                    ))
-                    or (occlusion_issue is not None and not (
-                        allow_context_blur and occlusion_issue == "FACE_BLURRY"
-                    ))
-                    or _source_edge_crop_verdict(image, mapped) == "incomplete"
-                    or _native_face_core_issue(image, mapped, score) is not None
-                ):
-                    continue
-                points = cv2.transform(
-                    np.asarray(face[4:14], np.float32).reshape(-1, 1, 2), inverse,
-                ).reshape(-1, 2) / inference_scale + np.asarray((left, top))
-                if not np.all(
-                    (points[:, 0] >= left + .5) & (points[:, 0] < right - .5)
-                    & (points[:, 1] >= top + .5) & (points[:, 1] < bottom - .5)
-                ):
-                    continue
-                source_face = np.asarray(face, dtype=np.float32).copy()
-                source_face[:4] = np.asarray(mapped, dtype=np.float32)
-                source_face[4:14] = points.reshape(-1)
-                source_face[14] = score
-                accepted.append({
-                    "box": mapped,
-                    "score": score,
-                    "angle": angle,
-                    "source_landmarks": points,
-                    "source_face": source_face,
-                })
-        if not accepted:
-            return None
-        observations_by_context.append(accepted)
-
-    source_matches = []
-    for group in observations_by_context:
-        matching = [
-            item for item in group
-            if _box_iou(item["box"], source_box) >= .30
-            or _box_overlap_over_smaller(item["box"], source_box) >= .55
-        ]
-        if len({item["angle"] for item in matching}) < 2:
-            return None
-        source_matches.extend(matching)
-    best = max(source_matches, key=lambda item: item["score"])
-    if not all(
-        any(
-            _box_iou(item["box"], best["box"]) >= .30
-            or _box_overlap_over_smaller(item["box"], best["box"]) >= .55
-            for item in group
-        )
-        for group in observations_by_context
-    ):
-        return None
-    return best
-
-
-def _append_crop_modified_normal_scaled_context_faces(image, settled):
-    """Append only independently confirmed ordinary faces to an edited crop."""
-    recovered = list(settled)
-    height, width = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    for proposal in _crop_modified_normal_scaled_proposals(
-        image, recovered,
-    )[:_CROP_MODIFIED_MAX_CONTEXT_CONFIRMATIONS]:
-        confirmed = _confirm_crop_modified_normal_source_context(image, proposal["box"])
-        if confirmed is None:
-            continue
-        # The three-context result corroborates identity/location; use the
-        # most faithful *strictly valid* source localization as the final box.
-        # A tightly resized context can move a rectangle by a few pixels and
-        # trigger a spurious blur flag, while the 1.5/2/3 proposal is already
-        # independently verified at original coordinates.
-        final_options = (
-            (proposal["box"], proposal["face"], proposal["score"]),
-            (confirmed["box"], confirmed["source_face"], confirmed["score"]),
-        )
-        selected = None
-        for box, source_face, source_score in final_options:
-            if (
-                min(box[2:]) < YUNET_MIN_FACE_SIDE
-                or box[2] * box[3] / float(max(width * height, 1)) < YUNET_MIN_FACE_RATIO
-                or any(_crop_modified_same_face({"box": box}, item) for item in recovered)
-                or _get_face_quality_issue(gray, box) is not None
-                or _get_face_occlusion_issue(gray, box, source_face) is not None
-                or _native_face_core_issue(image, box, source_score) is not None
-                or _source_edge_crop_verdict(image, box) == "incomplete"
-            ):
-                continue
-            selected = (box, source_face, source_score)
-            break
-        if selected is None:
-            continue
-        box, source_face, source_score = selected
-        candidate = {
-            "box": box,
-            "ratio": box[2] * box[3] / float(max(image.shape[0] * image.shape[1], 1)),
-            "score": max(proposal["score"], confirmed["score"], source_score),
-            "quality_issue": None,
-            "raw_face": source_face,
-            "source_landmarks": np.asarray(source_face[4:14], dtype=np.float32).reshape(5, 2),
-            "crop_modified_scaled_context_confirmed": True,
-        }
-        # Only test the new candidate against the current group. Existing
-        # accepted faces remain untouched even if this changes graphic context.
-        filtered = _filter_pet_face_candidates(image, [*recovered, candidate])
-        if any(item is candidate for item in filtered):
-            recovered.append(candidate)
-    return recovered
-
-
-def _count_recheck_preserves_existing_faces(result, checked) -> bool:
-    """Require a crop-only count recheck to retain every established face.
-
-    The optional recovery may ask the ordinary one-face verifier to complete a
-    partially recovered group.  A larger count is not sufficient evidence if
-    the corrected view has swapped out one of the faces already established on
-    the actual upload.  Match each original box to a distinct verified box so
-    the recheck stays genuinely add-only.
-    """
-    existing_boxes = result.get("usable_face_boxes") or ([result.get("face")] if result.get("face") else [])
-    checked_boxes = checked.get("usable_face_boxes") or ([checked.get("face")] if checked.get("face") else [])
-    if not existing_boxes or len(checked_boxes) < len(existing_boxes):
-        return False
-
-    match_for_checked = [-1] * len(checked_boxes)
-
-    def same_face(first, second):
-        return (
-            _box_iou(first, second) >= .25
-            or _box_overlap_over_smaller(first, second) >= .55
-        )
-
-    def assign(existing_index, seen):
-        for checked_index, checked_box in enumerate(checked_boxes):
-            if checked_index in seen or not same_face(
-                existing_boxes[existing_index], checked_box,
-            ):
-                continue
-            seen.add(checked_index)
-            prior = match_for_checked[checked_index]
-            if prior < 0 or assign(prior, seen):
-                match_for_checked[checked_index] = existing_index
-                return True
-        return False
-
-    return all(assign(index, set()) for index in range(len(existing_boxes)))
-
-
 def _verify_face_count(
     image_path,
     result,
     locale,
-    *,
-    allow_crop_recovery_count_recheck: bool = False,
 ):
     """Challenge a one-candidate pass without weakening face thresholds.
 
     Count within one corrected view only. Two strong faces plus a match to
     the original face are required; never sum detections across rotations.
-    Ordinary close portraits and multi-face results bypass this. A real
-    crop-only recovery may request one add-only recheck after it promoted an
-    original one-face result to a partial group; it cannot lower or replace
-    that group with weaker evidence.
+    Ordinary close portraits and multi-face results bypass this. Every upload
+    uses this same one-candidate verification path.
     """
     face = result.get("face")
     size = result.get("img_size")
@@ -3455,13 +2531,7 @@ def _verify_face_count(
         not result.get("valid")
         or not face
         or not size
-        or (
-            result.get("face_count") != 1
-            and not (
-                allow_crop_recovery_count_recheck
-                and result.get("face_count", 0) > 1
-            )
-        )
+        or result.get("face_count") != 1
     ):
         return result
     # Older callers/tests may provide only the public face box.  Without a
@@ -3517,10 +2587,6 @@ def _verify_face_count(
             if (
                 checked
                 and checked.get("face_count", 0) > result.get("face_count", 0)
-                and (
-                    not allow_crop_recovery_count_recheck
-                    or _count_recheck_preserves_existing_faces(result, checked)
-                )
             ):
                 return checked
     if face[2] * face[3] / float(max(size[0] * size[1], 1)) >= 0.02:
@@ -3549,16 +2615,12 @@ def _verify_face_count(
         if (
             checked
             and checked.get("face_count", 0) > result.get("face_count", 0)
-            and (
-                not allow_crop_recovery_count_recheck
-                or _count_recheck_preserves_existing_faces(result, checked)
-            )
         ):
             return checked
     return result
 
 
-def _native_face_core_issue(image, box, score=0):
+def _native_face_core_issue(image, box, score=0, *, gray_image=None):
     """Check central facial detail at native resolution, excluding hair/background.
 
     Downscaling a candidate below the small-face floor must not bypass quality.
@@ -3573,9 +2635,12 @@ def _native_face_core_issue(image, box, score=0):
         return None
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     core = cv2.resize(gray, (160, 160), interpolation=cv2.INTER_AREA)
-    if _has_readable_dark_detail(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), box):
+    if gray_image is None:
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    readable_dark_detail = _has_readable_dark_detail(gray_image, box)
+    if readable_dark_detail:
         core = np.clip(core.astype(np.float32)*4, 0, 255).astype(np.uint8)
-    if np.percentile(core, 90) < 45 and not _has_readable_dark_detail(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), box):
+    if np.percentile(core, 90) < 45 and not readable_dark_detail:
         return "FACE_TOO_DARK"
     dx = float(cv2.Sobel(core, cv2.CV_64F, 1, 0).var())
     dy = float(cv2.Sobel(core, cv2.CV_64F, 0, 1).var())
@@ -3675,6 +2740,14 @@ def _yunet_candidate_result(
     face_count = len(recognizable)
     if face_count == 0:
         return None
+    # Request-local accepted evidence for the shared final consistency review.
+    # Keep landmarks and prior quality/rotation proofs; boxes alone cannot
+    # distinguish a previously verified edge face from a weak texture box.
+    work = _request_work.get()
+    if work is not None:
+        known = work.setdefault("consistency_accepted_candidates", {})
+        for candidate in recognizable:
+            known[tuple(candidate["box"])] = deepcopy(candidate)
     best = max(recognizable, key=lambda candidate: candidate["ratio"])
     result = {
         "valid": True,
@@ -3691,6 +2764,7 @@ def _yunet_candidate_result(
         best.get("native_tile_recovery")
         or best.get("native_crop_recovery")
         or best.get("native_soft_recovery")
+        or best.get("native_consistency_confirmed")
     ):
         result["native_recovery"] = True
     if best["ratio"] < MIN_FACE_RATIO_RELAXED:
@@ -3763,8 +2837,6 @@ def _has_scene_camera_roll(image):
 def _contains_human_yunet(
     image_path: str,
     locale: str | None = None,
-    *,
-    crop_modified: bool = False,
 ) -> dict:
     """Validate a storefront upload with YuNet at native dynamic resolution."""
     image = _read_image(image_path)
@@ -3810,41 +2882,10 @@ def _contains_human_yunet(
         ]
     candidates = _rescue_dominant_occluded_face(image, candidates)
     candidates = _drop_unconfirmed_weak_secondary_faces(candidates)
-    soft_input_was_empty = not candidates
     candidates = _recover_native_soft_face(image, candidates)
-    if crop_modified and soft_input_was_empty and len(candidates) > 1:
-        candidates = _stabilize_crop_modified_soft_group(image, candidates)
     candidates = _recover_repeated_mild_profile_faces(
         image, candidates, confident_pet_image=confident_pet_image,
     )
-    crop_recovery_needs_count_recheck = False
-    if crop_modified and not confident_pet_image:
-        # This is an optional crop-only recovery after the common detector has
-        # already completed.  A local resize/DNN failure must not turn a
-        # previously usable crop into FACE_DETECTION_FAILED.
-        usable_before_crop_recovery = sum(
-            candidate.get("quality_issue") is None for candidate in candidates
-        )
-        try:
-            candidates = _append_crop_modified_normal_scaled_context_faces(
-                image, candidates,
-            )
-        except Exception:
-            pass
-        else:
-            # The ordinary one-face verifier can discover a complete group in
-            # a corrected view.  If this optional crop-only append changes
-            # that one candidate into a partial group, let that existing
-            # strict verifier finish its add-only count check below.  Without
-            # this marker, its normal one-face guard would exit early and the
-            # append could hide a third face it did not itself recover.
-            crop_recovery_needs_count_recheck = (
-                usable_before_crop_recovery == 1
-                and sum(
-                    candidate.get("quality_issue") is None
-                    for candidate in candidates
-                ) > usable_before_crop_recovery
-            )
     # The shared candidate scan is the only count source. Product mode is
     # applied later, after quality analysis, by contains_human().
     if raw_candidates and not candidates:
@@ -3893,14 +2934,6 @@ def _contains_human_yunet(
             "message": get_message("FACE_OCCLUDED", locale),
         }
     if result is not None:
-        if (
-            crop_recovery_needs_count_recheck
-            and result.get("valid")
-            and result.get("face_count", 0) > 1
-        ):
-            # Private hand-off to the shared post-analysis verifier.  The
-            # public result never exposes this implementation detail.
-            result["_crop_modified_count_recheck"] = True
         if result.get("valid") and result.get("face_count") == 1:
             fragment = _find_secondary_border_fragment(image, result.get("face"))
             if fragment:
@@ -4256,7 +3289,29 @@ def _has_readable_dark_detail(gray_image, face_box):
     # their independent detail/crop-confirmation path.
     if roi.size == 0 or min(roi.shape) < 120:
         return False
-    low, median, high = np.percentile(roi, (10, 50, 90))
+    if roi.dtype == np.uint8 and roi.ndim == 2 and roi.size <= 1 << 24:
+        # The grayscale ROI has only 256 possible values. Counting them is
+        # equivalent to sorting for NumPy's linear percentiles, but avoids
+        # repeatedly scanning/sorting large native face regions. OpenCV's
+        # float32 histogram bins remain exact below 2**24 pixels.
+        counts = cv2.calcHist([roi], [0], None, [256], [0, 256]).reshape(-1)
+        cumulative = np.cumsum(counts, dtype=np.int64)
+        quantiles = []
+        for percentile in (10, 50, 90):
+            rank = (roi.size - 1) * percentile / 100
+            lower_rank = int(rank)
+            lower = int(np.searchsorted(cumulative, lower_rank + 1))
+            upper = int(np.searchsorted(cumulative, min(roi.size - 1, lower_rank + 1) + 1))
+            quantiles.append(lower + (rank - lower_rank) * (upper - lower))
+        low, median, high = quantiles
+        # On an exact decision boundary, defer to the original implementation
+        # so even tiny floating-point interpolation differences cannot flip a
+        # quality verdict.
+        if (abs(median - 12) < 1e-9 or abs(high - 24) < 1e-9
+                or abs(high - 45) < 1e-9 or abs(high - low - 18) < 1e-9):
+            low, median, high = np.percentile(roi, (10, 50, 90))
+    else:
+        low, median, high = np.percentile(roi, (10, 50, 90))
     if not (12 <= median and 24 <= high < 45 and high-low >= 18):
         return False
     normalized = cv2.resize(roi, (160, 160), interpolation=cv2.INTER_AREA)
@@ -5352,22 +4407,17 @@ def _recover_color_cast_faces(image_path, locale):
     return result
 
 
-def _analyze_human_faces(image_path, locale=None, *, crop_modified: bool = False):
+def _analyze_human_faces(image_path, locale=None):
     """Shared image evidence, independent of the requested product headcount.
 
     The native YuNet scan includes the same orientation recovery and quality
     diagnostics for every mode. Its observed usable count is evidence, not a
     final product rejection; only contains_human applies the requested count.
     """
-    result = _contains_human_yunet(
-        image_path, locale, crop_modified=crop_modified,
-    )
-    # `_contains_human_yunet` uses this short-lived private marker only for a
-    # crop-only append that would otherwise suppress the established
-    # one-face group verifier. Remove it before any public result handling.
-    crop_recovery_count_recheck = bool(
-        result.pop("_crop_modified_count_recheck", False)
-    )
+    result = _contains_human_yunet(image_path, locale)
+    work = _request_work.get()
+    if work is not None:
+        work["consistency_initial_code"] = result.get("code")
     if not result.get("valid") and result.get("code") in {"FACE_BLURRY", "FACE_UNRECOGNIZABLE", "NO_FACE"}:
         result = _recover_color_cast_faces(image_path, locale) or result
     if (
@@ -5474,12 +4524,7 @@ def _analyze_human_faces(image_path, locale=None, *, crop_modified: bool = False
                     "message": get_message("FACE_TOO_DARK", locale),
                 }
     if result.get("valid"):
-        result = _verify_face_count(
-            image_path,
-            result,
-            locale,
-            allow_crop_recovery_count_recheck=crop_recovery_count_recheck,
-        )
+        result = _verify_face_count(image_path, result, locale)
     if result.get("valid") and result.get("face_count") == 1:
         face, size = result.get("face"), result.get("img_size")
         if face and size:
@@ -5518,8 +4563,6 @@ def _analyze_human_faces(image_path, locale=None, *, crop_modified: bool = False
 def analyze_human_faces(
     image_path: str,
     locale: str | None = None,
-    *,
-    crop_modified: bool = False,
 ) -> dict:
     """Analyze image evidence once; deliberately accepts no style or headcount.
 
@@ -5528,9 +4571,14 @@ def analyze_human_faces(
     """
     request_token = _request_work.set({})
     try:
-        return _analyze_human_faces(
-            image_path, locale, crop_modified=crop_modified,
-        )
+        result = _analyze_human_faces(image_path, locale)
+        if cv2 is None or result.get("code") in _HUMAN_TECHNICAL_CODES:
+            return result
+        # All images use this same pixel-only review after the ordinary native
+        # quality/count checks. No upload provenance or product count enters it.
+        from .face_consistency_unified import review_human_faces
+
+        return review_human_faces(sys.modules[__name__], image_path, result, locale)
     except Exception:
         return {
             "valid": False,
@@ -5555,11 +4603,10 @@ def evaluate_human_face_analysis(analysis: dict, expected_face_count: int = 1, l
 
 
 def contains_human(image_path: str, locale: str | None = None,
-                   validation_profile: str = "strict", expected_face_count: int = 1,
-                   *, crop_modified: bool = False) -> dict:
+                   validation_profile: str = "strict", expected_face_count: int = 1) -> dict:
     """Compatibility entry point; both styles use exactly the same analyzer."""
     return evaluate_human_face_analysis(
-        analyze_human_faces(image_path, locale, crop_modified=crop_modified),
+        analyze_human_faces(image_path, locale),
         expected_face_count,
         locale,
     )
@@ -5568,8 +4615,6 @@ def contains_human(image_path: str, locale: str | None = None,
 def get_usable_face_reference_boxes(
     image_path: str,
     expected_face_count: int,
-    *,
-    crop_modified: bool = False,
 ) -> list[tuple[float, float, float, float]]:
     """Return existing accepted YuNet boxes for generation identity anchors.
 
@@ -5584,7 +4629,6 @@ def get_usable_face_reference_boxes(
     evidence = contains_human(
         image_path,
         expected_face_count=expected,
-        crop_modified=crop_modified,
     )
     if evidence.get("usable_face_count") != expected:
         return []
