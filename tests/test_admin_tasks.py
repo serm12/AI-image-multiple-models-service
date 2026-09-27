@@ -387,7 +387,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("prompt-cart", response.text)
         self.assertIn("prompt-paid", response.text)
         self.assertNotIn("prompt-none", response.text)
-        self.assertIn('<legend>转化状态</legend>', response.text)
+        self.assertIn('>转化状态</legend>', response.text)
         self.assertIn(
             'name="conversion_status" value="added_to_cart" checked',
             response.text,

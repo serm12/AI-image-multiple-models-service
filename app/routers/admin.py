@@ -569,11 +569,25 @@ def admin_tasks(
         conversion_statuses,
     )
     conversion_filter_options = "".join(
-        '<label class="conversion-filter__option">'
+        '<label style="display:inline-flex;align-items:center;gap:3px;padding:3px 6px;'
+        'border:1px solid #d8e1ec;border-radius:6px;color:#40536d;font-size:12px;cursor:pointer">'
         f'<input type="checkbox" name="conversion_status" value="{value}"'
         f'{" checked" if value in conversion_statuses else ""}> {_text(label)}'
         '</label>'
         for value, label in CONVERSION_FILTER_OPTIONS
+    )
+    conversion_filter_form = (
+        '<form id="conversion-search" class="column-search" action="/admin/tasks" '
+        'method="get" style="width:300px;flex-wrap:wrap;align-items:center">'
+        '<input type="hidden" name="page" value="1">'
+        f'<input type="hidden" name="page_size" value="{page_size}">'
+        f'<input type="hidden" name="client_ip" value="{_text(client_ip_query)}">'
+        f'<input type="hidden" name="user" value="{_text(user_query)}">'
+        f'<input type="hidden" name="task_id" value="{_text(task_id_query)}">'
+        f'<input type="hidden" name="provider" value="{_text(provider_query)}">'
+        '<fieldset style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;border:0;margin:0;padding:0">'
+        '<legend style="padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700">转化状态</legend>'
+        f'{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>'
     )
     return HTMLResponse(
         f"""<!doctype html>
@@ -592,8 +606,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}.prompt-card__section{{display:grid;gap:6px}}.prompt-card__section+ .prompt-card__section{{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}}.prompt-card__section strong{{font-size:12px;color:#53657e}}.prompt-card__section--edit{{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}}.prompt-card__section--edit strong{{color:#9a6700}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
-<style>.conversion-filter{{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid #d8e1ec;border-radius:10px;background:#fff}}.conversion-filter fieldset{{display:flex;align-items:center;flex-wrap:wrap;gap:7px;border:0;margin:0;padding:0}}.conversion-filter legend{{padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700}}.conversion-filter__option{{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid #d8e1ec;border-radius:6px;color:#40536d;font-size:12px;cursor:pointer}}.conversion-filter button{{height:30px;padding:0 10px;border:0;border-radius:6px;background:#1769d2;color:#fff;font:600 12px system-ui,-apple-system,sans-serif;cursor:pointer}}</style>
-<form class="conversion-filter" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><fieldset><legend>转化状态</legend>{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>
+<template id="conversion-search-template">{conversion_filter_form}</template>
 <div class="panel"><table><thead><tr><th><span class="column-heading">任务 ID <button class="column-search-toggle" type="button" aria-label="筛选任务 ID" aria-expanded="false" aria-controls="task-id-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="task-id-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}" placeholder="输入任务 ID 筛选" aria-label="任务 ID"><button type="submit">筛选</button></form></span></th><th>状态</th><th>时间</th><th>总耗时</th><th><span class="column-heading">Provider <button class="column-search-toggle" type="button" aria-label="筛选 Provider" aria-expanded="false" aria-controls="provider-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="provider-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}" placeholder="输入 Provider 筛选" aria-label="Provider"><button type="submit">筛选</button></form></span></th><th><span class="column-heading">访客 IP <button class="column-search-toggle" type="button" aria-label="筛选访客 IP" aria-expanded="false" aria-controls="ip-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="ip-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}" placeholder="输入 IP 筛选" aria-label="访客 IP"><button type="submit">筛选</button></form></span></th><th>国家/地区</th><th><span class="column-heading">用户 / 转化状态 <button class="column-search-toggle" type="button" aria-label="筛选用户" aria-expanded="false" aria-controls="user-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="user-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}" placeholder="邮箱、客户或访客 ID" aria-label="用户"><button type="submit">筛选</button></form></span></th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
@@ -621,7 +634,25 @@ document.getElementById('page-size-select')?.addEventListener('change',event=>{{
   window.location.href=`/admin/tasks?${{params.toString()}}`;
 }});
 const selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');
+const conversionSearchTemplate=document.getElementById('conversion-search-template');
+const userSearchForm=document.getElementById('user-search');
+const conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);
+const identityHeading=userSearchForm.closest('.column-heading');
+const conversionSearchToggle=document.createElement('button');
+conversionSearchToggle.type='button';
+conversionSearchToggle.className='column-search-toggle';
+conversionSearchToggle.setAttribute('aria-label','筛选转化状态');
+conversionSearchToggle.setAttribute('aria-expanded','false');
+conversionSearchToggle.setAttribute('aria-controls','conversion-search');
+conversionSearchToggle.textContent='▾';
+identityHeading.appendChild(conversionSearchToggle);
+identityHeading.appendChild(conversionSearchForm);
+conversionSearchToggle.addEventListener('click',()=>{{
+  const isOpen=conversionSearchForm.classList.toggle('is-open');
+  conversionSearchToggle.setAttribute('aria-expanded',String(isOpen));
+}});
 document.querySelectorAll('.column-search').forEach(form=>{{
+  if(form.id==='conversion-search')return;
   form.addEventListener('submit',()=>{{
     selectedConversionStatuses.forEach(status=>{{
       const input=document.createElement('input');
