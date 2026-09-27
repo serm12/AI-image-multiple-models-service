@@ -352,6 +352,52 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("prompt-20260915_120100_aura", combined_filtered.text)
         self.assertNotIn("prompt-20260915_120000_recraft", combined_filtered.text)
 
+    def test_admin_tasks_filters_by_multiple_conversion_statuses(self):
+        task_specs = (
+            ("20260916_120000_cart", "prompt-cart", "added_to_cart"),
+            ("20260916_120100_paid", "prompt-paid", "checkout_completed"),
+            ("20260916_120200_none", "prompt-none", None),
+        )
+        for task_id, prompt, event_type in task_specs:
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(
+                os.path.join(task_dir, "params.json"), "w", encoding="utf-8"
+            ) as file:
+                json.dump(
+                    {"time": "20260916_120000", "original_prompt": prompt}, file
+                )
+            if event_type:
+                with open(
+                    os.path.join(task_dir, "storefront_events.json"),
+                    "w",
+                    encoding="utf-8",
+                ) as file:
+                    json.dump([{"event_id": task_id, "event_type": event_type}], file)
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        response = client.get(
+            "/admin/tasks?conversion_status=added_to_cart"
+            "&conversion_status=checkout_completed",
+            headers={"Authorization": f"Basic {token}"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("prompt-cart", response.text)
+        self.assertIn("prompt-paid", response.text)
+        self.assertNotIn("prompt-none", response.text)
+        self.assertIn('<legend>转化状态</legend>', response.text)
+        self.assertIn(
+            'name="conversion_status" value="added_to_cart" checked',
+            response.text,
+        )
+        self.assertIn(
+            'name="conversion_status" value="checkout_completed" checked',
+            response.text,
+        )
+        self.assertIn("selectedConversionStatuses", response.text)
+
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):
             task_id = f"20260914_{index:06d}_task"

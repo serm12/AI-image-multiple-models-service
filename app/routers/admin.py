@@ -6,7 +6,7 @@ from pathlib import Path
 from urllib.parse import quote, unquote, urlencode, urlparse, urlsplit
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from PIL import Image, ImageOps
 
@@ -39,6 +39,12 @@ ADMIN_CONFIG_NAMES = {
     "AI_IMAGE_MEMORY_RESERVATION",
 }
 SENSITIVE_CONFIG_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
+CONVERSION_FILTER_OPTIONS = (
+    ("added_to_cart", "加购"),
+    ("checkout_intent", "结账意图"),
+    ("checkout_started", "开始结账"),
+    ("checkout_completed", "已付款"),
+)
 
 
 def _admin_next(value: str | None) -> str:
@@ -416,6 +422,7 @@ def _pagination(
     user_query: str = "",
     task_id_query: str = "",
     provider_query: str = "",
+    conversion_statuses: tuple[str, ...] = (),
 ) -> str:
     page = int(data["page"])
     page_size = int(data["page_size"])
@@ -423,16 +430,17 @@ def _pagination(
 
     def page_link(target: int, label: str, class_name: str = "") -> str:
         classes = f' class="{class_name}"' if class_name else ""
-        query = urlencode(
-            {
-                "page": target,
-                "page_size": page_size,
-                **({"client_ip": client_ip_query} if client_ip_query else {}),
-                **({"user": user_query} if user_query else {}),
-                **({"task_id": task_id_query} if task_id_query else {}),
-                **({"provider": provider_query} if provider_query else {}),
-            }
-        )
+        query_items = [("page", target), ("page_size", page_size)]
+        if client_ip_query:
+            query_items.append(("client_ip", client_ip_query))
+        if user_query:
+            query_items.append(("user", user_query))
+        if task_id_query:
+            query_items.append(("task_id", task_id_query))
+        if provider_query:
+            query_items.append(("provider", provider_query))
+        query_items.extend(("conversion_status", status) for status in conversion_statuses)
+        query = urlencode(query_items)
         return (
             f'<a{classes} href="/admin/tasks?{_text(query)}">'
             f'{label}</a>'
@@ -529,12 +537,18 @@ def admin_tasks(
     user: str = "",
     task_id: str = "",
     provider: str = "",
+    conversion_status: list[str] = Query(default=[]),
     _username: str = Depends(require_admin_login),
 ):
     client_ip_query = client_ip.strip()
     user_query = user.strip()
     task_id_query = task_id.strip()
     provider_query = provider.strip()
+    conversion_statuses = tuple(
+        value
+        for value, _label in CONVERSION_FILTER_OPTIONS
+        if value in conversion_status
+    )
     data = list_task_summaries(
         page=page,
         page_size=page_size,
@@ -542,6 +556,7 @@ def admin_tasks(
         user_query=user_query,
         task_id_query=task_id_query,
         provider_query=provider_query,
+        conversion_statuses=list(conversion_statuses),
     )
     rows = "".join(_task_row(task) for task in data["tasks"])
     body = rows or '<tr><td colspan="13" class="empty">暂无任务记录</td></tr>'
@@ -551,6 +566,14 @@ def admin_tasks(
         user_query,
         task_id_query,
         provider_query,
+        conversion_statuses,
+    )
+    conversion_filter_options = "".join(
+        '<label class="conversion-filter__option">'
+        f'<input type="checkbox" name="conversion_status" value="{value}"'
+        f'{" checked" if value in conversion_statuses else ""}> {_text(label)}'
+        '</label>'
+        for value, label in CONVERSION_FILTER_OPTIONS
     )
     return HTMLResponse(
         f"""<!doctype html>
@@ -569,6 +592,8 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 .prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}.prompt-card__section{{display:grid;gap:6px}}.prompt-card__section+ .prompt-card__section{{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}}.prompt-card__section strong{{font-size:12px;color:#53657e}}.prompt-card__section--edit{{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}}.prompt-card__section--edit strong{{color:#9a6700}}
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
+<style>.conversion-filter{{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 12px;padding:9px 11px;border:1px solid #d8e1ec;border-radius:10px;background:#fff}}.conversion-filter fieldset{{display:flex;align-items:center;flex-wrap:wrap;gap:7px;border:0;margin:0;padding:0}}.conversion-filter legend{{padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700}}.conversion-filter__option{{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border:1px solid #d8e1ec;border-radius:6px;color:#40536d;font-size:12px;cursor:pointer}}.conversion-filter button{{height:30px;padding:0 10px;border:0;border-radius:6px;background:#1769d2;color:#fff;font:600 12px system-ui,-apple-system,sans-serif;cursor:pointer}}</style>
+<form class="conversion-filter" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><fieldset><legend>转化状态</legend>{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>
 <div class="panel"><table><thead><tr><th><span class="column-heading">任务 ID <button class="column-search-toggle" type="button" aria-label="筛选任务 ID" aria-expanded="false" aria-controls="task-id-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="task-id-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}" placeholder="输入任务 ID 筛选" aria-label="任务 ID"><button type="submit">筛选</button></form></span></th><th>状态</th><th>时间</th><th>总耗时</th><th><span class="column-heading">Provider <button class="column-search-toggle" type="button" aria-label="筛选 Provider" aria-expanded="false" aria-controls="provider-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="provider-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}" placeholder="输入 Provider 筛选" aria-label="Provider"><button type="submit">筛选</button></form></span></th><th><span class="column-heading">访客 IP <button class="column-search-toggle" type="button" aria-label="筛选访客 IP" aria-expanded="false" aria-controls="ip-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="ip-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}" placeholder="输入 IP 筛选" aria-label="访客 IP"><button type="submit">筛选</button></form></span></th><th>国家/地区</th><th><span class="column-heading">用户 / 转化状态 <button class="column-search-toggle" type="button" aria-label="筛选用户" aria-expanded="false" aria-controls="user-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="user-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}" placeholder="邮箱、客户或访客 ID" aria-label="用户"><button type="submit">筛选</button></form></span></th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
 {pagination}
 </main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
@@ -594,6 +619,18 @@ document.getElementById('page-size-select')?.addEventListener('change',event=>{{
   params.set('page','1');
   params.set('page_size',event.target.value);
   window.location.href=`/admin/tasks?${{params.toString()}}`;
+}});
+const selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');
+document.querySelectorAll('.column-search').forEach(form=>{{
+  form.addEventListener('submit',()=>{{
+    selectedConversionStatuses.forEach(status=>{{
+      const input=document.createElement('input');
+      input.type='hidden';
+      input.name='conversion_status';
+      input.value=status;
+      form.appendChild(input);
+    }});
+  }});
 }});
 document.querySelectorAll('.column-search-toggle').forEach(toggle=>{{
   const form=document.getElementById(toggle.getAttribute('aria-controls'));

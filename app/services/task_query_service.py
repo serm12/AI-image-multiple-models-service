@@ -12,6 +12,12 @@ IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 API_RESPONSE_FILES = ("bfl_response.json", "replicate_response.json")
 EDIT_REQUEST_PREFIX = "Apply only this customer request: "
 EDIT_REQUEST_SUFFIX = "\nPreserve the subject identity"
+CONVERSION_EVENT_TYPES = frozenset({
+    "added_to_cart",
+    "checkout_intent",
+    "checkout_started",
+    "checkout_completed",
+})
 
 
 def extract_edit_instructions(params: dict) -> str:
@@ -55,6 +61,7 @@ def list_task_summaries(
     user_query: str | None = None,
     task_id_query: str | None = None,
     provider_query: str | None = None,
+    conversion_statuses: list[str] | None = None,
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
@@ -75,6 +82,11 @@ def list_task_summaries(
     normalized_user_query = str(user_query or "").strip().casefold()
     normalized_task_id_query = str(task_id_query or "").strip().casefold()
     normalized_provider_query = str(provider_query or "").strip().casefold()
+    selected_conversion_statuses = {
+        str(status).strip()
+        for status in (conversion_statuses or [])
+        if str(status).strip() in CONVERSION_EVENT_TYPES
+    }
     all_params = {
         entry.name: _read_json_if_exists(os.path.join(entry.path, "params.json"))
         for entry in task_entries
@@ -85,6 +97,7 @@ def list_task_summaries(
         or normalized_user_query
         or normalized_task_id_query
         or normalized_provider_query
+        or selected_conversion_statuses
     ):
         filtered_entries = []
         for entry in task_entries:
@@ -109,7 +122,23 @@ def list_task_summaries(
                 not normalized_provider_query
                 or normalized_provider_query in provider
             )
-            if matches_ip and matches_user and matches_task_id and matches_provider:
+            matches_conversion = (
+                not selected_conversion_statuses
+                or bool(
+                    selected_conversion_statuses
+                    & {
+                        str(event.get("event_type") or "")
+                        for event in read_storefront_events(entry.path)
+                    }
+                )
+            )
+            if (
+                matches_ip
+                and matches_user
+                and matches_task_id
+                and matches_provider
+                and matches_conversion
+            ):
                 filtered_entries.append(entry)
         task_entries = filtered_entries
 
