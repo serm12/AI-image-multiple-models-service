@@ -11,6 +11,10 @@ WORKDIR /build
 # 先复制依赖文件，利用 Docker 缓存层
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
+# MediaPipe declares opencv-contrib-python. Keep the existing headless OpenCV
+# build used by YuNet, while installing the task runtime and its other declared
+# dependencies from requirements.txt.
+RUN pip install --no-cache-dir --user --no-deps mediapipe==1.0.1
 
 # ========== 运行阶段 ==========
 FROM python:3.12-slim
@@ -26,6 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libmagic1 \
+    libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
 # 从 builder 复制已安装的 Python 包

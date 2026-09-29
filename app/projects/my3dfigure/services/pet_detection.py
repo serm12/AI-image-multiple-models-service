@@ -30,6 +30,7 @@ PET_DETECTOR_MODEL_PATH = Path(
         "PET_DETECTION_YOLOX_MODEL",
         Path(__file__).resolve().parents[4]
         / "models"
+        / "my3dfigure"
         / "object_detection_yolox"
         / "object_detection_yolox_2022nov_int8.onnx",
     )
