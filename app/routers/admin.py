@@ -221,6 +221,18 @@ def _traffic_source_icon(*values: object) -> str:
     return ""
 
 
+def _paid_traffic_badge(*values: object) -> str:
+    """Label common paid-acquisition UTM and attribution values."""
+    source_text = " ".join(str(value or "").casefold() for value in values)
+    paid_markers = (
+        "paid", "cpc", "ppc", "cpv", "cpm", "display", "advert",
+        "adwords", "fbclid", "gclid", "msclkid",
+    )
+    if any(marker in source_text for marker in paid_markers):
+        return '<span class="paid-traffic-badge" title="付费投放流量">付费</span>'
+    return ""
+
+
 def _task_row(task: dict, return_url: str) -> str:
     task_id = str(task["task_id"])
     gallery_name = _text(f"task-{task_id}")
@@ -320,6 +332,9 @@ def _task_row(task: dict, return_url: str) -> str:
     traffic_detail = _text(utm_summary or traffic_referrer)
     traffic_icon = _traffic_source_icon(
         raw_traffic_source, raw_traffic_referrer, task.get("utm_source")
+    )
+    paid_traffic_badge = _paid_traffic_badge(
+        raw_traffic_source, raw_traffic_referrer, task.get("utm_medium")
     )
     traffic_attribution_line = (
         f'<div class="source-cell__detail source-cell__attribution" title="{traffic_detail}">{traffic_detail}</div>'
@@ -453,7 +468,7 @@ def _task_row(task: dict, return_url: str) -> str:
         f'<td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td>'
         '<td class="source-cell">'
         f'<div class="source-cell__title">{source_title_view}</div>'
-        f'<div class="source-cell__detail"><span>流量</span>{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>'
+        f'<div class="source-cell__detail"><span>流量</span>{paid_traffic_badge}{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>'
         f'{traffic_attribution_line}'
         f'<div class="source-cell__detail"><span>来源</span>{source_link}</div>'
         f'<div class="source-cell__detail"><span>请求</span>{request_link}</div>'
@@ -804,6 +819,7 @@ th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-sha
 th:nth-child(1){{width:135px}}th:nth-child(2){{width:72px}}th:nth-child(3){{width:138px}}th:nth-child(4){{width:65px}}th:nth-child(5){{width:125px}}th:nth-child(6){{width:130px}}th:nth-child(7){{width:62px}}th:nth-child(8){{width:220px}}th:nth-child(9){{width:340px}}th:nth-child(10){{width:85px}}th:nth-child(11){{width:auto}}.star-cell{{display:flex;align-items:center;gap:5px}}
 .pagination__jump{{display:flex;align-items:center;gap:5px}}.pagination__jump label{{display:flex;align-items:center;gap:4px;white-space:nowrap}}.pagination__jump input{{width:52px;height:34px;padding:0 6px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e;font:inherit;text-align:center}}.pagination__jump button{{height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;font:600 13px system-ui;cursor:pointer}}.pagination__jump button:hover{{border-color:#9bb9de;background:#f3f8ff}}
 .traffic-icon{{display:block;flex:0 0 14px;width:14px;height:14px;object-fit:contain}}
+.paid-traffic-badge{{display:inline-flex;align-items:center;flex:0 0 auto;padding:1px 4px;border:1px solid #f2d394;border-radius:4px;background:#fff7e6;color:#9a6700;font-size:10px;font-weight:700;line-height:1.35}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
 <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><a class="config-link" href="{_text(starred_filter_url)}">{'全部任务' if starred else '★ 只看收藏'}</a>{time_range_filter}{active_filter_chips}</div>
 <template id="conversion-search-template">{conversion_filter_form}</template>

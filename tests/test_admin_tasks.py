@@ -117,6 +117,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("utm:google", response.text)
         self.assertIn('class="traffic-icon"', response.text)
         self.assertIn('src="https://cdn.simpleicons.org/google/4285F4"', response.text)
+        self.assertIn('class="paid-traffic-badge"', response.text)
+        self.assertIn('title="付费投放流量">付费</span>', response.text)
         self.assertIn("source=google · medium=cpc · campaign=fall-portraits", response.text)
         self.assertIn('<span>来源</span>', response.text)
         self.assertIn('<span>请求</span>', response.text)
