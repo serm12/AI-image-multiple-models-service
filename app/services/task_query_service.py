@@ -2,6 +2,7 @@ import json
 import os
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from app.core.config import DirectoryConfig
 from app.services.r2_storage import read_r2_mapping, replace_with_cdn_urls
@@ -21,6 +22,7 @@ CONVERSION_EVENT_TYPES = frozenset({
     "checkout_completed",
 })
 TIME_RANGE_VALUES = frozenset({"today", "yesterday", "last_7_days", "last_30_days"})
+ADMIN_METADATA_FILENAME = "admin_metadata.json"
 
 
 def _task_time_in_china(params: dict) -> datetime | None:
@@ -98,6 +100,35 @@ def get_source_reference_files(source_task_id: str) -> list[dict]:
     ]
 
 
+def is_task_starred(task_dir: str) -> bool:
+    """Return the admin-only star state stored alongside a task."""
+    metadata = _read_json_if_exists(os.path.join(task_dir, ADMIN_METADATA_FILENAME))
+    return bool(metadata.get("starred")) if isinstance(metadata, dict) else False
+
+
+def set_task_starred(task_id: str, starred: bool) -> bool | None:
+    """Persist a task's star state, returning None when the task does not exist."""
+    tasks_root = Path(DirectoryConfig.TASKS_DIR).resolve()
+    task_dir = Path(tasks_root, task_id).resolve()
+    try:
+        task_dir.relative_to(tasks_root)
+    except ValueError:
+        return None
+    if not task_dir.is_dir() or not (task_dir / "params.json").is_file():
+        return None
+
+    metadata_path = task_dir / ADMIN_METADATA_FILENAME
+    metadata = _read_json_if_exists(metadata_path)
+    if not isinstance(metadata, dict):
+        metadata = {}
+    metadata["starred"] = bool(starred)
+    temporary_path = metadata_path.with_suffix(".tmp")
+    with open(temporary_path, "w", encoding="utf-8") as file:
+        json.dump(metadata, file, ensure_ascii=False, indent=2)
+    os.replace(temporary_path, metadata_path)
+    return bool(starred)
+
+
 def list_task_summaries(
     page: int | None = None,
     page_size: int | None = None,
@@ -107,6 +138,7 @@ def list_task_summaries(
     provider_query: str | None = None,
     conversion_statuses: list[str] | None = None,
     time_range: str | None = None,
+    starred_only: bool = False,
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
@@ -147,6 +179,7 @@ def list_task_summaries(
         or normalized_provider_query
         or selected_conversion_statuses
         or selected_time_range
+        or starred_only
     ):
         filtered_entries = []
         for entry in task_entries:
@@ -182,6 +215,7 @@ def list_task_summaries(
                 )
             )
             matches_time_range = _matches_time_range(params, selected_time_range)
+            matches_starred = not starred_only or is_task_starred(entry.path)
             if (
                 matches_ip
                 and matches_user
@@ -189,6 +223,7 @@ def list_task_summaries(
                 and matches_provider
                 and matches_conversion
                 and matches_time_range
+                and matches_starred
             ):
                 filtered_entries.append(entry)
         task_entries = filtered_entries
@@ -245,6 +280,7 @@ def list_task_summaries(
         tasks.append(
             {
                 "task_id": task_id,
+                "starred": is_task_starred(task_dir),
                 "description": params.get("description", ""),
                 "created_at": params.get("time", ""),
                 "time_zone": params.get("time_zone", "UTC"),

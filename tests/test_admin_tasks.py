@@ -354,6 +354,40 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("prompt-20260915_120100_aura", combined_filtered.text)
         self.assertNotIn("prompt-20260915_120000_recraft", combined_filtered.text)
 
+    def test_admin_can_star_tasks_and_filter_to_starred(self):
+        task_ids = ("20260915_120000_first", "20260915_120100_second")
+        for task_id in task_ids:
+            task_dir = os.path.join(self.temp_dir.name, task_id)
+            os.makedirs(task_dir)
+            with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as file:
+                json.dump({"time": "20260915_120000", "original_prompt": task_id}, file)
+
+        client = TestClient(app)
+        token = base64.b64encode(b"admin:secret").decode("ascii")
+        headers = {"Authorization": f"Basic {token}"}
+        response = client.post(
+            f"/admin/tasks/{task_ids[0]}/star",
+            data={"starred": "false", "next": "/admin/tasks?starred=true"},
+            headers=headers,
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.headers["location"], "/admin/tasks?starred=true")
+        with open(
+            os.path.join(self.temp_dir.name, task_ids[0], "admin_metadata.json"),
+            encoding="utf-8",
+        ) as file:
+            self.assertTrue(json.load(file)["starred"])
+
+        starred = client.get("/admin/tasks?starred=true", headers=headers)
+        self.assertEqual(starred.status_code, 200)
+        self.assertIn(task_ids[0], starred.text)
+        self.assertNotIn(task_ids[1], starred.text)
+        self.assertIn("★ 只看收藏", client.get("/admin/tasks", headers=headers).text)
+        self.assertIn("全部任务", starred.text)
+        self.assertIn('aria-pressed="true"', starred.text)
+
     def test_admin_tasks_filters_by_multiple_conversion_statuses(self):
         task_specs = (
             ("20260916_120000_cart", "prompt-cart", "added_to_cart"),
