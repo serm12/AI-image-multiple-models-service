@@ -500,11 +500,34 @@ def _pagination(
         f'<option value="{size}"{" selected" if size == page_size else ""}>{size} 条/页</option>'
         for size in (25, 50, 100)
     )
+    jump_items = [
+        ("page_size", page_size),
+        ("client_ip", client_ip_query),
+        ("user", user_query),
+        ("task_id", task_id_query),
+        ("provider", provider_query),
+        ("time_range", time_range),
+        *(("conversion_status", status) for status in conversion_statuses),
+    ]
+    if starred_only:
+        jump_items.append(("starred", "true"))
+    jump_fields = "".join(
+        f'<input type="hidden" name="{_text(name)}" value="{_text(value)}">'
+        for name, value in jump_items
+        if value != ""
+    )
+    page_jump = (
+        '<form class="pagination__jump" action="/admin/tasks" method="get">'
+        f'{jump_fields}<label>跳至 <input name="page" type="number" min="1" '
+        f'max="{total_pages}" value="{page}" inputmode="numeric" aria-label="跳转到页码"> 页</label>'
+        '<button type="submit">跳转</button></form>'
+    )
     return (
         '<nav class="pagination" aria-label="任务分页">'
         f'<div class="pagination__links">{previous}{"".join(number_links)}{following}</div>'
         '<label class="pagination__size">每页显示 '
         f'<select id="page-size-select">{size_options}</select></label>'
+        f'{page_jump}'
         f'<span class="pagination__summary">第 {page} / {total_pages} 页</span>'
         '</nav>'
     )
@@ -750,6 +773,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 @media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
 th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}
 th:nth-child(1){{width:135px}}th:nth-child(2){{width:72px}}th:nth-child(3){{width:138px}}th:nth-child(4){{width:65px}}th:nth-child(5){{width:125px}}th:nth-child(6){{width:130px}}th:nth-child(7){{width:62px}}th:nth-child(8){{width:220px}}th:nth-child(9){{width:340px}}th:nth-child(10){{width:85px}}th:nth-child(11){{width:auto}}.star-cell{{display:flex;align-items:center;gap:5px}}
+.pagination__jump{{display:flex;align-items:center;gap:5px}}.pagination__jump label{{display:flex;align-items:center;gap:4px;white-space:nowrap}}.pagination__jump input{{width:52px;height:34px;padding:0 6px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e;font:inherit;text-align:center}}.pagination__jump button{{height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;font:600 13px system-ui;cursor:pointer}}.pagination__jump button:hover{{border-color:#9bb9de;background:#f3f8ff}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
 <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><a class="config-link" href="{_text(starred_filter_url)}">{'全部任务' if starred else '★ 只看收藏'}</a>{time_range_filter}{active_filter_chips}</div>
 <template id="conversion-search-template">{conversion_filter_form}</template>
