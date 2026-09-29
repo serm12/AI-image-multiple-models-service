@@ -326,7 +326,7 @@ def _task_row(task: dict, return_url: str) -> str:
         f'<input type="hidden" name="starred" value="{"true" if task.get("starred") else "false"}">'
         f'<button class="star-button{star_class}" type="submit" title="{star_title}" '
         f'aria-label="{star_title}" aria-pressed="{"true" if task.get("starred") else "false"}">'
-        f'<span aria-hidden="true">★</span><span class="star-button__text">{star_label}</span></button></form>'
+        '<span aria-hidden="true">★</span></button></form>'
     )
     prompt = _text(task.get("prompt"))
     edit_instructions = _text(task.get("edit_instructions"))
