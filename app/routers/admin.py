@@ -52,6 +52,18 @@ TIME_RANGE_OPTIONS = (
     ("last_7_days", "最近 7 天"),
     ("last_30_days", "最近 1 月"),
 )
+TRAFFIC_SOURCE_ICONS = (
+    ("google", "Google", "https://cdn.simpleicons.org/google/4285F4"),
+    ("bing", "Bing", "https://cdn.simpleicons.org/microsoftbing/008373"),
+    ("facebook", "Facebook", "https://cdn.simpleicons.org/facebook/1877F2"),
+    ("instagram", "Instagram", "https://cdn.simpleicons.org/instagram/E4405F"),
+    ("tiktok", "TikTok", "https://cdn.simpleicons.org/tiktok/000000"),
+    ("youtube", "YouTube", "https://cdn.simpleicons.org/youtube/FF0000"),
+    ("pinterest", "Pinterest", "https://cdn.simpleicons.org/pinterest/BD081C"),
+    ("twitter", "X", "https://cdn.simpleicons.org/x/000000"),
+    ("x.com", "X", "https://cdn.simpleicons.org/x/000000"),
+    ("linkedin", "LinkedIn", "https://cdn.simpleicons.org/linkedin/0A66C2"),
+)
 
 
 def _admin_next(value: str | None) -> str:
@@ -197,6 +209,18 @@ def _compact_display_time(value, source_timezone="UTC", target_timezone=CHINA_TI
     return displayed[5:] if len(displayed) == 19 and displayed[4] == "-" else displayed
 
 
+def _traffic_source_icon(*values: object) -> str:
+    """Return a compact, trusted logo for recognized search and social sources."""
+    source_text = " ".join(str(value or "").casefold() for value in values)
+    for keyword, label, icon_url in TRAFFIC_SOURCE_ICONS:
+        if keyword in source_text:
+            return (
+                f'<img class="traffic-icon" src="{icon_url}" alt="{label}" '
+                f'title="{label}" width="14" height="14" loading="lazy">'
+            )
+    return ""
+
+
 def _task_row(task: dict, return_url: str) -> str:
     task_id = str(task["task_id"])
     gallery_name = _text(f"task-{task_id}")
@@ -277,8 +301,10 @@ def _task_row(task: dict, return_url: str) -> str:
     else:
         source_title_view = source_title or '<span class="muted">—</span>'
         source_link = '<span class="muted">—</span>'
-    traffic_source = _text(task.get("traffic_source")) or '<span class="muted">旧任务 / 未采集</span>'
-    traffic_referrer = _text(task.get("traffic_referrer"))
+    raw_traffic_source = task.get("traffic_source")
+    raw_traffic_referrer = task.get("traffic_referrer")
+    traffic_source = _text(raw_traffic_source) or '<span class="muted">旧任务 / 未采集</span>'
+    traffic_referrer = _text(raw_traffic_referrer)
     utm_parts = [
         ("utm_source", task.get("utm_source")),
         ("utm_medium", task.get("utm_medium")),
@@ -292,6 +318,9 @@ def _task_row(task: dict, return_url: str) -> str:
     # The landing path is useful for data analysis but is not a traffic source.
     # Do not render it under a direct visit, where it would only show a noisy "/".
     traffic_detail = _text(utm_summary or traffic_referrer)
+    traffic_icon = _traffic_source_icon(
+        raw_traffic_source, raw_traffic_referrer, task.get("utm_source")
+    )
     traffic_attribution_line = (
         f'<div class="source-cell__detail source-cell__attribution" title="{traffic_detail}">{traffic_detail}</div>'
         if traffic_detail
@@ -414,7 +443,7 @@ def _task_row(task: dict, return_url: str) -> str:
     )
     return (
         "<tr>"
-        f'<td class="star-cell">{star_control}<code title="{task_id}">{task_id[:17]}…</code></td>'
+        f'<td><div class="star-cell">{star_control}<code title="{task_id}">{task_id[:17]}…</code></div></td>'
         f'<td><span class="status">{_text(task["status"])}</span></td>'
         f'<td>{time_cell}</td>'
         f"<td>{duration}</td>"
@@ -424,7 +453,7 @@ def _task_row(task: dict, return_url: str) -> str:
         f'<td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td>'
         '<td class="source-cell">'
         f'<div class="source-cell__title">{source_title_view}</div>'
-        f'<div class="source-cell__detail"><span>流量</span><strong title="{traffic_detail}">{traffic_source}</strong></div>'
+        f'<div class="source-cell__detail"><span>流量</span>{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>'
         f'{traffic_attribution_line}'
         f'<div class="source-cell__detail"><span>来源</span>{source_link}</div>'
         f'<div class="source-cell__detail"><span>请求</span>{request_link}</div>'
@@ -774,6 +803,7 @@ code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time
 th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}
 th:nth-child(1){{width:135px}}th:nth-child(2){{width:72px}}th:nth-child(3){{width:138px}}th:nth-child(4){{width:65px}}th:nth-child(5){{width:125px}}th:nth-child(6){{width:130px}}th:nth-child(7){{width:62px}}th:nth-child(8){{width:220px}}th:nth-child(9){{width:340px}}th:nth-child(10){{width:85px}}th:nth-child(11){{width:auto}}.star-cell{{display:flex;align-items:center;gap:5px}}
 .pagination__jump{{display:flex;align-items:center;gap:5px}}.pagination__jump label{{display:flex;align-items:center;gap:4px;white-space:nowrap}}.pagination__jump input{{width:52px;height:34px;padding:0 6px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e;font:inherit;text-align:center}}.pagination__jump button{{height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;font:600 13px system-ui;cursor:pointer}}.pagination__jump button:hover{{border-color:#9bb9de;background:#f3f8ff}}
+.traffic-icon{{display:block;flex:0 0 14px;width:14px;height:14px;object-fit:contain}}
 </style></head><body><main><header><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">北京时间</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">当前配置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
 <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><a class="config-link" href="{_text(starred_filter_url)}">{'全部任务' if starred else '★ 只看收藏'}</a>{time_range_filter}{active_filter_chips}</div>
 <template id="conversion-search-template">{conversion_filter_form}</template>

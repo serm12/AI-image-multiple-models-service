@@ -115,6 +115,8 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("Custom Portrait", response.text)
         self.assertIn('class="source-cell"', response.text)
         self.assertIn("utm:google", response.text)
+        self.assertIn('class="traffic-icon"', response.text)
+        self.assertIn('src="https://cdn.simpleicons.org/google/4285F4"', response.text)
         self.assertIn("source=google · medium=cpc · campaign=fall-portraits", response.text)
         self.assertIn('<span>来源</span>', response.text)
         self.assertIn('<span>请求</span>', response.text)
