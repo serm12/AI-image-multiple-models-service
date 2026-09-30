@@ -76,6 +76,8 @@ class StorefrontEventRequest(BaseModel):
     shop_domain: str = Field(default="", max_length=255)
     customer_id: str = Field(default="", max_length=100)
     customer_email: str = Field(default="", max_length=320)
+    subscription_status: str = Field(default="", max_length=40)
+    subscription_reason: str = Field(default="", max_length=80)
     customer_logged_in: bool = False
     visitor_id: str = Field(default="", max_length=255)
     cart_token: str = Field(default="", max_length=2048)

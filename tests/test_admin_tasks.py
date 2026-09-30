@@ -43,6 +43,23 @@ class AdminTasksTests(unittest.TestCase):
         DirectoryConfig.TASKS_DIR = self.old_tasks_dir
         self.temp_dir.cleanup()
 
+    def test_entered_email_is_not_login_and_subscription_is_frontend_report(self):
+        from app.routers.admin import _task_row
+        from app.services.task_query_service import list_task_summaries
+        task_dir = os.path.join(self.temp_dir.name, "newsletter-task")
+        os.makedirs(task_dir)
+        with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as file:
+            json.dump({"customer_email": "visitor@example.com"}, file)
+        task = list_task_summaries()["tasks"][0]
+        html = _task_row(task, "/admin/tasks")
+        self.assertIn("已填写邮箱", html)
+        self.assertNotIn(">已登录<", html)
+        self.assertIn("订阅：未记录", html)
+        task["subscription_status"] = "verification_required"
+        html = _task_row(task, "/admin/tasks")
+        self.assertIn("订阅：需要验证", html)
+        self.assertIn("前端回报", html)
+
     def test_traffic_source_icons_include_bing_and_duckduckgo(self):
         self.assertIn("www.bing.com", _traffic_source_icon("referrer:www.bing.com"))
         self.assertIn("duckduckgo.com", _traffic_source_icon("https://duckduckgo.com"))

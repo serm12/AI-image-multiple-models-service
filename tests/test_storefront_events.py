@@ -32,6 +32,26 @@ class StorefrontEventsTests(unittest.TestCase):
         DirectoryConfig.TASKS_DIR = self.old_tasks_dir
         self.temp_dir.cleanup()
 
+    def test_newsletter_results_are_authenticated_validated_and_summarized(self):
+        from app.services.storefront_events import read_storefront_events, summarize_storefront_events
+        client = TestClient(app)
+        payload = self.payload()
+        payload.update(event_type="newsletter_result", subscription_status="verification_required",
+                       subscription_reason="shopify_challenge")
+        denied = client.post("/storefront-events", json={**payload, "tracking_token": "incorrect-token-long-enough"})
+        self.assertEqual(denied.status_code, 403)
+        self.assertEqual(client.post("/storefront-events", json=payload).status_code, 200)
+        summary = summarize_storefront_events(read_storefront_events(self.task_dir))
+        self.assertEqual(summary["subscription_status"], "verification_required")
+        self.assertFalse(summary["added_to_cart"])
+        invalid = client.post("/storefront-events", json={**payload, "subscription_status": "registered"})
+        self.assertEqual(invalid.status_code, 422)
+        payload.update(event_id="newsletter-second", subscription_status="accepted")
+        self.assertEqual(client.post("/storefront-events", json=payload).status_code, 200)
+        summary = summarize_storefront_events(read_storefront_events(self.task_dir))
+        self.assertEqual(summary["subscription_status"], "accepted")
+        self.assertEqual(summarize_storefront_events([])["subscription_status"], "")
+
     def payload(self):
         return {
             "task_id": self.task_id,

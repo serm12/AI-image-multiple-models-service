@@ -11,6 +11,7 @@ from app.core.config import DirectoryConfig
 
 EVENTS_FILENAME = "storefront_events.json"
 ALLOWED_EVENT_TYPES = {
+    "newsletter_result",
     "added_to_cart",
     "checkout_intent",
     "checkout_started",
@@ -56,11 +57,18 @@ def record_storefront_event(task_id: str, tracking_token: str, event: dict) -> d
     if event_type not in ALLOWED_EVENT_TYPES:
         raise ValueError("Unsupported event type")
 
+    if event_type == "newsletter_result" and event.get("subscription_status") not in {
+        "accepted", "verification_required", "failed", "unconfirmed", "not_attempted"
+    }:
+        raise ValueError("Unsupported subscription status")
+
     event_id = str(event.get("event_id") or "")[:120]
     if not event_id:
         raise ValueError("event_id is required")
 
     normalized = {
+        "subscription_status": str(event.get("subscription_status") or "")[:40],
+        "subscription_reason": str(event.get("subscription_reason") or "")[:80],
         "event_id": event_id,
         "event_type": event_type,
         "recorded_at": datetime.now(timezone.utc).isoformat(),
@@ -114,7 +122,12 @@ def summarize_storefront_events(events: list[dict]) -> dict:
             )
         if not event_customer_email:
             event_customer_email = str(event.get("customer_email") or "")
+    subscription = next((event for event in reversed(events)
+                         if event.get("event_type") == "newsletter_result"), {})
     return {
+        "subscription_status": subscription.get("subscription_status", ""),
+        "subscription_reason": subscription.get("subscription_reason", ""),
+        "subscription_recorded_at": subscription.get("recorded_at", ""),
         "storefront_events": events,
         "storefront_event_times": event_times,
         "event_customer_email": event_customer_email,

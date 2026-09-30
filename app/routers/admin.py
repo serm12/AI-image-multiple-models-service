@@ -403,9 +403,10 @@ def _task_row(task: dict, return_url: str) -> str:
     customer_id = _text(task.get("customer_id"))
     visitor_id = _text(task.get("storefront_visitor_id"))
     if customer_email:
-        customer_title = f"Customer ID: {customer_id}" if customer_id else "已登录客户"
+        customer_title = f"Customer ID: {customer_id}" if customer_id else "前端填写的邮箱"
+        identity_label = "已登录" if task.get("customer_logged_in") and customer_id else "已填写邮箱"
         identity = (
-            '<span class="identity identity--customer">已登录</span>'
+            f'<span class="identity identity--customer">{identity_label}</span>'
             f'<span class="customer-email" title="{customer_title}">{customer_email}</span>'
         )
     elif customer_id:
@@ -420,6 +421,16 @@ def _task_row(task: dict, return_url: str) -> str:
         )
     else:
         identity = '<span class="muted">—</span>'
+    subscription_labels = {
+        "accepted": "订阅表单：提交成功",
+        "verification_required": "订阅：需要验证",
+        "failed": "订阅：提交失败",
+        "unconfirmed": "订阅：结果未确认",
+        "not_attempted": "订阅：未提交",
+    }
+    subscription_label = subscription_labels.get(task.get("subscription_status"), "订阅：未记录")
+    subscription_detail = "前端回报；非 Shopify 最终订阅或账号注册确认。" + str(task.get("subscription_reason") or "")
+    identity += f'<span class="muted" title="{_text(subscription_detail)}">{_text(subscription_label)}</span>'
     event_times = task.get("storefront_event_times") or {}
     funnel_states = (
         ("added-to-cart", "added_to_cart", "加购", task.get("added_to_cart")),
