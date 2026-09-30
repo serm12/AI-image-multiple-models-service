@@ -54,7 +54,8 @@ TIME_RANGE_OPTIONS = (
 )
 TRAFFIC_SOURCE_ICONS = (
     ("google", "Google", "https://cdn.simpleicons.org/google/4285F4"),
-    ("bing", "Bing", "https://cdn.simpleicons.org/microsoftbing/008373"),
+    ("bing", "Bing", "https://www.bing.com/sa/simg/favicon-trans-bg-blue-mg.ico"),
+    ("duckduckgo", "DuckDuckGo", "https://duckduckgo.com/favicon.ico"),
     ("facebook", "Facebook", "https://cdn.simpleicons.org/facebook/1877F2"),
     ("instagram", "Instagram", "https://cdn.simpleicons.org/instagram/E4405F"),
     ("tiktok", "TikTok", "https://cdn.simpleicons.org/tiktok/000000"),

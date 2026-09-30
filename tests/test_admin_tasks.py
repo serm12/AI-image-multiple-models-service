@@ -14,7 +14,12 @@ from app.core.config import AppConfig, DirectoryConfig
 from app.core.version import APP_RELEASE_DATE, APP_VERSION
 from app.utils.time_utils import CHINA_TIMEZONE_NAME, now_china
 from app.main import app
-from app.routers.admin import US_EASTERN_TIMEZONE, US_PACIFIC_TIMEZONE, _display_time
+from app.routers.admin import (
+    US_EASTERN_TIMEZONE,
+    US_PACIFIC_TIMEZONE,
+    _display_time,
+    _traffic_source_icon,
+)
 from app.services.security import (
     get_request_client_ip,
     get_request_country,
@@ -37,6 +42,10 @@ class AdminTasksTests(unittest.TestCase):
         AppConfig.ADMIN_PASSWORD = self.old_password
         DirectoryConfig.TASKS_DIR = self.old_tasks_dir
         self.temp_dir.cleanup()
+
+    def test_traffic_source_icons_include_bing_and_duckduckgo(self):
+        self.assertIn("www.bing.com", _traffic_source_icon("referrer:www.bing.com"))
+        self.assertIn("duckduckgo.com", _traffic_source_icon("https://duckduckgo.com"))
 
     def test_admin_page_requires_login_and_escapes_task_content(self):
         task_dir = os.path.join(self.temp_dir.name, "task-1")
