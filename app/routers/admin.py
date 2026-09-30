@@ -715,6 +715,7 @@ def admin_tasks(
         f'<input type="hidden" name="task_id" value="{_text(task_id_query)}">'
         f'<input type="hidden" name="provider" value="{_text(provider_query)}">'
         f'<input type="hidden" name="starred" value="{"true" if starred else "false"}">'
+        f'<input type="hidden" name="time_range" value="{_text(time_range_query)}">'
         '<fieldset style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;border:0;margin:0;padding:0">'
         '<legend style="padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700">转化状态</legend>'
         f'{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>'
