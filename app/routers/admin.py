@@ -910,6 +910,12 @@ document.querySelectorAll('.column-search-toggle').forEach(toggle=>{{
   }});
 }});
 document.addEventListener('click',event=>{{
+  const activePrompt=event.target.closest('.prompt-details');
+  document.querySelectorAll('.prompt-details[open]').forEach(details=>{{
+    if(details!==activePrompt)details.open=false;
+  }});
+}});
+document.addEventListener('click',event=>{{
   if(event.target.closest('.column-heading'))return;
   document.querySelectorAll('.column-search.is-open').forEach(form=>{{
     form.classList.remove('is-open');
