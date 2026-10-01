@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # build used by YuNet, while installing the task runtime and its other declared
 # dependencies from requirements.txt.
 RUN pip install --no-cache-dir --user --no-deps mediapipe==1.0.1
+RUN pip install --no-cache-dir --user --no-deps insightface==2.0
 
 # ========== 运行阶段 ==========
 FROM python:3.12-slim

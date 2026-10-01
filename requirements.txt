@@ -42,6 +42,14 @@ python-magic>=0.4.27
 # My3dFigure 本地宠物面部可见性判断（CPU，不调用外部图像服务）
 onnxruntime==1.30.0
 
+# My3dFigure SCRFD-10G-KPS / InsightFace 2.0 runtime.
+# InsightFace itself is installed without dependencies in Docker so it does
+# not replace the existing headless OpenCV build.
+onnx>=1.13
+scipy
+scikit-image
+tqdm
+
 # My3dFigure BlazeFace Full Range (MediaPipe is installed separately without
 # its opencv-contrib-python dependency to preserve the existing headless cv2).
 absl-py~=2.3

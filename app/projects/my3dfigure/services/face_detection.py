@@ -5,7 +5,8 @@ Neither pipeline imports its counterpart or uses it as a fallback.
 """
 
 # from .yunet import face_detection as active_pipeline
-from .blazeface_full import face_detection as active_pipeline
+# from .blazeface_full import face_detection as active_pipeline
+from .scrfd_10g import face_detection as active_pipeline
 
 analyze_human_faces = active_pipeline.analyze_human_faces
 evaluate_human_face_analysis = active_pipeline.evaluate_human_face_analysis
