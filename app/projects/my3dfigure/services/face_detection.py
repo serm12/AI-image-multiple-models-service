@@ -1,12 +1,13 @@
 """My3dFigure human-face pipeline selector.
 
 Switch models by commenting the active import and uncommenting the other.
-Neither pipeline imports its counterpart or uses it as a fallback.
+Each pipeline is independent and does not use another model as a fallback.
 """
 
 # from .yunet import face_detection as active_pipeline
 # from .blazeface_full import face_detection as active_pipeline
-from .scrfd_10g import face_detection as active_pipeline
+# from .scrfd_10g import face_detection as active_pipeline
+from .scrfd_2_5g import face_detection as active_pipeline
 
 analyze_human_faces = active_pipeline.analyze_human_faces
 evaluate_human_face_analysis = active_pipeline.evaluate_human_face_analysis

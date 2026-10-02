@@ -18,7 +18,7 @@ WARDROBE_COMPLETIONS = {
     "bodysuit": "a coordinated bodysuit with a skirt or tailored shorts",
 }
 
-MY3D_PET_PROMPT_VERSION = "my3d-pet-v1"
+MY3D_PET_PROMPT_VERSION = "my3d-pet-v2-no-added-base"
 
 WARDROBE_PALETTES = {
     "pastel": "soft pastel color-blocking with two or three harmonious colors",
@@ -152,7 +152,9 @@ def _build_my3d_direct_prompt_legacy(
     )
 
 
-MY3D_PROMPT_VERSION = "balanced-figure-v10.7"
+MY3D_PROMPT_VERSION = "balanced-figure-v10.8-no-added-base"
+
+NO_ADDED_DISPLAY_BASE_RULE = 'NO ADDED DISPLAY BASE — ABSOLUTE: Render the complete subject(s) directly on the continuous white seamless studio floor, with only a soft contact/floor shadow. Weight-bearing shoe soles, feet or paws contact that floor directly; a source-supported sitting or lying pet rests naturally on the same floor. Never add any separate display base, round disk, circular slab, stand, plinth, pedestal, podium, raised presentation platform, mounting plate or support post, whether black, white, transparent or any other colour. The white studio floor has no separate hard-edged disk or slab underneath the subject(s). This prohibition concerns presentation supports only: preserve genuine source-owned footwear, including thick platform shoes, sole thickness, tread, shape and colour; never flatten, remove or recolour a shoe or its sole to obey this rule. Keep all existing source clothing, accessories, held items, markings and pose requirements. All existing rules for rich, varied and harmonious completion of genuinely unseen clothing remain in force.'
 
 FACE_PANEL_POLICY = """COLLAGE OVERRIDE: Use ONLY the clearest face-bearing panel for face, body pose, clothes and held items. Ignore all other panels, including back views of the same person. Never merge views; absent details are unseen."""
 
@@ -179,6 +181,7 @@ def build_my3d_pet_prompt() -> str:
         "STYLE: premium painted vinyl/resin cartoon figurine with sculpted fur masses, expressive painted eyes, rounded friendly forms, and clear animal anatomy. Make the whole pet equally stylized; never use photoreal fur, a pasted photographic face, or a live-animal render.",
         "ANATOMY: exactly one head, two ears, four legs, four paws, one tail when source-supported, and a natural animal silhouette. No human hands, human feet, clothing made for people, extra limbs, fused paws, duplicated tails, or distorted facial features.",
         "COMPOSITION: show the complete pet centered on a portrait 2:3 white studio canvas with a soft floor shadow. Preserve a source-supported sitting, standing, lying, or walking pose; if the lower body is hidden, complete it naturally without changing visible features. Remove scenery, text, watermarks, people, and other animals. Return only the single pet character image.",
+        NO_ADDED_DISPLAY_BASE_RULE,
     ])
 
 HEAD_EVIDENCE_POLICY = "HEAD ORIENTATION — NON-NEGOTIABLE: Render head roll 0 degrees by default. Allow a sideways head tilt ONLY when ALL three facts are unequivocally visible: (1) head, neck and enough torso; (2) remove shared camera roll; (3) head axis still bends relative to its OWN neck/torso. If any fact is absent, ambiguous or aligned -> 0 degrees. A fully visible body, diagonally photographed person, sloping canvas, gaze, facial asymmetry, hair, eye line or shoulder line is never tilt evidence. Never infer a bend from a generated body."
@@ -240,7 +243,7 @@ def build_my3d_direct_prompt(
 ) -> str:
     """Compact universal source-fidelity prompt with conservative tilt permission."""
     if source_context == "close_portrait":
-        return _build_close_portrait_prompt(wardrobe_profile, wardrobe_palette, footwear_profile)
+        return _build_close_portrait_prompt(wardrobe_profile, wardrobe_palette, footwear_profile) + "\n" + NO_ADDED_DISPLAY_BASE_RULE
     wardrobe = WARDROBE_COMPLETIONS.get(wardrobe_profile or "", WARDROBE_COMPLETIONS["shorts"])
     palette = WARDROBE_PALETTES.get(wardrobe_palette or "", WARDROBE_PALETTES["pastel"])
     colors = UNSEEN_COLOR_DIRECTIONS.get(wardrobe_palette or "", UNSEEN_COLOR_DIRECTIONS["pastel"])
@@ -277,6 +280,7 @@ def build_my3d_direct_prompt(
         FINAL_AMBIGUOUS_HAND_POLICY,
         "FINAL SINGLE-FIGURE LIMB AUDIT — ABSOLUTE: Before returning, trace both arms separately from shoulder through upper arm, elbow, forearm, wrist and hand, and both legs separately from hip through thigh, knee, lower leg, ankle and foot. Every chain must be anatomically continuous and plausibly attached to this one person's torso. Natural occlusion may hide only a local segment; it must never create a missing limb, a limb ending at clothing, a detached hand or foot, or a duplicated limb. If any source limb is hidden or ambiguous, reconstruct that same person's complete relaxed limb in a natural pose.",
         "CLEANUP: Remove scenery, UI/text, watermarks, other people/body parts and unowned objects. FINAL STYLE CHECK: a single non-photorealistic painted vinyl/resin cartoon collectible, never a live person or photo-real portrait; human only, standing, head roll 0 degrees unless all three head-orientation facts above are proven. Return character.",
+        NO_ADDED_DISPLAY_BASE_RULE,
     ])
 
 
@@ -316,7 +320,7 @@ def build_my3d_connected_pair_prompt(
         AMBIGUOUS_HAND_POLICY,
         "CONNECTION HAND OWNERSHIP RULE — HIGHEST PRIORITY: Do not invent a new hand-based connection. A hand-hold, linked arm, hand-on-shoulder/upper-arm/back/waist gesture or embrace may appear only when that exact owner-specific hand contact is clearly visible in Image 1. It must be traced continuously from its owner's shoulder through elbow, forearm and wrist to one normal hand. For separated people without proven hand contact, the area between the two figures contains NO hands or forearms: use shoulder/upper-arm/torso/hip contact only. Do not create, borrow, duplicate, reroute or detach a hand or forearm merely to make the connection. Do not turn an existing phone, bag or other object-holding hand into a touching hand, do not make an arm terminate on the other person, and never add a fifth hand.",
         "VISIBLE CONTACT BRIDGE CHECK: The final image must show at least one unambiguous physical bridge between the two bodies: shoulder/upper-arm, torso or hip contact, or a source-proven linked-arm, hand-on-body, linked-hand or embrace gesture. Standing near each other, facing each other, aligned shoulders or overlapping shadows do NOT count. If Image 1 does not prove hand contact, use shoulder, upper-arm, torso or hip contact and leave the full area between the figures free of hands and forearms. Never present them as two separate catalogue/model-sheet figures.",
-        "Do not render two independent figures, two products, two panels, a diptych, a collage, a split image, or two floating characters. Use one shared base, one shared 2:3 portrait canvas, one lighting setup and one consistent chibi scale. The contact must read as intentional physical connection, not accidental overlap.",
+        "Do not render two independent figures, two products, two panels, a diptych, a collage, a split image, or two floating characters. Use one shared continuous white studio floor, one shared 2:3 portrait canvas, one lighting setup and one consistent chibi scale. The contact must read as intentional physical connection, not accidental overlap.",
         "COUNT AND IDENTITY: Render exactly two heads and two distinct faces, never a fused face or an extra face. Keep each person's apparent age presentation, facial identity, expression, skin tone, hairstyle, gaze direction and visible asymmetry. Preserve which hair, clothing, accessory, hand and object belongs to which person; do not swap, merge or duplicate them.",
         "HAND/ARM COUNT AND OWNERSHIP — HARD LIMIT: Render exactly two complete arms and two hands per output person: four arms and four hands total, never a fifth hand. Every visible hand must trace continuously through its wrist and forearm to the shoulder/torso of one of these two people. Build a two-slot arm-action ledger for each person, including held objects, side, wrist and contact; then render only those four owned hands. A linking hand occupies one full arm-action slot and must not leave a duplicate dangling, resting or touching hand on that same person. A hand or forearm must never emerge from the space between the people, a clothing edge, a hidden gap or the other person's torso. If the source contains a third person, remove that person's hands, arms and all other body parts completely; never borrow them to create contact.",
         "TWO-PERSON ARM CONTINUITY AUDIT — ABSOLUTE: For Person A and Person B separately, establish both left and right arm chains: shoulder → upper arm → elbow → forearm → wrist → palm/hand. Each chain must remain anatomically continuous and visibly plausible. Contact or overlap may hide only a local segment; it must never make an arm terminate at the other person's torso, disappear at a clothing edge, reappear as a detached hand, or be substituted by the other person's arm. If a source arm is hidden or ambiguous, reconstruct that person's own complete relaxed arm and hand in a natural pose; do not leave it missing.",
@@ -332,4 +336,5 @@ def build_my3d_connected_pair_prompt(
         "FINAL FACE-QUALIFIED AUDIT: Return exactly two figures only when their two faces map one-to-one to the two usable source faces. Delete any figure whose face was invented from a back view, faceless body, clothing, reflection boundary, scene position or other non-face evidence.",
         "FINAL TWO-FIGURE LIMB COMPLETENESS AUDIT — ABSOLUTE: Verify independently for both people: two shoulders, two complete continuous arms ending in two hands, two complete continuous legs ending in two feet. Then verify all four hands individually: each has a continuous wrist, one palm, one thumb and four fingers, natural non-twisted joints, and no finger fusion/duplication. At a contact zone, trace every arm back to its owner's shoulder and forward to that owner's wrist and hand; a hand-on-body, linked-arm, hand-holding or embrace contact is valid only when this trace is continuous and anatomically natural. For each person, recount exactly two arm-action slots after the connection is drawn: a connection hand plus a dangling/resting/alternate duplicate hand is invalid and must be removed. Confirm every carried item has exactly its source-owned gripping hand and no extra helper hand. A missing arm, a missing hand, a partial arm ending at another body, a detached hand, a borrowed limb, a fused finger cluster, a second bag hand, or a duplicated limb invalidates the result; reconstruct the missing owner-specific limb before returning.",
         "Finish both figures through their shoes on one centered portrait 2:3 white studio canvas with soft floor shadow and neutral color balance. Remove scenery, UI/text, watermarks, other people and unowned objects. FINAL STYLE CHECK: exactly one non-photorealistic painted vinyl/resin cartoon collectible showing two connected people, never a live photo, never two separate figurines, never a separated pair. Return only the single joined character image.",
+        NO_ADDED_DISPLAY_BASE_RULE,
     ])
