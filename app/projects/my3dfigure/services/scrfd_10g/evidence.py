@@ -28,6 +28,17 @@ def confirm(image: np.ndarray, candidate: dict, detector, *, collect_boxes=False
     """Reobserve a proposed face in two upright local contexts."""
     x, y, width, height = candidate["box"]
     eyes = np.asarray(candidate["points"][:2], dtype=float)
+    cache = getattr(detector, "evidence_cache", None)
+    key = None
+    if cache is not None:
+        geometry = (tuple(map(float, candidate["box"])), tuple(map(float, eyes.ravel())))
+        key = detector.evidence_key("confirm", image, geometry)
+        cached = cache.get(key)
+        if cached is not None:
+            scores, local_boxes = cached
+            if collect_boxes:
+                candidate["local_boxes"] = [list(box) for box in local_boxes]
+            return list(scores)
     delta = eyes[1] - eyes[0]
     angle = float(np.degrees(np.arctan2(delta[1], delta[0])))
     scores = []
@@ -51,11 +62,12 @@ def confirm(image: np.ndarray, candidate: dict, detector, *, collect_boxes=False
             mapped = [*low, *(high - low)]
             if _overlap_smaller(mapped, candidate["box"]) >= 0.4:
                 found.append(float(score))
-                if collect_boxes:
-                    matched.append((float(score), mapped))
+                matched.append((float(score), mapped))
         scores.append(max(found, default=0.0))
-        if collect_boxes and matched:
+        if matched:
             local_boxes.append(max(matched, key=lambda item: item[0])[1])
+    if key is not None:
+        cache[key] = (tuple(scores), tuple(tuple(box) for box in local_boxes))
     if collect_boxes:
         candidate["local_boxes"] = local_boxes
     return scores

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 # 导入配置和核心模块
 from app.projects.my3dfigure.core.config import (
     DirectoryConfig, APIConfig, AppConfig,
-    FluxModelEnum, AspectRatioEnum, OutputFormatEnum, ArtStyleEnum, ProviderEnum,
+    AspectRatioEnum, OutputFormatEnum, ArtStyleEnum,
     STYLE_PROMPTS
 )
 from app.core.version import APP_VERSION, get_version_info
@@ -48,8 +48,10 @@ from app.projects.my3dfigure.services.pet_detection import contains_single_pet
 from app.projects.my3dfigure.services.direct_character_prompt_service import (
     build_my3d_connected_pair_prompt,
     build_my3d_direct_prompt,
+    append_my3d_human_prompt_audits,
     build_my3d_pet_prompt,
     MY3D_PROMPT_VERSION,
+    MY3D_PAIR_PROMPT_VERSION,
     MY3D_PET_PROMPT_VERSION,
 )
 from app.projects.my3dfigure.core.i18n import get_message, normalize_locale
@@ -239,11 +241,7 @@ async def generate_image_async(
 ):
     """异步图像生成API - 立即返回任务ID，支持1个并发处理"""
 
-    # -- 参数兼容性处理 --
-    # 1. flux_model_variant: 固定为 pro
-    flux_model_variant = FluxModelEnum.pro
-
-    # 2. provider: 确定本次请求实际使用的服务商并做运行时校验
+    # -- 只接受 My3dFigure 保留的 GPT Image 2 providers --
     try:
         effective_provider = APIConfig.resolve_provider(provider)
         APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
@@ -373,7 +371,6 @@ async def generate_image_async(
             "art_style": normalized_art_style,
             "aspect_ratio": aspect_ratio.value,
             "output_format": output_format.value,
-            "flux_model_variant": flux_model_variant.value,
             "input_images": input_filenames,
             "checked_upload_id": upload_id or None,
             "input_image_url": input_image_url,
@@ -418,7 +415,6 @@ async def generate_image_async(
             prompt=final_prompt,
             api_provider=effective_provider,
             locale=normalize_locale(locale),
-            flux_model_variant=flux_model_variant.value,
             estimated_time="60-180秒"
         )
 
@@ -427,7 +423,7 @@ async def generate_image_async(
         background_task = asyncio.create_task(
             process_generation_background(
                 task_id, task_dir, final_prompt, input_image_paths,
-                flux_model_variant, aspect_ratio, output_format, final_seed, params,
+                aspect_ratio, output_format, final_seed, params,
                 effective_provider
             )
         )
@@ -460,7 +456,7 @@ async def generate_image_async(
 
 async def process_generation_background(
     task_id: str, task_dir: str, prompt: str, input_image_paths: list[str],
-    flux_model_variant, aspect_ratio, output_format, seed: int, params: dict,
+    aspect_ratio, output_format, seed: int, params: dict,
     provider: str = None
 ):
     """后台异步处理生成任务"""
@@ -471,7 +467,7 @@ async def process_generation_background(
             task_id,
             _do_generation_work(
                 task_id, task_dir, prompt, input_image_paths,
-                flux_model_variant, aspect_ratio, output_format, seed, params,
+                aspect_ratio, output_format, seed, params,
                 provider
             )
         )
@@ -504,7 +500,7 @@ async def process_generation_background(
 
 async def _do_generation_work(
     task_id: str, task_dir: str, prompt: str, input_image_paths: list[str],
-    flux_model_variant, aspect_ratio, output_format, seed: int, params: dict,
+    aspect_ratio, output_format, seed: int, params: dict,
     provider: str = None
 ):
     """实际的生成工作"""
@@ -590,14 +586,37 @@ async def _do_generation_work(
                 if len(identity_anchor_paths) != expected_face_count:
                     raise ValueError("Could not prepare identity anchors from the validated usable faces")
                 request_images = [*input_image_paths, *identity_anchor_paths]
-                anchor_instructions = (
-                    f"\nIDENTITY ANCHORS — ABSOLUTE: Image 1 is the original upload and remains the only source "
-                    f"for scene, pose, clothing, body and objects. Images 2 through {expected_face_count + 1} are "
-                    f"the {expected_face_count} usable-face identity anchors extracted from Image 1. Render exactly "
-                    f"one figure for each anchor face. Use anchor images only to lock facial identity, hairline and "
-                    f"hairstyle; never copy clothing, pose, body, objects or background from an anchor. No person "
-                    f"visible only in Image 1 without a matching anchor may appear in the output."
-                )
+                if params.get("figure_composition") == "connected_pair":
+                    from PIL import Image
+                    with Image.open(anchor_source_path) as source_image:
+                        source_width, source_height = source_image.size
+                    bindings = []
+                    for anchor_index, (anchor_path, box) in enumerate(zip(identity_anchor_paths, face_boxes), 1):
+                        x, y, w, h = box
+                        bindings.append({"person_id": "A" if anchor_index == 1 else "B",
+                                         "reference_image": len(input_image_paths) + anchor_index,
+                                         "anchor_file": os.path.basename(anchor_path),
+                                         "source_face_box_xywh": list(box),
+                                         "source_face_center_percent": [round(100 * (x + w / 2) / source_width, 2), round(100 * (y + h / 2) / source_height, 2)]})
+                    params["identity_anchor_bindings"] = bindings
+                if params.get("figure_composition") == "connected_pair":
+                    anchor_instructions = (
+                        f"\nPAIR IDENTITY ANCHORS — ABSOLUTE: Image 1 is the source for exactly two people's "
+                        f"identity, body ownership, visible clothing, belongings and contact relationship. Images 2 "
+                        f"through {expected_face_count + 1} are identity anchors only; use them for facial identity "
+                        f"and hairline, never for head angle, pose, body, clothes, objects, scene or background. "
+                        f"Render exactly two upright standing figures with straight torsos and heads upright over "
+                        f"their necks. Use a clean solid white seamless background; do not copy Image 1's environment. "
+                        f"No unmatched person from Image 1 may appear."
+                    )
+                else:
+                    anchor_instructions = (
+                        f"\nIDENTITY ANCHORS — ABSOLUTE: Image 1 is the source for the person's identity, body "
+                        f"ownership, visible clothing and belongings; do not copy its environment or background. "
+                        f"Images 2 through {expected_face_count + 1} are identity anchors only; use them for facial "
+                        f"identity and hairline, never for head angle, pose, clothes, objects or background. Render "
+                        f"one upright standing figure on a clean solid white seamless background."
+                    )
             if params.get("validation_mode") == "pet":
                 effective_prompt = build_my3d_pet_prompt()
                 params["prompt_branch"] = "pet"
@@ -611,6 +630,7 @@ async def _do_generation_work(
                     source_context=source_context,
                 )
                 params["prompt_branch"] = "connected_pair"
+                params["prompt_version"] = MY3D_PAIR_PROMPT_VERSION
             else:
                 effective_prompt = build_my3d_direct_prompt(
                     params.get("wardrobe_profile"),
@@ -620,8 +640,20 @@ async def _do_generation_work(
                     source_context=source_context,
                 )
                 params["prompt_branch"] = source_context
+            if params.get("figure_composition") == "connected_pair":
+                for binding in params["identity_anchor_bindings"]:
+                    cx, cy = binding["source_face_center_percent"]
+                    anchor_instructions += (f"\nOWNER BINDING: Output person {binding['person_id']} = Image {binding['reference_image']}; "
+                                            f"its face in Image 1 is centered at x={cx}% from left, y={cy}% from top. "
+                                            "Use ONLY the continuous body/clothes/hands attached to that exact face in its own panel, "
+                                            "never an adjacent, back-facing or faceless interaction partner. Preserve this anchored identity and gender presentation.")
             effective_prompt = f"{effective_prompt}{anchor_instructions}"
-            params["generation_mode"] = "direct_no_gemini"
+            if params.get("validation_mode") != "pet":
+                effective_prompt = append_my3d_human_prompt_audits(
+                    effective_prompt,
+                    connected_pair=params.get("figure_composition") == "connected_pair",
+                )
+            params["generation_mode"] = "direct_gpt_image_2"
             params.setdefault("prompt_version", MY3D_PROMPT_VERSION)
             params["effective_prompt"] = effective_prompt
             params["reference_transport"] = "uploaded_master_direct"
@@ -639,17 +671,10 @@ async def _do_generation_work(
             prompt=effective_prompt,
             input_image_paths=request_images if request_images else None,
             input_image_url=input_image_url,
-            flux_model_variant=flux_model_variant,
             aspect_ratio=aspect_ratio,
-            output_format=output_format,
             seed=seed,
-            art_style=params.get("art_style"),  # 传递艺术风格参数
-            width=params.get("width"),
-            height=params.get("height"),
             size=params.get("size"),
-            sequential_image_generation=params.get("sequential_image_generation"),
-            enhance_prompt=params.get("enhance_prompt", True),
-            task_id=task_id,  # 传递任务ID
+            task_id=task_id,
             provider=provider
         )
         actual_provider = result.get("api_provider", provider)
@@ -658,11 +683,7 @@ async def _do_generation_work(
         params["provider_fallback_attempts"] = result.get("provider_fallback_attempts", [])
         task_manager.update_task(task_id, api_provider=actual_provider)
 
-        # 处理seed逻辑差异 - Gemini不返回实际使用的seed
         extracted_seed = result.get("extracted_seed")
-        if provider in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
-            # Gemini自己生成seed，我们记录用户输入的seed
-            extracted_seed = seed
 
         # 如果存在 output_for_json 字段，则用它替换 output 字段以进行保存
         result_to_save = result.copy()

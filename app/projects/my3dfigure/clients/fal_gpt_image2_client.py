@@ -1,6 +1,5 @@
 """My3dFigure-local Fal GPT Image 2 fallback client."""
 
-import asyncio
 import base64
 import mimetypes
 import os
@@ -21,12 +20,13 @@ class FalGPTImage2Client:
             raise ValueError("FAL_API_KEY not found in environment variables")
         self.model_id = APIConfig.FAL_GPT_IMAGE2_MODEL_ID
         self.quality = APIConfig.FAL_GPT_IMAGE2_QUALITY
+        self._fal_client = fal_client.AsyncClient(key=self.api_key)
 
     async def _upload_local_image(self, image_path: str) -> str:
         if not os.path.exists(image_path):
             raise ValueError(f"Image file not found: {image_path}")
         try:
-            return await asyncio.to_thread(fal_client.upload_file, image_path)
+            return await self._fal_client.upload_file(image_path)
         except Exception:
             mime_type, _ = mimetypes.guess_type(image_path)
             mime_type = mime_type or "image/jpeg"
@@ -62,6 +62,9 @@ class FalGPTImage2Client:
 
     async def generate_image(self, prompt: str, input_image_paths=None, input_image_url=None,
                              seed=None, aspect_ratio=None, size=None, **kwargs) -> dict:
+        prompt_length = len(prompt or '')
+        if prompt_length > 32000:
+            raise ValueError(f'Fal GPT Image 2 prompt exceeds the 32000-character limit ({prompt_length} characters).')
         image_urls = await self._prepare_image_urls(input_image_paths, input_image_url)
         if not image_urls:
             raise ValueError("GPT Image 2 Fal.ai 模型需要至少一个参考图像。")
@@ -72,12 +75,11 @@ class FalGPTImage2Client:
             "image_size": image_size,
             "quality": self.quality,
             "num_images": 1,
-            "output_format": "png",
         }
         if seed is not None:
             arguments["seed"] = seed
-        handler = await asyncio.to_thread(fal_client.submit, self.model_id, arguments)
-        result = await asyncio.to_thread(handler.get)
+        handler = await self._fal_client.submit(self.model_id, arguments)
+        result = await handler.get()
         if not isinstance(result, dict) or not result.get("images"):
             raise ValueError("Fal.ai GPT Image 2 API 未返回有效图像")
         image = result["images"][0]

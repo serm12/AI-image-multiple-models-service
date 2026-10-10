@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Iterable
 
 import cv2
@@ -54,6 +55,19 @@ def create_face_identity_anchors(
         path = os.path.join(output_dir, f"identity_anchor_{index}.png")
         if not cv2.imwrite(path, crop):
             continue
+        orientation = {
+            "applied": False,
+            "purpose": "identity_only_not_source_pose",
+            "reason": "identity_anchor_rotation_removed",
+            "master_modified": False,
+            "source_pose_classified": False,
+        }
+        orientation["crop_bounds_xyxy"] = [left, top, right, bottom]
+        try:
+            with open(os.path.join(output_dir, f"identity_anchor_{index}_orientation.json"), "w", encoding="utf-8") as evidence:
+                json.dump(orientation, evidence, ensure_ascii=False, indent=2)
+        except OSError:
+            pass  # Optional orientation diagnostics must not reject an existing anchor.
         paths.append(path)
     return paths
 

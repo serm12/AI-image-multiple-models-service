@@ -4192,7 +4192,7 @@ def _has_occlusion_suspect_geometry(face) -> bool:
 _HUMAN_QUALITY_CODES = frozenset({
     "FACE_TOO_SMALL", "FACE_INCOMPLETE", "FACE_TOO_DARK",
     "FACE_UNRECOGNIZABLE", "FACE_OCCLUDED", "FACE_BLURRY",
-    "FACE_OVEREXPOSED", "FACE_NOT_FRONTAL", "FACE_TILTED",
+    "FACE_OVEREXPOSED", "FACE_NOT_FRONTAL",
 })
 _HUMAN_TECHNICAL_CODES = frozenset({"IMAGE_READ_ERROR", "FACE_DETECTION_FAILED"})
 
@@ -4371,11 +4371,6 @@ def _apply_human_face_requirement(evidence: dict, expected_face_count: int, loca
     else:
         code = result.get("code")
         confirmed = set(result.get("confirmed_quality_issues", ())) & _HUMAN_QUALITY_CODES
-        # Repeated instances of one problem are still one reason. Orientation
-        # labels describe the same family, not two independent quality defects.
-        if "FACE_TILTED" in confirmed:
-            confirmed.discard("FACE_TILTED")
-            confirmed.add("FACE_NOT_FRONTAL")
         if len(confirmed) >= 2:
             code = "NO_FACE"
         elif code not in _HUMAN_QUALITY_CODES | {"NO_FACE", "NON_HUMAN_FACE"}:

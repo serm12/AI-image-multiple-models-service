@@ -6,12 +6,20 @@ import numpy as np
 from . import evidence, quality
 
 
-def recover(image: np.ndarray, detector, present: list[list[float]]) -> list[list[float]]:
+def recover(
+    image: np.ndarray,
+    detector,
+    present: list[list[float]],
+    *,
+    issues: list[str] | None = None,
+    issue_support: list[float] | None = None,
+    issue_boxes: list[list[float]] | None = None,
+) -> list[list[float]]:
     height, width = image.shape[:2]
-    detections, keypoints = detector.detect(image, det_thresh=0.15)
+    detections, keypoints = detector.detect(image, det_thresh=0.05)
     recovered = []
     for (left, top, right, bottom, score), points in zip(detections, keypoints):
-        if not (0.15 <= score < 0.5):
+        if not (0.05 <= score < 0.5):
             continue
         boundary = left < 0 or top < 0 or right > width or bottom > height
         if not boundary and len(present) < 2:
@@ -30,7 +38,26 @@ def recover(image: np.ndarray, detector, present: list[list[float]]) -> list[lis
         details = candidate["features"]
         if details["visible"] == 0:
             continue
+        has_visible_landmark, sufficiently_visible = quality.partial_landmark_state(
+            image.shape, candidate
+        )
         initial_quality = quality.quality(candidate)
+        if (has_visible_landmark and not sufficiently_visible
+                and initial_quality in (None, "FACE_INCOMPLETE")
+                and quality.should_mark_partial_face_incomplete(candidate)):
+            if issues is not None:
+                issues.append("FACE_INCOMPLETE")
+            if issue_support is not None:
+                issue_support.append(float(score))
+            if issue_boxes is not None:
+                issue_boxes.append(list(candidate["box"]))
+        if (sufficiently_visible and score >= 0.35
+                and details["native_lap"] >= 100):
+            x1, y1 = max(0.0, float(left)), max(0.0, float(top))
+            x2, y2 = min(float(width), float(right)), min(float(height), float(bottom))
+            if x2 > x1 and y2 > y1:
+                recovered.append([x1, y1, x2 - x1, y2 - y1])
+            continue
         if boundary and initial_quality:
             continue
         if not boundary and initial_quality != "FACE_TOO_SMALL":

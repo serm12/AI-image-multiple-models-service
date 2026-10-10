@@ -117,7 +117,8 @@ def _local_observations(image,candidate,detector,angles=(0,),size=320,enhance=Fa
                 lab[:,:,0]=cv2.createCLAHE(clipLimit=2.,tileGridSize=(4,4)).apply(lab[:,:,0])
                 view=cv2.cvtColor(lab,cv2.COLOR_LAB2BGR)
             inverse=cv2.invertAffineTransform(matrix)
-            boxes,points=detector.detect(view,input_size=None if size==640 else (size,size),det_thresh=.15)
+            detect_view = getattr(detector, 'detect_generated_view', detector.detect)
+            boxes,points=detect_view(view,input_size=None if size==640 else (size,size),det_thresh=.15)
             matches=[]
             for (left,top,right,bottom,score),landmarks in zip(boxes,points):
                 corners=np.array([[left,top,1],[right,top,1],[left,bottom,1],[right,bottom,1]])@inverse.T

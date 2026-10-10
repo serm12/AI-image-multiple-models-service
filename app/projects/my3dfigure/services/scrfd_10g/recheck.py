@@ -81,10 +81,30 @@ def _distinct_local_confirmation(image, candidate, detector, established):
 
 
 def local_observations(image,candidate,detector,angles=(0,),size=320,enhance=False):
+    if not hasattr(detector, 'local_observation_get'):
+        return _local_observations(image,candidate,detector,angles,size,enhance)
+    f = candidate['features']
+    geometry = (tuple(map(float,candidate['box'])),
+                tuple(map(float,np.asarray(candidate['points']).ravel())),
+                float(f['visible']),float(f['eye_span']),size,enhance)
+    source_key = detector.evidence_key('local_observations:exact-view:v2',image,geometry)
+    observed = []
+    for angle in angles:
+        for factor in (1.6,2.3,3.2):
+            key = (source_key, (angle,str(angle)), (factor,str(factor)))
+            result = detector.local_observation_get(key)
+            if result is None:
+                result = _local_observations(image,candidate,detector,(angle,),size,enhance,factors=(factor,))
+                detector.local_observation_put(key,result)
+            observed.extend(result)
+    return observed
+
+
+def _local_observations(image,candidate,detector,angles=(0,),size=320,enhance=False,*,factors=(1.6,2.3,3.2)):
     x,y,width,height=candidate['box'];observations=[]
     center=(x+width/2,y+height/2)
     for angle in angles:
-        for factor in (1.6,2.3,3.2):
+        for factor in factors:
             side=max(64,round(max(width,height)*factor))
             matrix=cv2.getRotationMatrix2D(center,angle,1.)
             matrix[:,2]+=np.array([side/2,side/2])-center
@@ -94,7 +114,8 @@ def local_observations(image,candidate,detector,angles=(0,),size=320,enhance=Fal
                 lab[:,:,0]=cv2.createCLAHE(clipLimit=2.,tileGridSize=(4,4)).apply(lab[:,:,0])
                 view=cv2.cvtColor(lab,cv2.COLOR_LAB2BGR)
             inverse=cv2.invertAffineTransform(matrix)
-            boxes,points=detector.detect(view,input_size=(size,size),det_thresh=.15)
+            detect_view = getattr(detector, 'detect_generated_view', detector.detect)
+            boxes,points=detect_view(view,input_size=(size,size),det_thresh=.15)
             matches=[]
             for (left,top,right,bottom,score),landmarks in zip(boxes,points):
                 corners=np.array([[left,top,1],[right,top,1],[left,bottom,1],[right,bottom,1]])@inverse.T
@@ -187,16 +208,10 @@ def _upper_damage(candidate):
     return y<-.25*h and min(float(p[1]) for p in candidate['points'][:2])<.02*min(w,h)
 
 
-def supports_reassessment(image, detector, present):
-    """Keep established results when a readable edge profile is severely cut.
-
-    A narrow fragment with no confirmation cannot support a broader search or
-    replacement of existing faces. The original quality and recovery stages
-    still run; this only limits the additional reassessment in this module.
-    """
-    if not present:
-        return True
+def _blocking_fragments(image, detector):
+    """Keep the original unsupported edge-fragment test at its own location."""
     height, width = image.shape[:2]
+    fragments = []
     detections, points = detector.detect(image, det_thresh=.1)
     for b, p in zip(detections, points):
         if b[0] >= 0 and b[2] <= width:
@@ -216,8 +231,72 @@ def supports_reassessment(image, detector, present):
             continue
         c['confirm'] = evidence.confirm(image, c, detector)
         if max(c['confirm']) < .2:
-            return False
+            fragments.append(c)
+    return fragments
+
+
+def supports_reassessment(image, detector, present):
+    # One damaged edge fragment cannot exclude intact faces elsewhere.
     return True
+
+
+def _corner_padding_observations(image,candidate,detector):
+    """Keep one same-anchor prediction from each whole-frame padding view."""
+    h,w=image.shape[:2];observations=[]
+    for padding in (.15,.3,.45):
+        matrix=cv2.getRotationMatrix2D((w/2,h/2),0,1.)
+        corners=np.array([[0,0,1],[w,0,1],[0,h,1],[w,h,1]])@matrix.T
+        low,high=corners.min(axis=0),corners.max(axis=0);pad=round(max(h,w)*padding)
+        matrix[:,2]+=-low+pad;vw,vh=np.ceil(high-low+2*pad).astype(int)
+        transformed=cv2.warpAffine(image,matrix,(vw,vh));inverse=cv2.invertAffineTransform(matrix)
+        ds,ks=detector.detect(transformed,input_size=(320,320),det_thresh=.25)
+        matches=[]
+        for d,points in zip(ds,ks):
+            corners=np.array([[d[0],d[1],1],[d[2],d[1],1],[d[0],d[3],1],[d[2],d[3],1]])@inverse.T
+            lo,hi=corners.min(axis=0),corners.max(axis=0)
+            mapped=np.column_stack([points,np.ones(len(points))])@inverse.T
+            c=_candidate(image,[*lo,*(hi-lo)],mapped,d[4],f'proposal:0:0:0:{padding}')
+            if _same_anchor(candidate,c):matches.append(c)
+        if matches:observations.append(max(matches,key=lambda c:c['score']))
+    return observations
+
+
+def _corner_landmark_consensus(image, candidate, source, detector):
+    """Confirm a visible profile when only native corner landmarks collapse."""
+    nf=source['features'];eyes=nf['eyes'][:2]
+    if not (source['box'][0]<0 and source['box'][1]<0
+            and nf['side']>=100 and nf['eye_span']<.13 and nf['mouth_depth']>3):
+        return False
+    # Retain every pixel-damage condition from the original source veto.
+    if (nf['core_p90']<24 or (nf['core_white']>.5 and min(p[0] for p in eyes)>180)
+            or quality.asymmetric_blur(source) or quality.blocky_eye_pixels(source)
+            or (nf['points_inside']>=4 and nf['eye_span']>=.2
+                and min(p[1] for p in eyes)<8 and max(p[1] for p in eyes)>=40
+                and min(p[2] for p in eyes)<5)
+            or source.get('source_reason') is not None or source.get('source_texture')
+            or not _same_anchor(candidate,source)):
+        return False
+    f=candidate['features']
+    if not (f['side']>=120 and f['visible']>=.85 and f['points_inside']>=4
+            and .15<=f['eye_span']<=.55 and .65<=f['mouth_depth']<=2.5
+            and abs(f['nose_side'])<=.85 and f['native_lap']>=30 and f['lap']>=20
+            and min(p[1] for p in f['eyes'][2:4])>=25
+            and min(p[2] for p in f['eyes'][2:4])>=10
+            and not _unrecoverable(candidate)):
+        return False
+    candidate['confirm']=evidence.confirm(image,candidate,detector)
+    if (_unrecoverable(candidate) or _source_quality(candidate) is not None
+            or min(candidate['confirm'])<.5 or max(candidate['confirm'])<.65):
+        return False
+    observed=_corner_padding_observations(image,candidate,detector)
+    same=[c for c in observed if _same_anchor(candidate,c)
+          and c['features'].get('visible',0)>=.6
+          and c['features']['points_inside']>=4
+          and .15<=c['features']['eye_span']<=.55
+          and .65<=c['features']['mouth_depth']<=2.5
+          and abs(c['features']['nose_side'])<=.85
+          and c['features']['native_lap']>=30 and c['features']['lap']>=20]
+    return _agree(same,minimum=.5,maximum=.6) is not None
 
 
 def _source_veto(image,candidate,source,detector):
@@ -262,7 +341,7 @@ def _source_veto(image,candidate,source,detector):
     if nearest['source_reason']=='FACE_TOO_DARK' and nf['p90']<45:return True
     frontal=(nf['eye_span']>=.25 and .5<nf['mouth_depth']<1.8 and abs(nf['nose_side'])<.5)
     if nearest['source_texture'] and frontal:return True
-    if _unrecoverable(nearest):return True
+    if _unrecoverable(nearest) and not _corner_landmark_consensus(image,candidate,nearest,detector):return True
     if _edge_damage(image,nearest):return True
     if (nf['visible']<.8 and nf['eye_span']<.18 and nf['mouth_depth']>2.5
             and max(nearest['confirm'])<.2):return True
@@ -304,6 +383,9 @@ def prune(image,detector,boxes):
         if iou<.35 or not .15<=d[4]<.8:
             kept.append(box);continue
         candidate=_candidate(image,cb,p,d[4],'whole:0')
+        _, visible_partial = quality.partial_landmark_state(image.shape, candidate)
+        if visible_partial and quality.quality(candidate) in (None, 'FACE_INCOMPLETE'):
+            kept.append(box);continue
         if _edge_damage(image,candidate):continue
         candidate['confirm']=evidence.confirm(image,candidate,detector)
         if _upper_damage(candidate) and max(candidate['confirm'])<.2:continue
@@ -480,6 +562,7 @@ def _needs_additional_views(image, detector, candidates, present, anchors):
 
 
 def recover(image,detector,present,anchors=(),*,collect_candidates=False):
+    fragments=_blocking_fragments(image,detector) if present else []
     height,width=image.shape[:2];detections,points=detector.detect(image,det_thresh=.05)
     larger,larger_points=detector.detect(image,input_size=(960,960),det_thresh=.15)
     pools=[(detections,points,'whole:0'),(larger,larger_points,'scale:960')]
@@ -516,6 +599,7 @@ def recover(image,detector,present,anchors=(),*,collect_candidates=False):
         if not f.get('visible') or f['visible']<.4:continue
         if _unrecoverable(candidate):continue
         if _edge_damage(image,candidate):continue
+        if any(evidence.same_location(fragment['box'],candidate['box']) for fragment in fragments):continue
         if _source_veto(image,candidate,source,detector):continue
         if _insufficient_compact_pixels(candidate):continue
         if (f['side']<100 and f['eye_span']<.13 and f['visible']>=.9
@@ -579,6 +663,7 @@ def recover(image,detector,present,anchors=(),*,collect_candidates=False):
         if _unrecoverable(candidate):continue
         if candidate['features']['mouth_depth']<.65:continue
         if _edge_damage(image,candidate):continue
+        if any(evidence.same_location(fragment['box'],candidate['box']) for fragment in fragments):continue
         if _source_veto(image,candidate,source,detector):continue
         if not _source_detail(candidate):continue
         if _represented(candidate,present+recovered):continue

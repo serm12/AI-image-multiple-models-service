@@ -15,7 +15,7 @@ from app.projects.my3dfigure.core.i18n import (
     get_message,
     get_single_face_error_message,
 )
-from . import diagnosis, evidence, graphics, localization, quality, recheck, runtime, views, weak_edges
+from . import fast_inference, diagnosis, evidence, graphics, localization, quality, recheck, runtime, views, weak_edges
 
 _LOGGER = logging.getLogger(__name__)
 _THREAD_LOCAL = threading.local()
@@ -30,11 +30,40 @@ MODEL_PATH = (
 MODEL_SHA256 = "5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91"
 
 
+# Private to 10G: share CPU cores between overlapping requests without
+# changing tensors, weights, thresholds or the detection/quality sequence.
+_REQUEST_LOCK = threading.Lock()
+_ACTIVE_REQUESTS = 0
+
+
+def _begin_request():
+    global _ACTIVE_REQUESTS
+    with _REQUEST_LOCK:
+        _ACTIVE_REQUESTS += 1
+
+
+def _end_request():
+    global _ACTIVE_REQUESTS
+    with _REQUEST_LOCK:
+        _ACTIVE_REQUESTS -= 1
+
+
+def _session_for_load(input_size):
+    with _REQUEST_LOCK:
+        threads = 4 if _ACTIVE_REQUESTS <= 1 else 2
+    return _native_detector(threads)._session_for_input_size(input_size)
+
+
 def _detector():
     active = getattr(_THREAD_LOCAL, "request_detector", None)
     if active is not None:
         return active
-    detector = getattr(_THREAD_LOCAL, "detector", None)
+    return _native_detector(4)
+
+
+def _native_detector(intra_threads):
+    cache_name = "parallel_detector" if intra_threads == 2 else "detector"
+    detector = getattr(_THREAD_LOCAL, cache_name, None)
     if detector is not None:
         return detector
     if not MODEL_PATH.is_file():
@@ -45,13 +74,17 @@ def _detector():
     import onnxruntime as ort
 
     options=ort.SessionOptions()
-    options.intra_op_num_threads=2
+    options.intra_op_num_threads=intra_threads
     options.inter_op_num_threads=1
+    options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+    options.add_session_config_entry("session.inter_op.allow_spinning", "0")
     detector = get_model(str(MODEL_PATH), providers=["CPUExecutionProvider"],sess_options=options)
     if detector is None or not detector.use_kps:
         raise RuntimeError("SCRFD-10G-KPS detector or keypoints unavailable")
     detector.prepare(ctx_id=-1)
-    _THREAD_LOCAL.detector = detector
+    fast_inference.install(detector)
+    detector._my3dfigure_session_for_size = _session_for_load
+    setattr(_THREAD_LOCAL, cache_name, detector)
     return detector
 
 
@@ -72,7 +105,11 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
             "code": "IMAGE_READ_ERROR",
             "message": get_message("IMAGE_READ_ERROR", locale),
         }
+    feature_token = None
+    request_active = False
     try:
+        _begin_request()
+        request_active = True
         _THREAD_LOCAL.request_detector = runtime.RequestDetector(_detector())
         source_height, source_width = image.shape[:2]
         if max(source_height, source_width) > 2000:
@@ -82,12 +119,15 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 (round(source_width * scale), round(source_height * scale)),
                 interpolation=cv2.INTER_AREA,
             )
+        image = _THREAD_LOCAL.request_detector.register_source(image)
+        feature_token = quality.begin_source_features(image)
         detections, keypoints = _detector().detect(image)
         height, width = image.shape[:2]
         factor_x, factor_y = source_width / width, source_height / height
         selected = []
         issues = []
         issue_support = []
+        incomplete_boxes = []
         strongly_turned_away = False
         strongly_motion_blurred = False
         for (left, top, right, bottom, score), points in zip(detections, keypoints):
@@ -113,6 +153,18 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
             if score < 0.8 or reason is not None:
                 candidate["confirm"] = evidence.confirm(image, candidate, _detector())
                 reason = quality.quality(candidate)
+            has_visible_landmark, sufficiently_visible = quality.partial_landmark_state(
+                image.shape, candidate
+            )
+            if sufficiently_visible and reason == "FACE_INCOMPLETE":
+                reason = None
+            if (has_visible_landmark and not sufficiently_visible
+                    and reason in (None, "FACE_INCOMPLETE")
+                    and quality.should_mark_partial_face_incomplete(candidate)):
+                issues.append("FACE_INCOMPLETE")
+                issue_support.append(max(candidate["confirm"]))
+                incomplete_boxes.append(list(candidate["box"]))
+                continue
             if (score >= 0.5 and details["side"] >= 140
                     and details["eye_span"] < 0.08
                     and (abs(details["nose_side"]) > 2
@@ -163,7 +215,7 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 and max(patch[1] for patch in eye_patches) >= 40
                 and min(patch[2] for patch in eye_patches) < 5
             )
-            if weak_landmarks or one_eye_flat:
+            if weak_landmarks or (one_eye_flat and not sufficiently_visible):
                 if reason is not None:
                     issues.append(reason)
                     issue_support.append(max(candidate["confirm"]))
@@ -181,15 +233,15 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 continue
             if quality.blocky_eye_pixels(candidate):
                 continue
-            if score < 0.55 and min(candidate["confirm"]) < 0.5:
+            if score < 0.55 and min(candidate["confirm"]) < 0.5 and not sufficiently_visible:
                 continue
-            if score < 0.75 and max(candidate["confirm"]) < 0.5:
+            if score < 0.75 and max(candidate["confirm"]) < 0.5 and not sufficiently_visible:
                 continue
             if reason is not None:
                 issues.append(reason)
                 issue_support.append(max(candidate["confirm"]))
                 continue
-            if evidence.inconsistent_texture(image, candidate, _detector()):
+            if not sufficiently_visible and evidence.inconsistent_texture(image, candidate, _detector()):
                 continue
             x1 = max(0.0, min(float(width), float(left)))
             y1 = max(0.0, min(float(height), float(top)))
@@ -201,12 +253,35 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 "source_candidate": candidate,
             })
         accepted = graphics.filter_candidates(image, selected)
+        if incomplete_boxes:
+            # A second, tighter proposal for the same clipped face can pass
+            # the ordinary quality gate. Do not let it restore a face already
+            # rejected as incomplete from the primary detector pass.
+            accepted = [
+                candidate for candidate in accepted
+                if not any(
+                    evidence._overlap_smaller(candidate["box"], incomplete) >= 0.45
+                    for incomplete in incomplete_boxes
+                )
+            ]
         working_boxes = [candidate["box"] for candidate in accepted]
         primary_count = len(working_boxes)
+        accepted_primary_boxes = [list(box) for box in working_boxes]
         if primary_count <= 1:
-            working_boxes.extend(views.recover(image, _detector(), working_boxes))
+            recovered_views = views.recover(image, _detector(), working_boxes)
+            if primary_count == 0 and incomplete_boxes:
+                recovered_views = [
+                    box for box in recovered_views
+                    if not any(evidence._overlap_smaller(box, incomplete) >= 0.25
+                               for incomplete in incomplete_boxes)
+                ]
+            working_boxes.extend(recovered_views)
         if primary_count >= 2 or (primary_count == 0 and not working_boxes):
-            working_boxes.extend(weak_edges.recover(image, _detector(), working_boxes))
+            working_boxes.extend(weak_edges.recover(
+                image, _detector(), working_boxes,
+                issues=issues, issue_support=issue_support,
+                issue_boxes=incomplete_boxes,
+            ))
         reassess = recheck.supports_reassessment(image, _detector(), working_boxes)
         new_faces = []
         if reassess:
@@ -227,6 +302,31 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                     working_boxes[index] = [x1, y1, x2 - x1, y2 - y1]
         if reassess:
             working_boxes = recheck.prune(image, _detector(), working_boxes)
+        for candidate in accepted:
+            index = next((i for i, box in enumerate(working_boxes)
+                          if box is candidate["box"]), None)
+            if index is None:
+                continue
+            original = candidate["source_candidate"]["box"]
+            refined = localization.refine_after_prune(image, candidate["source_candidate"], _detector())
+            if refined != original:
+                x, y, face_width, face_height = refined
+                x1, y1 = max(0.0, x), max(0.0, y)
+                x2, y2 = min(float(width), x + face_width), min(float(height), y + face_height)
+                if x2 > x1 and y2 > y1:
+                    working_boxes[index] = [x1, y1, x2 - x1, y2 - y1]
+        if primary_count == 0 and incomplete_boxes:
+            # A noisy border fragment must not suppress a separately
+            # quality-validated recheck face in the same image.
+            validated_recheck_box_ids = {id(candidate["box"]) for candidate in new_faces}
+            working_boxes = [
+                box for box in working_boxes
+                if not any(
+                    evidence._overlap_smaller(box, incomplete)
+                    >= (0.45 if id(box) in validated_recheck_box_ids else 0.25)
+                    for incomplete in incomplete_boxes
+                )
+            ]
         for candidate in new_faces:
             index = next((i for i, box in enumerate(working_boxes)
                           if box is candidate["box"]), None)
@@ -240,6 +340,8 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 x2, y2 = min(float(width), x + face_width), min(float(height), y + face_height)
                 if x2 > x1 and y2 > y1:
                     working_boxes[index] = [x1, y1, x2 - x1, y2 - y1]
+        representative_index = max(range(len(working_boxes)), key=lambda i: working_boxes[i][2] * working_boxes[i][3], default=None)
+        working_boxes = localization.refine_final_boxes(image, working_boxes, accepted + new_faces, _detector())
         boxes = [[x * factor_x, y * factor_y, box_width * factor_x,
                   box_height * factor_y] for x, y, box_width, box_height in working_boxes]
         if boxes:
@@ -247,7 +349,7 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
                 "valid": True,
                 "usable_face_count": len(boxes),
                 "usable_face_boxes": boxes,
-                "face": max(boxes, key=lambda box: box[2] * box[3]),
+                "face": boxes[representative_index],
                 "img_size": (source_width, source_height),
             }
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -286,7 +388,13 @@ def analyze_human_faces(image_path: str, locale: str | None = None) -> dict:
             "message": get_message("FACE_DETECTION_FAILED", locale),
         }
     finally:
-        _THREAD_LOCAL.request_detector = None
+        try:
+            if feature_token is not None:
+                quality.end_source_features(feature_token)
+        finally:
+            _THREAD_LOCAL.request_detector = None
+            if request_active:
+                _end_request()
 
 
 def evaluate_human_face_analysis(

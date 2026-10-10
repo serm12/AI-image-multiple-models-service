@@ -82,6 +82,21 @@ class RequestDetector:
         pixels = self._pixels_digest(image)
         return namespace, image.shape, pixels, geometry
 
+    def detect_generated_view(self, image, input_size=None, det_thresh=None):
+        """Avoid hashing large one-use local views; retain identical inference.
+
+        local_observations already memoizes each source/geometry/angle/factor.
+        This removes only the optional full-image memo for large generated
+        views. Smaller views retain its cheap reuse; no detection is skipped.
+        """
+        if image.nbytes <= 4 * 1024 * 1024:
+            return self.detect(image, input_size=input_size, det_thresh=det_thresh)
+        threshold = self.detector.det_thresh if det_thresh is None else float(det_thresh)
+        boxes, points = self.detector.detect(
+            image, input_size=input_size, det_thresh=min(.05, threshold))
+        keep = boxes[:, 4] >= threshold
+        return boxes[keep].copy(), points[keep].copy()
+
     def detect(self, image, input_size=None, max_num=0, metric='default', det_thresh=None):
         threshold = self.detector.det_thresh if det_thresh is None else float(det_thresh)
         if max_num:

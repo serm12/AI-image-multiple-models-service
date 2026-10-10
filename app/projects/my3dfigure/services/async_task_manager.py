@@ -143,20 +143,6 @@ class AsyncTaskManager:
 # 全局任务管理器实例
 task_manager = AsyncTaskManager(max_concurrent=AppConfig.MAX_CONCURRENT_TASKS)
 
-# 辅助函数
-async def create_and_run_task(task_id: str, coro, **task_kwargs):
-    """创建并运行任务的便捷函数"""
-    task_manager.create_task(task_id, **task_kwargs)
-    return await task_manager.execute_with_concurrency_limit(task_id, coro)
-
-def get_task_status(task_id: str) -> Optional[Dict[str, Any]]:
-    """获取任务状态的便捷函数"""
-    return task_manager.get_task(task_id)
-
-def get_system_stats() -> Dict[str, Any]:
-    """获取系统统计信息"""
-    return task_manager.get_statistics()
-
 # 测试功能
 async def test_task_manager():
     """测试任务管理器"""

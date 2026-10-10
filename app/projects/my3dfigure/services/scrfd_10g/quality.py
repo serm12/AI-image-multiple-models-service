@@ -4,10 +4,91 @@ This module is independent of the YuNet and BlazeFace runtime pipelines.
 """
 from __future__ import annotations
 
+import copy
+from collections import OrderedDict
+from contextvars import ContextVar
+
 import cv2
 import numpy as np
 
+
+# The context and all cached statistics belong to this analysis request only.
+_SOURCE_FEATURES = ContextVar('source_features', default=None)
+
+
+def begin_source_features(image):
+    return _SOURCE_FEATURES.set((image, (image.dtype.str, image.shape, image.strides), OrderedDict()))
+
+
+def end_source_features(token):
+    _SOURCE_FEATURES.reset(token)
+
+
 def features(image, candidate):
+    context = _SOURCE_FEATURES.get()
+    if (context is None or image is not context[0] or image.flags.writeable
+            or (image.dtype.str, image.shape, image.strides) != context[1]):
+        return _features_uncached(image, candidate)
+    box = candidate['box']
+    points = np.asarray(candidate['points'])
+    if (len(box) != 4 or points.shape != (5, 2)
+            or not all(type(v) is float for v in box) or points.dtype.hasobject
+            or points.dtype.fields is not None or points.dtype.kind not in 'fiu'):
+        return _features_uncached(image, candidate)
+    key = (tuple(v.hex() for v in box), points.dtype.str, points.shape, points.tobytes())
+    cache = context[2]
+    cached = cache.get(key)
+    if cached is not None:
+        cache.move_to_end(key)
+        return copy.deepcopy(cached)
+    result = _features_uncached(image, candidate)
+    # Fixed-schema source features have bounded size; never store view frames,
+    # caller candidates or mutable returned dictionaries in the memo.
+    if len(cache) >= 256:
+        cache.popitem(last=False)
+    cache[key] = copy.deepcopy(result)
+    return result
+
+
+# Geometry-only plans for the three fixed quality patches; no image data.
+_PERCENTILE_PLANS = {}
+for _shape, _qs in (((160, 160), (10, 50, 90)), ((32, 32), (5, 10, 90)), ((83, 122), (90,))):
+    _index = (int(np.prod(_shape)) - 1) * (np.asarray(_qs, dtype=np.float64) / 100)
+    _lower = np.floor(_index).astype(np.intp)
+    _upper = np.minimum(_lower + 1, int(np.prod(_shape)) - 1)
+    _PERCENTILE_PLANS[(_shape, _qs)] = (_lower, _upper, _index - _lower)
+del _shape, _qs, _index, _lower, _upper
+
+
+def _pixel_percentile(image, q):
+    qs = (q,) if isinstance(q, (int, float)) else tuple(q)
+    plan = _PERCENTILE_PLANS.get((image.shape, qs))
+    if type(image) is not np.ndarray or image.dtype != np.uint8 or plan is None:
+        return np.percentile(image, q)
+    # At most 25,600 integer pixels: float32 histogram counts are exact.
+    histogram = cv2.calcHist([image], [0], None, [256], [0, 256])
+    cumulative = histogram.cumsum(dtype=np.int64)
+    lower, upper, gamma = plan
+    a = np.searchsorted(cumulative, lower, side='right').astype(np.float64)
+    b = np.searchsorted(cumulative, upper, side='right').astype(np.float64)
+    delta = b - a
+    values = np.where(gamma >= .5, b - delta * (1 - gamma), a + delta * gamma)
+    return values[0] if isinstance(q, (int, float)) else values
+
+
+def _channel_range(roi):
+    """Exact uint8 channel extrema, without per-pixel NumPy reductions."""
+    if roi.dtype == np.uint8 and roi.ndim == 3 and roi.shape[2] == 3:
+        blue, green, red = cv2.split(roi)
+        high = cv2.max(cv2.max(blue, green), red)
+        low = cv2.min(cv2.min(blue, green), red)
+        # high >= low: saturated subtraction equals uint8 subtraction exactly.
+        return cv2.subtract(high, low)
+    return (roi.max(axis=2) - roi.min(axis=2) if roi.dtype == np.uint8
+            else roi.max(axis=2).astype(float) - roi.min(axis=2))
+
+
+def _features_uncached(image, candidate):
     h, w = image.shape[:2]
     x, y, bw, bh = candidate['box']
     left, top = (min(w, max(0, int(x))), min(h, max(0, int(y))))
@@ -17,11 +98,12 @@ def features(image, candidate):
         return {'visible': 0}
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     norm = cv2.resize(gray, (160, 160), interpolation=cv2.INTER_AREA if min(gray.shape) > 160 else cv2.INTER_CUBIC)
-    p = np.percentile(norm, [10, 50, 90])
+    p = _pixel_percentile(norm, [10, 50, 90])
     core = norm[29:112, 19:141]
     energies = []
+    gray_float = gray.astype(np.float32)
     for axis in (0, 1):
-        energy = np.abs(np.diff(gray.astype(np.float32), axis=axis)).sum(axis=1 - axis)
+        energy = np.abs(np.diff(gray_float, axis=axis)).sum(axis=1 - axis)
         energies.append(float(np.sort(energy)[-max(1, len(energy) // 10):].sum() / max(float(energy.sum()), 1)))
     points = np.array(candidate['points'])
     eyes = points[:2]
@@ -32,18 +114,33 @@ def features(image, candidate):
         down = -down
     patches = []
     patch_gradients = []
-    for px, py in points[:4]:
+    landmark_patches = []
+    landmark_outside = [not (0 <= px < w and 0 <= py < h) for px, py in points[:5]]
+    needs_partial_landmarks = (
+        x < 0 or y < 0 or x + bw > w or y + bh > h or any(landmark_outside)
+    )
+    for index, (px, py) in enumerate(points[:5]):
+        if index == 4 and not needs_partial_landmarks:
+            break
         radius = max(3, round(min(bw, bh) * 0.09))
         patch = image[min(h, max(0, round(py) - radius)):max(0, min(h, round(py) + radius)), min(w, max(0, round(px) - radius)):max(0, min(w, round(px) + radius))]
         if not patch.size:
-            patches.append([0.0, 0.0, 0.0])
-            patch_gradients.append([0.0, 0.0])
+            metrics = [0.0, 0.0, 0.0]
+            if len(landmark_patches) < 4:
+                patches.append(metrics)
+                patch_gradients.append([0.0, 0.0])
+            landmark_patches.append(metrics)
             continue
         patch = cv2.cvtColor(patch, cv2.COLOR_BGR2GRAY)
         patch = cv2.resize(patch, (32, 32), interpolation=cv2.INTER_AREA)
-        patches.append([float(np.percentile(patch, 5)), float(np.percentile(patch, 90) - np.percentile(patch, 10)), float(cv2.Laplacian(patch, cv2.CV_64F).var())])
-        patch_gradients.append([float(cv2.Sobel(patch, cv2.CV_64F, 1, 0).var()), float(cv2.Sobel(patch, cv2.CV_64F, 0, 1).var())])
-    return {'visible': float(gray.size / max(1, bw * bh)), 'side': float(min(bw, bh)), 'p10': float(p[0]), 'p50': float(p[1]), 'p90': float(p[2]), 'lap': float(cv2.Laplacian(norm, cv2.CV_64F).var()), 'native_lap': float(cv2.Laplacian(gray, cv2.CV_64F).var()), 'sx': float(cv2.Sobel(core, cv2.CV_64F, 1, 0).var()), 'sy': float(cv2.Sobel(core, cv2.CV_64F, 0, 1).var()), 'white': float((norm >= 245).mean()), 'eyes': patches, 'patch_gradients': patch_gradients, 'gray_fraction': float((roi.max(axis=2).astype(float) - roi.min(axis=2) <= 10).mean()), 'core_p90': float(np.percentile(core, 90)), 'core_white': float((core >= 245).mean()), 'block': energies, 'eye_span': float(span / max(bw, bh, 1)), 'mouth_depth': float(np.dot(points[3] - eyes.mean(axis=0), down) / max(span, 1)), 'nose_side': float(np.dot(points[2] - eyes.mean(axis=0), unit) / max(span, 1)), 'points_inside': sum((0 <= px < w and 0 <= py < h for px, py in points[:4]))}
+        patch_levels = _pixel_percentile(patch, [5, 10, 90])
+        metrics = [float(patch_levels[0]), float(patch_levels[2] - patch_levels[1]), float(cv2.Laplacian(patch, cv2.CV_64F).var())]
+        landmark_patches.append(metrics)
+        if len(patches) < 4:
+            patches.append(metrics)
+            patch_gradients.append([float(cv2.Sobel(patch, cv2.CV_64F, 1, 0).var()), float(cv2.Sobel(patch, cv2.CV_64F, 0, 1).var())])
+    color_range = _channel_range(roi)
+    return {'visible': float(gray.size / max(1, bw * bh)), 'side': float(min(bw, bh)), 'extent_fraction': float(bw * bh / max(1, w * h)), 'landmark_outside': landmark_outside, 'p10': float(p[0]), 'p50': float(p[1]), 'p90': float(p[2]), 'lap': float(cv2.Laplacian(norm, cv2.CV_64F).var()), 'native_lap': float(cv2.Laplacian(gray, cv2.CV_64F).var()), 'sx': float(cv2.Sobel(core, cv2.CV_64F, 1, 0).var()), 'sy': float(cv2.Sobel(core, cv2.CV_64F, 0, 1).var()), 'white': float((norm >= 245).mean()), 'eyes': patches, 'patch_gradients': patch_gradients, 'landmark_patches': landmark_patches, 'gray_fraction': float((color_range <= 10).mean()), 'core_p90': float(_pixel_percentile(core, 90)), 'core_white': float((core >= 245).mean()), 'block': energies, 'eye_span': float(span / max(bw, bh, 1)), 'mouth_depth': float(np.dot(points[3] - eyes.mean(axis=0), down) / max(span, 1)), 'nose_side': float(np.dot(points[2] - eyes.mean(axis=0), unit) / max(span, 1)), 'points_inside': sum((0 <= px < w and 0 <= py < h for px, py in points[:4]))}
 
 def quality(c):
     """Reject strong source-pixel defects while preserving readable dark faces.
@@ -183,3 +280,156 @@ def blocky_eye_pixels(candidate):
         and min(p[1] for p in eyes) > 180
         and min(p[2] for p in eyes) > 500
     )
+
+
+def partial_landmark_state(image_shape, candidate):
+    """Return whether a truncated weak face has reliable visible landmarks.
+
+    SCRFD's five points remain useful when the full face proposal is too weak
+    to count. Local source pixels reject tiny texture boxes and landmarks that
+    land on flat/background regions.
+    """
+    height, width = image_shape[:2]
+    x, y, box_width, box_height = candidate["box"]
+    truncated = (
+        x < 0 or y < 0 or x + box_width > width or y + box_height > height
+        or any(px < 0 or py < 0 or px >= width or py >= height
+               for px, py in candidate["points"][:5])
+    )
+    details = candidate.get("features") or {}
+    side = details.get("side", min(box_width, box_height))
+    score = candidate.get("score", 0.0)
+    if not truncated or side < 80 or score < 0.05:
+        return False, False
+
+    # A slightly virtual box edge does not truncate the facial landmarks.
+    # Keep ordinary, well-contained faces in a broader scene on their
+    # existing quality path; diagnose materially cropped proposals below.
+    if (not any(details.get("landmark_outside", []))
+            and details.get("visible", 0) >= .85
+            and details.get("extent_fraction", 1) < .4):
+        return False, False
+
+    landmarks = np.asarray(candidate["points"][:5], dtype=float)
+    metrics = details.get("landmark_patches", [])
+    if len(metrics) < 5:
+        return False, False
+
+    eye_margin = .25 * float(np.linalg.norm(landmarks[1] - landmarks[0]))
+    effective_outside = list(details.get("landmark_outside", [False] * 5))
+    visible_support = []
+    fragment_support = []
+    for index, ((px, py), (low, contrast, sharpness)) in enumerate(zip(landmarks, metrics)):
+        if not (1.0 <= px < width - 1.0 and 1.0 <= py < height - 1.0):
+            visible_support.append(False)
+            fragment_support.append(False)
+            continue
+        if index < 2:
+            if not (eye_margin <= px < width - eye_margin):
+                effective_outside[index] = True
+                visible_support.append(False)
+                fragment_support.append(low >= 35 and contrast >= 40 and sharpness >= 80)
+                continue
+            support = low >= 35 and contrast >= 40 and sharpness >= 80
+        else:
+            support = low >= 25 and contrast >= 20 and sharpness >= 10
+            fragment_support.append(support)
+            if index == 2 and not (.035 * side <= px < width - .035 * side):
+                effective_outside[index] = True
+                support = False
+        visible_support.append(support)
+        if index < 2:
+            fragment_support.append(support)
+    details["partial_landmark_support"] = visible_support
+    details["landmark_outside"] = effective_outside
+    details["partial_fragment_support"] = fragment_support
+
+    eye_visible = any(visible_support[:2])
+    both_eyes_visible = all(visible_support[:2])
+    nose_visible = visible_support[2]
+    mouth_visible = any(visible_support[3:5])
+    if not eye_visible and side < 120:
+        return any(fragment_support), False
+    high_quality_context = (side >= 120 and details.get("native_lap", 0) >= 100)
+    enough_to_use = high_quality_context and (
+        (score >= 0.5 and eye_visible and nose_visible and mouth_visible
+         and details.get("visible", 0) >= 0.35
+         and (details.get("visible", 0) >= .4 or details.get("points_inside", 0) >= 3))
+        or (score >= 0.5 and nose_visible
+            and not any(effective_outside[:2])
+            and all(p[0] >= 35 and p[1] >= 40 and p[2] >= 50 for p in metrics[:2])
+            and details.get("visible", 0) >= 0.65)
+        or (score >= 0.28 and eye_visible and mouth_visible
+            and (details.get("visible", 0) >= 0.45
+                 or (details.get("extent_fraction", 1) < .5
+                     and details.get("visible", 0) >= .4)))
+        or (score >= 0.6 and side >= 200 and eye_visible and mouth_visible
+            and details.get("visible", 0) >= 0.4
+            and details.get("native_lap", 0) >= 200)
+    )
+    # The visible nasal bridge may stop just before the model's nose-tip
+    # point. Require both whole eyes and real texture at that boundary.
+    nose_patch = metrics[2]
+    bridge_visible = (both_eyes_visible and score >= .65 and side >= 120
+        and details.get("visible", 0) >= .5 and high_quality_context
+        and landmarks[2, 1] >= height
+        and landmarks[2, 1] - height <= .09 * side
+        and 0 <= landmarks[2, 0] < width
+        and nose_patch[0] >= 25 and nose_patch[1] >= 25 and nose_patch[2] >= 5)
+    return any(fragment_support), enough_to_use or bridge_visible
+
+def should_mark_partial_face_incomplete(candidate):
+    """Require a recognizable but materially truncated feature pattern."""
+    details = candidate.get("features") or {}
+    support = details.get("partial_fragment_support", details.get("partial_landmark_support", []))
+    if len(support) < 5:
+        return False
+    # Stable native eye detail can survive a cropped lower face even when
+    # the model projects its nose and mouth below the image boundary.
+    patches = details.get("landmark_patches", [])
+    if (candidate.get("score", 0) >= .5
+            and min(candidate.get("confirm", [0])) >= .7
+            and details.get("points_inside", 0) >= 2
+            and all(details.get("landmark_outside", [False] * 5)[3:5])
+            and details.get("native_lap", 0) >= 20
+            and len(patches) >= 2
+            and all(p[0] >= 35 and p[1] >= 40 and p[2] >= 50 for p in patches[:2])):
+        return False
+    eye_count = sum(bool(value) for value in support[:2])
+    nose = bool(support[2])
+    mouth_count = sum(bool(value) for value in support[3:5])
+    extent = details.get("extent_fraction", 0)
+    visible = details.get("visible", 0)
+    score = candidate.get("score", 0)
+    outside = details.get("landmark_outside", [False] * 5)
+    other_feature_visible = bool(nose or mouth_count)
+    visible_eye_fragment = (
+        eye_count > 0 and any(outside[:2]) and extent >= 0.09 and score >= 0.05
+        and (score >= 0.12 or nose or (extent <= 0.2 and details.get("native_lap", 0) >= 100))
+    )
+    dominant_fragment = extent >= 1.0 and eye_count >= 2 and any(outside) and score >= 0.08
+    upper_face_fragment = (
+        eye_count > 0 and 0.1 <= score < 0.6 and extent >= 0.4
+        and (all(outside[2:5]) or (nose and mouth_count == 0 and all(outside[3:5])))
+    )
+    low_score_crop = (
+        score >= 0.05 and visible < 0.32 and mouth_count > 0
+        and (nose or extent >= 0.75)
+    )
+    compact_nose_mouth = (
+        nose and mouth_count > 0 and score >= 0.09
+        and extent <= 1.0 and visible < 0.4
+    )
+    clearer_crop = (
+        nose and mouth_count > 0 and score >= 0.11
+        and extent <= 2.0 and visible >= 0.4
+    )
+    lower_feature_crop = (
+        eye_count == 0 and all(outside[:2]) and other_feature_visible
+        and extent >= 0.15
+        and (score >= 0.18 or low_score_crop or compact_nose_mouth or clearer_crop)
+    )
+    collapsed_partial = (extent >= .4 and score >= .3
+        and details.get("eye_span", 1) < .15 and details.get("mouth_depth", 0) > 2.8
+        and not nose and eye_count > 0 and mouth_count > 0)
+    return visible_eye_fragment or dominant_fragment or upper_face_fragment or lower_feature_crop or collapsed_partial

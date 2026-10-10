@@ -75,8 +75,6 @@ MESSAGES = {
 
         "FACE_NOT_FRONTAL_DOUBLE": "This style requires a clear photo of exactly 2 people. Faces were detected, but at least 1 face is turned too far away to identify the person's appearance. Please upload a clear, unobstructed photo containing exactly 2 people, with both faces fully visible.",
 
-        "FACE_TILTED": "The face is noticeably tilted. Please keep the head upright and look at the camera.",
-
         "FACE_NOT_FRONTAL": "A face was detected, but it is turned too far away to identify the person's appearance. A slight side angle is acceptable if the facial features remain clear.",
 
         "FACE_OCCLUDED": "The face is too heavily covered. Please make sure the eyes and eyebrow area are clearly visible.",
@@ -164,8 +162,6 @@ MESSAGES = {
 
         "FACE_NOT_FRONTAL_DOUBLE": "此款式需要恰好 2 位真人的清晰照片。检测到人脸，但至少一张人脸侧转角度过大，无法辨认人物样貌。请上传恰好包含 2 位真人、两张人脸均清晰无遮挡的照片。",
 
-        "FACE_TILTED": "检测到头部倾斜较明显，请保持头部端正并平视镜头后重拍。",
-
         "FACE_NOT_FRONTAL": "检测到人脸，但侧转角度过大，无法辨认人物样貌。只要五官仍然清楚，轻微侧脸可以通过。",
 
         "FACE_OCCLUDED": "检测到面部遮挡过多，请确保双眼和眉眼区域清晰可见后重拍。",
@@ -250,8 +246,6 @@ SINGLE_FACE_DETAILS = {
 
         "FACE_NOT_FRONTAL": "Facial features are not clear enough due to the viewing angle. Please use a view with clearer facial features. A clear side view is acceptable.",
 
-        "FACE_TILTED": "Head tilt makes facial features difficult to see clearly. Please use a photo with the head upright.",
-
     },
 
     "zh-CN": {
@@ -275,8 +269,6 @@ SINGLE_FACE_DETAILS = {
         "FACE_OVEREXPOSED": "人脸过亮或过曝，面部细节不清楚。请使用光线更柔和、面部没有强光反射的照片。",
 
         "FACE_NOT_FRONTAL": "由于拍摄角度，五官无法清楚辨认。请使用面部更清晰可见的照片；五官清楚的侧脸也可以。",
-
-        "FACE_TILTED": "头部向一侧倾斜过大。请使用头部端正的照片。",
 
     },
 
@@ -350,8 +342,6 @@ DOUBLE_FACE_DETAILS = {
 
         "FACE_NOT_FRONTAL": "Facial features are not clear enough due to the viewing angle. Please use a clearer view of both faces; side views are acceptable if the features are clearly visible.",
 
-        "FACE_TILTED": "Head tilt makes facial features difficult to see clearly. Please upload a photo with both heads upright and both faces clearly visible.",
-
     },
 
     "zh-CN": {
@@ -377,8 +367,6 @@ DOUBLE_FACE_DETAILS = {
         "FACE_OVEREXPOSED": "过强的亮光使面部细节变白、难以看清。请上传光线更柔和、两张人脸均无强光反射的照片。",
 
         "FACE_NOT_FRONTAL": "由于拍摄角度，五官无法清楚辨认。请使用两张脸均更清晰可见的照片；五官清楚的侧脸也可以。",
-
-        "FACE_TILTED": "头部倾斜使面部特征难以看清。请上传两人头部端正、两张人脸均清晰可见的照片。",
 
     },
 
