@@ -5,6 +5,9 @@ uvicorn>=0.15.0
 # 环境变量和配置
 python-dotenv>=0.19.0
 
+# Shopify 官方应用 SDK (import shopify_app)
+shopifyapp==1.0.2
+
 # HTTP客户端
 requests>=2.25.0
 httpx>=0.28.0

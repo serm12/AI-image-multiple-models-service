@@ -1,0 +1,21 @@
+# Paintingify AI Backend — custom distribution.
+# Client secret stays in the backend .env, never in this file.
+client_id = "ac822a9555ca89b362bb52fcbfa81d5b"
+name = "Paintingify AI Backend"
+application_url = "https://image-api.shopupup.com/shopify"
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = false
+
+[access_scopes]
+# Keep synchronized with SHOPIFY_SCOPES in .env and env.example.
+scopes = "read_orders,read_customers,read_files,write_files"
+use_legacy_install_flow = false
+
+[auth]
+# No OAuth callback route has been implemented yet.
+redirect_urls = []
+
+[webhooks]
+api_version = "2026-10"

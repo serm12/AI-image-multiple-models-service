@@ -20,3 +20,7 @@ __pycache__/
 
 # Agent/local metadata
 .claude/
+
+# Shopify CLI local state and Node dependencies
+.shopify/
+node_modules/

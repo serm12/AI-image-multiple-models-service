@@ -1,0 +1,6 @@
+name = "Paintingify FastAPI"
+roles = ["frontend", "backend"]
+webhooks_path = "/shopify/webhooks"
+
+[commands]
+dev = "python scripts/shopify_dev.py"

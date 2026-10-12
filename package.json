@@ -1,0 +1,13 @@
+{
+  "name": "paintingify-ai-backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shopify CLI commands for the existing Python FastAPI backend",
+  "scripts": {
+    "shopify": "shopify",
+    "dev": "shopify app dev",
+    "config:validate": "shopify app config validate --json",
+    "deploy": "shopify app deploy",
+    "dev:python": "python scripts/shopify_dev.py"
+  }
+}

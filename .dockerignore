@@ -22,6 +22,10 @@ venv/
 # Agent/local metadata
 .claude/
 
+# Local Shopify development tools
+.shopify/
+node_modules/
+
 # 运行时数据（通过 volume 挂载，不需要打进镜像）
 tasks/
 logs/
