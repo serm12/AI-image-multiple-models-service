@@ -19,6 +19,7 @@ class UnifiedAPIClient:
         self.replicate_token = replicate_token or APIConfig.REPLICATE_API_TOKEN
         self.gemini_api_key = gemini_api_key or APIConfig.GOOGLE_GEMINI_API_KEY
         self.openrouter_api_key = openrouter_api_key or APIConfig.OPENROUTER_API_KEY
+        self._explicit_aiapiroute_api_key = aiapiroute_api_key
         self.aiapiroute_api_key = aiapiroute_api_key or APIConfig.AIAPIROUTE_API_KEY
 
         # 延迟加载客户端缓存（不再锁定到单一 provider）
@@ -70,27 +71,31 @@ class UnifiedAPIClient:
         return self._seedream_4_replicate_client
 
     def _get_seedream_4_fal_client(self):
-        if self._seedream_4_fal_client is None:
+        key = APIConfig.FAL_API_KEY
+        if self._seedream_4_fal_client is None or self._seedream_4_fal_client.api_key != key:
             from .seedream4_fal_client import Seedream4FalClient
-            self._seedream_4_fal_client = Seedream4FalClient()
+            self._seedream_4_fal_client = Seedream4FalClient(api_key=key)
         return self._seedream_4_fal_client
 
     def _get_seedream_5_pro_fal_client(self):
-        if self._seedream_5_pro_fal_client is None:
+        key = APIConfig.FAL_API_KEY
+        if self._seedream_5_pro_fal_client is None or self._seedream_5_pro_fal_client.api_key != key:
             from .seedream5pro_fal_client import Seedream5ProFalClient
-            self._seedream_5_pro_fal_client = Seedream5ProFalClient()
+            self._seedream_5_pro_fal_client = Seedream5ProFalClient(api_key=key)
         return self._seedream_5_pro_fal_client
 
     def _get_fal_gpt_image2_client(self):
-        if self._fal_gpt_image2_client is None:
+        key = APIConfig.FAL_API_KEY
+        if self._fal_gpt_image2_client is None or self._fal_gpt_image2_client.api_key != key:
             from .fal_gpt_image2_client import FalGPTImage2Client
-            self._fal_gpt_image2_client = FalGPTImage2Client()
+            self._fal_gpt_image2_client = FalGPTImage2Client(api_key=key)
         return self._fal_gpt_image2_client
 
     def _get_aiapiroute_client(self, model: str):
-        if model not in self._aiapiroute_clients:
+        key = self._explicit_aiapiroute_api_key or APIConfig.AIAPIROUTE_API_KEY
+        if model not in self._aiapiroute_clients or self._aiapiroute_clients[model].api_key != key:
             from .aiapiroute_gpt_image2_client import AIApiRouteGPTImageClient
-            self._aiapiroute_clients[model] = AIApiRouteGPTImageClient(self.aiapiroute_api_key, model=model)
+            self._aiapiroute_clients[model] = AIApiRouteGPTImageClient(key, model=model)
         return self._aiapiroute_clients[model]
 
     # ---- 核心路由方法 ----

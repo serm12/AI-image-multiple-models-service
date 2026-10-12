@@ -36,6 +36,8 @@ from app.services.time_settings import effective_timezone, display_timezones
 router.include_router(time_settings_router)
 from app.routers.algorithm_settings import router as algorithm_settings_router
 router.include_router(algorithm_settings_router)
+from app.routers.provider_credentials import router as provider_credentials_router
+router.include_router(provider_credentials_router)
 US_EASTERN_TIMEZONE = ZoneInfo("America/New_York")
 US_PACIFIC_TIMEZONE = ZoneInfo("America/Los_Angeles")
 ADMIN_CONFIG_PREFIXES = (

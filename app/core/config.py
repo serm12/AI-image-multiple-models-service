@@ -61,6 +61,14 @@ class AlgorithmConfig:
         current_year = datetime.now().year
         from app.services.algorithm_settings import factor
         return current_year * factor()
+class _StoredProviderKey:
+    def __init__(self, name, fallback):
+        self.name, self.fallback = name, fallback
+
+    def __get__(self, instance, owner):
+        from app.services.provider_credentials import resolve
+        return resolve(self.name, self.fallback)
+
 # API配置
 class APIConfig:
     IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "seedream-4_replicate").strip() or "seedream-4_replicate"
@@ -81,9 +89,7 @@ class APIConfig:
     OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     
     # Fal.ai 配置
-    FAL_API_KEY = os.getenv("FAL_API_KEY")
-    if FAL_API_KEY:
-        os.environ["FAL_KEY"] = FAL_API_KEY
+    FAL_API_KEY = _StoredProviderKey("FAL_API_KEY", os.getenv("FAL_API_KEY"))
     FAL_GPT_IMAGE2_MODEL_ID = os.getenv("FAL_GPT_IMAGE2_MODEL_ID", "openai/gpt-image-2/edit").strip()
     FAL_GPT_IMAGE2_QUALITY = os.getenv("FAL_GPT_IMAGE2_QUALITY", "medium").strip() or "medium"
     FAL_SEEDREAM5_PRO_MODEL_ID = os.getenv(
@@ -91,7 +97,7 @@ class APIConfig:
     ).strip() or "bytedance/seedream/v5/pro/edit"
 
     # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
-    AIAPIROUTE_API_KEY = os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY")
+    AIAPIROUTE_API_KEY = _StoredProviderKey("AIAPIROUTE_API_KEY", os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY"))
     AIAPIROUTE_BASE_URL = os.getenv("AIAPIROUTE_BASE_URL") or os.getenv("SUB2API_BASE_URL", "https://aiapiroute.com")
     AIAPIROUTE_GPT_IMAGE1_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE1_MODEL", "gpt-image-1")
     AIAPIROUTE_GPT_IMAGE15_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE15_MODEL", "gpt-image-1.5")

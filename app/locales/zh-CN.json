@@ -247,5 +247,13 @@
   "algorithm_save": "保存算法设置",
   "algorithm_saved": "已保存，后续生成文件名将使用此数值。",
   "algorithm_error": "操作失败，请检查数字后重试。",
-  "algorithm_preview": "计算结果"
+  "algorithm_preview": "计算结果",
+  "keys_title": "图片生成密钥",
+  "keys_help": "管理 AIAPIROUTE 和 FAL 的 API Key。留空保留现有密钥；替换后用于后续生成请求。",
+  "keys_configured": "已配置（密钥已隐藏）",
+  "keys_missing": "未配置",
+  "keys_placeholder": "输入新密钥以替换，留空不修改",
+  "keys_save": "保存密钥",
+  "keys_saved": "已保存，密钥不会在页面回显。",
+  "keys_error": "密钥设置操作失败，请检查输入或稍后重试。"
 }

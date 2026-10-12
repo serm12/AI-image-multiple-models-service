@@ -36,7 +36,7 @@ class Seedream5ProFalClientTests(unittest.TestCase):
         with patch.object(APIConfig, "FAL_API_KEY", "test-key"):
             client = Seedream5ProFalClient()
         with patch.object(client, "_upload_local_image", AsyncMock(return_value="https://example.test/source.jpg")):
-            with patch("app.clients.seedream5pro_fal_client.fal_client.submit", return_value=handler) as submit:
+            with patch.object(type(client.fal), "submit", return_value=handler) as submit:
                 result = asyncio.run(client.generate_image(
                     prompt="paint the supplied portrait",
                     input_image_paths=["portrait.jpg"],

@@ -27,7 +27,7 @@ class FalGPTImage2Client:
         if not self.api_key:
             raise ValueError("FAL_API_KEY not found in environment variables")
 
-        os.environ["FAL_KEY"] = self.api_key
+        self.fal = fal_client.SyncClient(key=self.api_key)
         self.model_id = APIConfig.FAL_GPT_IMAGE2_MODEL_ID or "openai/gpt-image-2/edit"
         self.quality = APIConfig.FAL_GPT_IMAGE2_QUALITY or "medium"
 
@@ -36,10 +36,10 @@ class FalGPTImage2Client:
             raise ValueError(f"Image file not found: {image_path}")
 
         try:
-            if hasattr(fal_client, "upload_file"):
-                return fal_client.upload_file(image_path)
-            if hasattr(fal_client, "upload"):
-                return fal_client.upload(image_path)
+            if hasattr(self.fal, "upload_file"):
+                return self.fal.upload_file(image_path)
+            if hasattr(self.fal, "upload"):
+                return self.fal.upload(image_path)
             raise ImportError("fal_client module has no upload function")
         except Exception:
             mime_type, _ = mimetypes.guess_type(image_path)
@@ -133,9 +133,9 @@ class FalGPTImage2Client:
         )
 
         try:
-            handler = fal_client.submit(self.model_id, arguments)
+            handler = self.fal.submit(self.model_id, arguments)
         except TypeError:
-            handler = fal_client.submit(self.model_id, **arguments)
+            handler = self.fal.submit(self.model_id, **arguments)
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, handler.get)

@@ -25,7 +25,7 @@ class Seedream5ProFalClient:
         self.api_key = api_key or APIConfig.FAL_API_KEY
         if not self.api_key:
             raise ValueError("FAL_API_KEY not found in environment variables")
-        os.environ["FAL_KEY"] = self.api_key
+        self.fal = fal_client.SyncClient(key=self.api_key)
         self.model_id = model_id or APIConfig.FAL_SEEDREAM5_PRO_MODEL_ID
 
     @classmethod
@@ -37,10 +37,10 @@ class Seedream5ProFalClient:
         if not os.path.exists(image_path):
             raise ValueError(f"Image file not found: {image_path}")
         try:
-            if hasattr(fal_client, "upload_file"):
-                return await asyncio.to_thread(fal_client.upload_file, image_path)
-            if hasattr(fal_client, "upload"):
-                return await asyncio.to_thread(fal_client.upload, image_path)
+            if hasattr(self.fal, "upload_file"):
+                return await asyncio.to_thread(self.fal.upload_file, image_path)
+            if hasattr(self.fal, "upload"):
+                return await asyncio.to_thread(self.fal.upload, image_path)
             raise ImportError("fal_client module has no upload function")
         except Exception as exc:
             raise ValueError(f"Failed to upload reference image to Fal: {exc}") from exc
@@ -66,9 +66,9 @@ class Seedream5ProFalClient:
         }
         # Seedream 5 Pro has no seed input; retain it in task metadata only.
         try:
-            handler = fal_client.submit(self.model_id, arguments)
+            handler = self.fal.submit(self.model_id, arguments)
         except TypeError:
-            handler = fal_client.submit(self.model_id, **arguments)
+            handler = self.fal.submit(self.model_id, **arguments)
 
         result = await asyncio.get_running_loop().run_in_executor(None, handler.get)
         images = result.get("images", []) if isinstance(result, dict) else []

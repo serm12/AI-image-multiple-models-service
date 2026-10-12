@@ -22,7 +22,7 @@ class Seedream4FalClient:
             raise ValueError("FAL_API_KEY not found in environment variables")
         
         # The `fal` library automatically uses this environment variable.
-        os.environ["FAL_KEY"] = self.api_key
+        self.fal = fal_client.SyncClient(key=self.api_key)
         self.model_id = "fal-ai/bytedance/seedream/v4/edit"
 
     def _convert_aspect_ratio_to_image_size(self, aspect_ratio_str: str) -> str:
@@ -52,12 +52,12 @@ class Seedream4FalClient:
         
         # 使用fal.toolkit.File.from_path上传图片到fal.ai
         try:
-            print(f"使用fal_client.upload_file上传图片: {image_path}")
+            print(f"使用self.fal.upload_file上传图片: {image_path}")
             # 注意：新版 fal_client 可能使用 upload 或 upload_file
-            if hasattr(fal_client, 'upload_file'):
-                url = fal_client.upload_file(image_path)
-            elif hasattr(fal_client, 'upload'):
-                url = fal_client.upload(image_path)
+            if hasattr(self.fal, 'upload_file'):
+                url = self.fal.upload_file(image_path)
+            elif hasattr(self.fal, 'upload'):
+                url = self.fal.upload(image_path)
             else:
                 raise ImportError("fal_client module has no upload function")
             return url
@@ -124,13 +124,13 @@ class Seedream4FalClient:
         image_size = self._convert_aspect_ratio_to_image_size(aspect_ratio)
         print(f"图像尺寸转换完成: 输入比例='{aspect_ratio}' -> Fal.ai参数='{image_size}'")
         
-        # 使用 fal_client.submit 异步提交任务
+        # 使用 self.fal.submit 异步提交任务
         print("提交任务到Fal.ai...")
-        # 新版 fal_client.submit(id, arguments={...}) 或直接传参
-        # 根据官方文档通常是 fal_client.submit("model/id", arguments={...}) 
+        # 新版 self.fal.submit(id, arguments={...}) 或直接传参
+        # 根据官方文档通常是 self.fal.submit("model/id", arguments={...}) 
         # 但报错说 unexpected keyword argument 'arguments'，
-        # 那么可能是直接 fal_client.submit("model/id", prompt="...", ...) 
-        # 或者 fal_client.submit("model/id", {...}) 作为位置参数
+        # 那么可能是直接 self.fal.submit("model/id", prompt="...", ...) 
+        # 或者 self.fal.submit("model/id", {...}) 作为位置参数
         
         arguments_dict = {
             "prompt": prompt,
@@ -141,13 +141,13 @@ class Seedream4FalClient:
         
         # 尝试直接传递字典作为第二个位置参数 (common pattern for new SDKs)
         try:
-            handler = fal_client.submit(
+            handler = self.fal.submit(
                 self.model_id,
                 arguments_dict
             )
         except TypeError:
             # 如果失败，尝试作为 kwargs 解包
-             handler = fal_client.submit(
+             handler = self.fal.submit(
                 self.model_id,
                 **arguments_dict
             )

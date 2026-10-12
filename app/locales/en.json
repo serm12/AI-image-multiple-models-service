@@ -247,5 +247,13 @@
   "algorithm_save": "Save algorithm settings",
   "algorithm_saved": "Saved. Subsequent filenames will use this value.",
   "algorithm_error": "Could not complete the request. Check the number and retry.",
-  "algorithm_preview": "Calculated value"
+  "algorithm_preview": "Calculated value",
+  "keys_title": "Image generation API keys",
+  "keys_help": "Manage AIAPIROUTE and FAL API keys. Leave a field empty to retain its current key. Replacements apply to subsequent generation requests.",
+  "keys_configured": "Configured (key hidden)",
+  "keys_missing": "Not configured",
+  "keys_placeholder": "Enter a replacement key, or leave empty to keep the current key",
+  "keys_save": "Save API keys",
+  "keys_saved": "Saved. Keys are never displayed on this page.",
+  "keys_error": "Unable to update API keys. Check the input or retry later."
 }
