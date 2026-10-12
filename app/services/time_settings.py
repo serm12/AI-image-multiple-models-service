@@ -58,4 +58,15 @@ async def sync_shop_timezone(force=False):
 def settings_response():
     data = read()
     return {**data, 'effective_timezone': effective_timezone().key,
+            'comparison_timezones': comparison_timezones(),
             'timezones': sorted(available_timezones())}
+
+
+def comparison_timezones():
+    values = read().get('comparison_timezones', ['America/New_York', 'America/Los_Angeles'])
+    return list(dict.fromkeys(zone for zone in values if zone in available_timezones()))[:5]
+
+
+def display_timezones():
+    primary = effective_timezone().key
+    return [primary] + [zone for zone in comparison_timezones() if zone != primary]

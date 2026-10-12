@@ -10,7 +10,7 @@ import base64
 import json
 import random
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -150,10 +150,10 @@ class GeminiClient:
             task_id: 任务ID（可选）
         """
         import json
-        from datetime import datetime
+        from datetime import datetime, timezone
         
         log_entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "task_id": task_id,
             "model": "gemini-2.5-flash-image-preview",
             "image_size_kb": token_info["image_size_kb"],

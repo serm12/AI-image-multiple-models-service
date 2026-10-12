@@ -233,5 +233,10 @@
   "watermark.invalid_dimensions": "Use a PNG, JPG or WebP image with no more than 16 megapixels",
   "watermark.invalid_image": "Cannot read image. Choose a valid PNG, JPG or WebP file",
   "language.invalid": "Unsupported language",
-  "request.invalid_origin": "Invalid request origin"
+  "request.invalid_origin": "Invalid request origin",
+  "time_primary": "Display timezone",
+  "time_compare": "Comparison timezones",
+  "time_add": "Add comparison timezone",
+  "time_remove": "Remove",
+  "time_help": "Defaults to the store timezone. Add up to 5 comparison timezones for task history and clocks. Backend timestamps are stored in UTC."
 }

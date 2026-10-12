@@ -1,3 +1,4 @@
+from app.utils.time_utils import now_utc
 import os
 import json
 from contextlib import ExitStack
@@ -134,8 +135,8 @@ async def upscale_image_with_replicate(
                 
                 # 创建基本响应记录
                 full_response = {
-                    "completed_at": datetime.now().isoformat(),
-                    "created_at": datetime.now().isoformat(),
+                    "completed_at": now_utc().isoformat(),
+                    "created_at": now_utc().isoformat(),
                     "data_removed": False,
                     "error": None,
                     "id": None,
@@ -151,7 +152,7 @@ async def upscale_image_with_replicate(
                         "total_time": 0
                     },
                     "output": output_url,
-                    "started_at": datetime.now().isoformat(),
+                    "started_at": now_utc().isoformat(),
                     "status": "succeeded",
                     "urls": {
                         "stream": "",
@@ -212,13 +213,13 @@ def save_upscale_task_info(
     full_response: dict
 ) -> None:
     """保存放大任务信息"""
-    from app.utils.time_utils import CHINA_TIMEZONE_NAME
+    from app.utils.time_utils import now_utc
 
     # 保存放大任务参数
     upscale_params = {
         "task_id": task_id,
         "time": timestamp,
-        "time_zone": CHINA_TIMEZONE_NAME,
+        "time_zone": "UTC",
         "model": model,
         "scale": scale,
         "face_enhance": face_enhance,

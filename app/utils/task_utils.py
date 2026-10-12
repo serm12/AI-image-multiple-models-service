@@ -2,15 +2,16 @@ import os
 import uuid
 import json
 
-from app.utils.time_utils import CHINA_TIMEZONE_NAME, now_china
+from app.utils.time_utils import now_utc
+UTC_TIMEZONE_NAME = "UTC"
 
 def generate_task_dir(tasks_dir="tasks"):
-    now = now_china()
+    now = now_utc()
     timestamp = now.strftime("%Y%m%d_%H%M%S")
     task_id = f"{timestamp}_{uuid.uuid4().hex[:8]}"
     task_dir = os.path.join(tasks_dir, task_id)
     os.makedirs(task_dir, exist_ok=True)
-    return task_id, task_dir, timestamp
+    return task_id, task_dir, now.isoformat()
 
 def save_input_image(input_path, task_dir):
     input_image_filename = os.path.basename(input_path)
@@ -20,7 +21,7 @@ def save_input_image(input_path, task_dir):
     return input_image_filename, task_input_image_path
 
 def save_params(params, task_dir):
-    params.setdefault("time_zone", CHINA_TIMEZONE_NAME)
+    params.setdefault("time_zone", UTC_TIMEZONE_NAME)
     with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=2)
 

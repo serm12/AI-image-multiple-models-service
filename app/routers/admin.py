@@ -32,7 +32,7 @@ from app.routers.watermark_settings import router as watermark_settings_router
 router = APIRouter()
 router.include_router(watermark_settings_router)
 from app.routers.time_settings import router as time_settings_router
-from app.services.time_settings import effective_timezone
+from app.services.time_settings import effective_timezone, display_timezones
 router.include_router(time_settings_router)
 US_EASTERN_TIMEZONE = ZoneInfo("America/New_York")
 US_PACIFIC_TIMEZONE = ZoneInfo("America/Los_Angeles")
@@ -447,17 +447,10 @@ def _task_row(task: dict, return_url: str) -> str:
                   'PENDING': _i18n('template_bb6cb7d2c01b'), 'AUTHORIZED': _i18n('template_d5498f3548b5'), 'VOIDED': _i18n('template_456ebc9b3dad'),
                   'PARTIALLY_PAID': _i18n('template_4ca78ac48c44')}.get(order.get('financial_status'), _i18n('template_5ea44804ef9c'))
         identity += (f'<a class="customer-email" href="{_text(order['url'])}{_i18n('template_769c5fdec4c1')}{_text(order['name'])} · {_text(status)} ↗</a>')
-    display_zone = effective_timezone()
-    beijing_time = _display_time(task["created_at"], task.get("time_zone"), display_zone)
-    eastern_time = _display_time(
-        task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE
-    )
-    pacific_time = _display_time(
-        task["created_at"], task.get("time_zone"), US_PACIFIC_TIMEZONE
-    )
-    time_cell = (
-        f'<div class="task-time"><time title="{_text(display_zone.key)}：{_text(beijing_time)}{_i18n('template_262afda947c6')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), display_zone))}{_i18n('template_8d0f3a6de339')}{_text(eastern_time)}{_i18n('template_dc97174a0c82')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), US_EASTERN_TIMEZONE))}{_i18n('template_5acc02cca0f3')}{_text(pacific_time)}{_i18n('template_b0a6cb06ae24')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), US_PACIFIC_TIMEZONE))}</time></div>'
-    )
+    time_cell = '<div class="task-time">' + ''.join(
+        f'<time title="{_text(zone)}: {_text(_display_time(task["created_at"], task.get("time_zone"), ZoneInfo(zone)))}"><span>{_text(zone.rsplit("/", 1)[-1].replace("_", " "))}</span>{_text(_compact_display_time(task["created_at"], task.get("time_zone"), ZoneInfo(zone)))}</time>'
+        for zone in display_timezones()
+    ) + '</div>'
     return (
         f'<tr><td><div class="star-cell">{star_control}<code title="{task_id}">{task_id[:17]}…</code></div></td><td><span class="status">{_text(task['status'])}</span></td><td>{time_cell}</td><td>{duration}</td><td class="provider">{_text(task.get('api_provider'))}</td><td class="client-ip">{client_ip}</td><td><span class="country">{country}</span></td><td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td><td class="source-cell"><div class="source-cell__title">{source_title_view}{_i18n('template_5fe7cab5d12f')}{paid_traffic_badge}{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>{traffic_attribution_line}{_i18n('template_6fd6c4689a64')}{source_link}{_i18n('template_0b76794fe50f')}{request_link}</div></td><td class="prompt">{prompt_view}</td><td class="images-cell">{image_strip}</td></tr>'
     )
@@ -760,6 +753,10 @@ def admin_tasks(
         if active_filters
         else ""
     )
+    clock_markup = ''.join(
+        f'<span class="current-time"><span class="current-time__label">{_text(zone)}</span><time data-clock-zone="{_text(zone)}">--</time></span>'
+        for zone in display_timezones()
+    )
     return HTMLResponse(
-        f"""{_i18n('template_8e717af0e0f2')}{_text(data['total'])}{_i18n('template_7e99a8cb2afc')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_eb644375d4cc')}{_text(effective_timezone().key)}{_i18n('template_31b2e91d9ddd')}{_text(starred_filter_url)}">{(_t('ui_6ff9473563') if starred else '★ ' + _t('ui_bff836d78d'))}</a>{time_range_filter}{active_filter_chips}</div>\n<template id="conversion-search-template">{conversion_filter_form}{_i18n('template_1635e1a58008')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}{_i18n('template_846c1a8e355b')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}{_i18n('template_9cf32afef570')}{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}{_i18n('template_856c47de30d6')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}{_i18n('template_12caa5d405f0')}{body}</tbody></table></div>\n{pagination}\n</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>\nconst statusEl=document.getElementById('service-status');\nconst statusText=statusEl.querySelector('.service-text');\nconst clocks=[\n  [document.getElementById('current-beijing-time'),'{_text(effective_timezone().key)}{_i18n('template_e4e7470d5e25')}"""
+        f"""{_i18n('template_8e717af0e0f2')}{_text(data['total'])}{_i18n('template_7e99a8cb2afc')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_eb644375d4cc')}{clock_markup}{_i18n('template_31b2e91d9ddd')}{_text(starred_filter_url)}">{(_t('ui_6ff9473563') if starred else '★ ' + _t('ui_bff836d78d'))}</a>{time_range_filter}{active_filter_chips}</div>\n<template id="conversion-search-template">{conversion_filter_form}{_i18n('template_1635e1a58008')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}{_i18n('template_846c1a8e355b')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}{_i18n('template_9cf32afef570')}{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}{_i18n('template_856c47de30d6')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}{_i18n('template_12caa5d405f0')}{body}</tbody></table></div>\n{pagination}\n</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>\nconst statusEl=document.getElementById('service-status');\nconst statusText=statusEl.querySelector('.service-text');\nconst clocks=[...document.querySelectorAll('[data-clock-zone]')].map(element=>[element,element.dataset.clockZone]);\n{_i18n('template_e4e7470d5e25')}"""
     )

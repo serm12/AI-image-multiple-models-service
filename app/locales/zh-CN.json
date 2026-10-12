@@ -233,5 +233,10 @@
   "watermark.invalid_dimensions": "请使用不超过 1600 万像素的 PNG、JPG 或 WebP 图片",
   "watermark.invalid_image": "无法读取图片，请选择有效的 PNG、JPG 或 WebP 文件",
   "language.invalid": "不支持此语言",
-  "request.invalid_origin": "无效的请求来源"
+  "request.invalid_origin": "无效的请求来源",
+  "time_primary": "显示时区",
+  "time_compare": "对比时区",
+  "time_add": "添加对比时区",
+  "time_remove": "移除",
+  "time_help": "默认选择店铺时区；最多添加 5 个对比时区，用于任务记录和顶部时钟。后端时间统一按 UTC 标准时间记录。"
 }

@@ -703,20 +703,10 @@
       "key": "ui_8bc0ff588c",
       "context": "html"
     },
-    "\"><span class=\"current-time\"><span class=\"current-time__label\">"
+    "\">"
   ],
   "template_31b2e91d9ddd": [
-    "</span><time id=\"current-beijing-time\">--</time></span><span class=\"current-time\"><span class=\"current-time__label\">",
-    {
-      "key": "ui_852e723b41",
-      "context": "html"
-    },
-    "</span><time id=\"current-us-eastern-time\">--</time></span><span class=\"current-time\"><span class=\"current-time__label\">",
-    {
-      "key": "ui_ff6681114a",
-      "context": "html"
-    },
-    "</span><time id=\"current-us-pacific-time\">--</time></span></div></div><div><div id=\"service-status\" class=\"service-status checking\"><span class=\"service-dot\"></span><span class=\"service-text\">",
+    "</div></div><div><div id=\"service-status\" class=\"service-status checking\"><span class=\"service-dot\"></span><span class=\"service-text\">",
     {
       "key": "ui_822cb2169c",
       "context": "html"
@@ -904,7 +894,7 @@
     "</th></tr></thead><tbody>"
   ],
   "template_e4e7470d5e25": [
-    "'],\n  [document.getElementById('current-us-eastern-time'),'America/New_York'],\n  [document.getElementById('current-us-pacific-time'),'America/Los_Angeles']\n];\nconst clockFormatters=new Map(clocks.map(([,zone])=>[zone,new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})]));\nfunction updateCurrentTimes(){\n  const now=new Date();\n  clocks.forEach(([element,zone])=>{\n    element.textContent=clockFormatters.get(zone).format(now);\n    element.dateTime=now.toISOString();\n  });\n}\nupdateCurrentTimes();\nsetInterval(updateCurrentTimes,1000);\ndocument.getElementById('page-size-select')?.addEventListener('change',event=>{\n  const params=new URLSearchParams(window.location.search);\n  params.set('page','1');\n  params.set('page_size',event.target.value);\n  window.location.href=`/admin/tasks?${params.toString()}`;\n});\nconst selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');\nconst selectedTimeRange=new URLSearchParams(window.location.search).get('time_range');\nconst selectedStarred=new URLSearchParams(window.location.search).get('starred')==='true';\nconst conversionSearchTemplate=document.getElementById('conversion-search-template');\nconst userSearchForm=document.getElementById('user-search');\nconst conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);\nconst identityHeading=userSearchForm.closest('.column-heading');\nconst conversionSearchToggle=document.createElement('button');\nconversionSearchToggle.type='button';\nconversionSearchToggle.className='column-search-toggle';\nconversionSearchToggle.setAttribute('aria-label','",
+    "const clockFormatters=new Map(clocks.map(([,zone])=>[zone,new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})]));\nfunction updateCurrentTimes(){\n  const now=new Date();\n  clocks.forEach(([element,zone])=>{\n    element.textContent=clockFormatters.get(zone).format(now);\n    element.dateTime=now.toISOString();\n  });\n}\nupdateCurrentTimes();\nsetInterval(updateCurrentTimes,1000);\ndocument.getElementById('page-size-select')?.addEventListener('change',event=>{\n  const params=new URLSearchParams(window.location.search);\n  params.set('page','1');\n  params.set('page_size',event.target.value);\n  window.location.href=`/admin/tasks?${params.toString()}`;\n});\nconst selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');\nconst selectedTimeRange=new URLSearchParams(window.location.search).get('time_range');\nconst selectedStarred=new URLSearchParams(window.location.search).get('starred')==='true';\nconst conversionSearchTemplate=document.getElementById('conversion-search-template');\nconst userSearchForm=document.getElementById('user-search');\nconst conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);\nconst identityHeading=userSearchForm.closest('.column-heading');\nconst conversionSearchToggle=document.createElement('button');\nconversionSearchToggle.type='button';\nconversionSearchToggle.className='column-search-toggle';\nconversionSearchToggle.setAttribute('aria-label','",
     {
       "key": "ui_22fd2ba205",
       "context": "js"

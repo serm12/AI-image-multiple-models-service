@@ -45,3 +45,30 @@ class TimeSettingsTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(client.post('/admin/time-settings', json={**value, 'custom_timezone': 'invalid'}, headers=headers).status_code, 422)
             self.assertEqual(client.post('/admin/time-settings', json=value, headers=headers).status_code, 200)
             self.assertEqual(settings.effective_timezone().key, 'Europe/London')
+
+    def test_direct_timezone_and_comparisons(self):
+        settings.update({'shop_timezone': 'Asia/Shanghai'})
+        app = FastAPI(); app.include_router(router)
+        app.dependency_overrides[require_admin_login] = lambda: 'admin'
+        with TestClient(app, base_url='https://image-api.shopupup.com') as client:
+            headers = {'Origin': 'https://image-api.shopupup.com'}
+            value = {'timezone': 'Asia/Shanghai', 'comparison_timezones': ['Europe/London', 'Asia/Tokyo', 'Europe/London']}
+            response = client.post('/admin/time-settings', json=value, headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()['mode'], 'shop')
+            self.assertEqual(settings.display_timezones(), ['Asia/Shanghai', 'Europe/London', 'Asia/Tokyo'])
+            self.assertEqual(client.post('/admin/time-settings', json={**value, 'comparison_timezones': ['bad']}, headers=headers).status_code, 422)
+            self.assertEqual(client.post('/admin/time-settings', json={**value, 'comparison_timezones': ['UTC'] * 6}, headers=headers).status_code, 422)
+            client.post('/admin/time-settings', json={'timezone': 'America/New_York', 'comparison_timezones': []}, headers=headers)
+            self.assertEqual(settings.display_timezones(), ['America/New_York'])
+
+    def test_legacy_and_utc_timestamps_sort_by_instant(self):
+        import json
+        from pathlib import Path
+        from app.services.task_query_service import list_task_summaries
+        records = [('20261012_180000_old', '20261012_180000', 'Asia/Shanghai'),
+                   ('20261012_110000_new', '2026-10-12T11:00:00+00:00', 'UTC')]
+        for task_id, timestamp, zone in records:
+            folder = Path(settings.DirectoryConfig.TASKS_DIR) / task_id; folder.mkdir()
+            (folder / 'params.json').write_text(json.dumps({'task_id': task_id, 'time': timestamp, 'time_zone': zone}))
+        self.assertEqual(list_task_summaries()['tasks'][0]['task_id'], records[1][0])

@@ -157,9 +157,6 @@ def list_task_summaries(
                 and os.path.isfile(os.path.join(entry.path, "params.json"))
             ]
 
-    # Task directory names begin with YYYYMMDD_HHMMSS, so lexical order keeps
-    # the newest tasks first without opening every task's params.json file.
-    task_entries.sort(key=lambda entry: entry.name, reverse=True)
     normalized_ip_query = str(client_ip_query or "").strip().casefold()
     normalized_user_query = str(user_query or "").strip().casefold()
     normalized_task_id_query = str(task_id_query or "").strip().casefold()
@@ -178,6 +175,12 @@ def list_task_summaries(
         entry.name: _read_json_if_exists(os.path.join(entry.path, "params.json"))
         for entry in task_entries
     }
+
+    # Legacy directory names use China time; new task IDs use UTC.
+    task_entries.sort(key=lambda entry: (
+        _task_time_in_china(all_params[entry.name]) or datetime.min.replace(tzinfo=timezone.utc),
+        entry.name,
+    ), reverse=True)
 
     if (
         normalized_ip_query
