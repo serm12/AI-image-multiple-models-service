@@ -50,16 +50,20 @@ function Originals() {
         try {await shopify.requireLogin(); setRevision(value => value + 1);}
         catch {setError('Please sign in and refresh this page.');}
       }}>Sign in to download</s-button>}
+      <s-query-container>
+      <s-grid gridTemplateColumns="@container (inline-size > 480px) minmax(0, 1fr) minmax(0, 1fr), minmax(0, 1fr)" gap="base" alignItems="start">
       {result?.items.map(item => <s-box key={`${item.line_item_id}-${item.task_id}`} padding="base" border="base" borderRadius="base">
         <s-stack gap="base">
           <s-heading>{item.title}</s-heading>
           {item.image ? <>
-            <s-box maxInlineSize="320px"><s-image src={item.image.url} alt={`${item.title} — original artwork`} objectFit="contain" /></s-box>
+            <s-image src={item.image.url} alt={`${item.title} — original artwork`} aspectRatio="1/1" objectFit="contain" />
             <s-button href={item.image.download_url} target="_blank" variant="primary">Download original image</s-button>
             <s-link href={item.image.url} target="_blank">View full-size image</s-link>
           </> : <s-text>Your original image is being prepared. Please check back soon.</s-text>}
         </s-stack>
       </s-box>)}
+      </s-grid>
+      </s-query-container>
       {result?.items.length === 0 && <s-text>No downloadable artwork is linked to this order.</s-text>}
       <s-button disabled={loading} onClick={() => setRevision(value => value + 1)}>Refresh images</s-button>
     </s-stack>
