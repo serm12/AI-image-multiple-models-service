@@ -47,13 +47,16 @@ def _task_time_in_china(params: dict) -> datetime | None:
     return parsed.astimezone(CHINA_TIMEZONE)
 
 
-def _matches_time_range(params: dict, time_range: str) -> bool:
+def _matches_time_range(params: dict, time_range: str, display_timezone=None) -> bool:
     if not time_range:
         return True
     created_at = _task_time_in_china(params)
     if created_at is None:
         return False
-    now = now_china()
+    from app.services.time_settings import effective_timezone
+    display_timezone = display_timezone or effective_timezone()
+    created_at = created_at.astimezone(display_timezone)
+    now = now_china().astimezone(display_timezone)
     today = now.date()
     if time_range == "today":
         return created_at.date() == today
@@ -167,6 +170,8 @@ def list_task_summaries(
         if str(status).strip() in CONVERSION_EVENT_TYPES
     }
     selected_time_range = str(time_range or "").strip()
+    from app.services.time_settings import effective_timezone
+    display_timezone = effective_timezone()
     if selected_time_range not in TIME_RANGE_VALUES:
         selected_time_range = ""
     all_params = {
@@ -216,7 +221,7 @@ def list_task_summaries(
                     }
                 )
             )
-            matches_time_range = _matches_time_range(params, selected_time_range)
+            matches_time_range = _matches_time_range(params, selected_time_range, display_timezone)
             matches_starred = not starred_only or is_task_starred(entry.path)
             if (
                 matches_ip

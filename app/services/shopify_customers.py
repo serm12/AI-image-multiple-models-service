@@ -211,6 +211,11 @@ async def worker():
         try:
             wake.clear()
             if await asyncio.to_thread(saved_token):
+                try:
+                    from app.services.time_settings import sync_shop_timezone
+                    await sync_shop_timezone()
+                except Exception:
+                    logger.warning('Shop timezone refresh unavailable; keeping cached timezone')
                 await asyncio.to_thread(backfill)
                 await process_pending()
             await asyncio.wait_for(wake.wait(), timeout=30)
