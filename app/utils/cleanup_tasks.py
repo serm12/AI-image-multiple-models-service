@@ -64,6 +64,8 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
     """
     try:
         folder_name = os.path.basename(folder_path)
+        if folder_name.startswith('.'):
+            return ('skip', f'保留应用配置目录: {folder_name}')
         
         # 检查文件夹是否存在
         if not os.path.exists(folder_path):

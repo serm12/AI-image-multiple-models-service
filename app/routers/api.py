@@ -711,13 +711,10 @@ async def save_generated_image_outputs(task_id: str, task_dir: str, image_url: s
     # 在线程池中处理水印（避免阻塞事件循环）
     try:
         loop = asyncio.get_running_loop()
-        # WATERMARK_LOGO_PATH is a packaged source asset. It must remain
-        # immutable: generating a text logo here used to overwrite the custom
-        # PNG on the first request after every container restart.
-        if not os.path.isfile(WatermarkConfig.LOGO_PATH):
-            raise FileNotFoundError(
-                f"水印 Logo 文件不存在: {WatermarkConfig.LOGO_PATH}"
-            )
+        from app.services.watermark_settings import runtime_config
+        watermark_source = runtime_config().LOGO_PATH
+        if not os.path.isfile(watermark_source):
+            raise FileNotFoundError(f"水印 Logo 文件不存在: {watermark_source}")
         await loop.run_in_executor(None, add_logo_watermark, original_file, watermark_file)
         return [f"/taskfile/{task_id}/{os.path.basename(watermark_file)}"]
     except Exception as exc:

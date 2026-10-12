@@ -294,11 +294,12 @@ def add_corner_label(
     bg_color=None,
     border_color=None,
     border_width=None,
-    corner_radius=None
+    corner_radius=None,
+    position='top_left'
 ):
     """在图片左上角添加标识；尺寸参数以 1024 像素短边为基准。"""
     # 使用配置文件的默认值
-    text = text or WatermarkConfig.CORNER_LABEL_TEXT
+    text = WatermarkConfig.CORNER_LABEL_TEXT if text is None else text
     font_path = font_path or WatermarkConfig.CORNER_LABEL_FONT_PATH
     font_size = font_size or WatermarkConfig.CORNER_LABEL_FONT_SIZE
     padding = padding or WatermarkConfig.CORNER_LABEL_PADDING
@@ -335,11 +336,18 @@ def add_corner_label(
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
+
+    # Keep long labels inside the preview, including right-aligned labels.
+    while text_width + 2 * padding > width - 2 * margin and font_size > 1:
+        font_size -= 1
+        font = font.font_variant(size=font_size)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
     
     # 计算外框尺寸和位置（左上角）
     box_width = text_width + 2 * padding
     box_height = text_height + 2 * padding
-    box_x = margin
+    box_x = max(margin, width - margin - box_width) if position == 'top_right' else margin
     box_y = margin
     
     # 绘制圆角矩形（背景和边框）
@@ -367,11 +375,13 @@ def add_corner_label(
     image.save(output_image_path)
     print(f"左上角标识添加完成: {output_image_path}")
 
-def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step=None, angle=None, blend_mode=None, resize_scale=None):
+def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step=None, angle=None, blend_mode=None, resize_scale=None, config=None):
+    from app.services.watermark_settings import runtime_config
+    WatermarkConfig = config or runtime_config()
     # 使用配置文件的默认值
     logo_path = logo_path or WatermarkConfig.LOGO_PATH
     step = step or WatermarkConfig.DEFAULT_STEP
-    angle = angle or WatermarkConfig.DEFAULT_ANGLE
+    angle = WatermarkConfig.DEFAULT_ANGLE if angle is None else angle
     blend_mode = blend_mode or WatermarkConfig.DEFAULT_BLEND_MODE
     resize_scale = resize_scale or WatermarkConfig.get_resize_scale()
     
@@ -495,11 +505,20 @@ def add_logo_watermark(input_image_path, output_image_path, logo_path=None, step
     
     # 在水印图上添加左上角标识
     temp_path2 = output_image_path.replace(".png", "_temp2.png")
-    add_corner_label(temp_path1, temp_path2)
+    import shutil
+    if WatermarkConfig.CORNER_ENABLED and WatermarkConfig.CORNER_LABEL_TEXT:
+        add_corner_label(temp_path1, temp_path2, text=WatermarkConfig.CORNER_LABEL_TEXT,
+                         position=WatermarkConfig.CORNER_POSITION)
+    else:
+        shutil.copyfile(temp_path1, temp_path2)
     
     # 添加右下角品牌logo
     temp_path_final = output_image_path.replace(".png", "_temp_final.png")
-    add_brand_logo(temp_path2, temp_path_final)
+    if WatermarkConfig.BRAND_ENABLED and WatermarkConfig.BRAND_LOGO_OPACITY > 0:
+        add_brand_logo(temp_path2, temp_path_final, logo_path=WatermarkConfig.BRAND_LOGO_PATH,
+                       scale=WatermarkConfig.BRAND_LOGO_SCALE, opacity=WatermarkConfig.BRAND_LOGO_OPACITY)
+    else:
+        shutil.copyfile(temp_path2, temp_path_final)
     
     # 缩放图片到指定比例
     if resize_scale != 1.0:

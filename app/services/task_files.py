@@ -40,9 +40,14 @@ async def save_validated_upload(file: UploadFile, destination: str) -> int:
 
 
 def resolve_task_file_path(task_id: str, filename: str) -> str | None:
+    if not task_id or task_id.startswith('.') or '/' in task_id or '\\' in task_id:
+        return None
+    if any(part.startswith('.') for part in filename.replace('\\', '/').split('/')):
+        return None
     task_dir = Path(DirectoryConfig.TASKS_DIR, task_id).resolve()
     file_path = Path(task_dir, filename).resolve()
     try:
+        task_dir.relative_to(Path(DirectoryConfig.TASKS_DIR).resolve())
         file_path.relative_to(task_dir)
     except ValueError:
         return None
