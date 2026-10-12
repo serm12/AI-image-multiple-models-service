@@ -1,7 +1,7 @@
 # Shopify 应用 SDK
 
 应用：Paintingify AI Backend（ShopUpUp 组织）。
-分发方式：自定义分发（私有应用），尚未生成店铺安装链接。
+分发方式：自定义分发（私有应用），已限定 Paintingify 单店安装。
 控制台：https://dev.shopify.com/dashboard/129014438/apps/434353405953
 
 官方仓库：https://github.com/Shopify/shopify-app-python
@@ -11,14 +11,14 @@ pip 包名：`shopifyapp`，Python 导入名：`shopify_app`。
 ## 环境变量
 
 凭据保存在后端根目录 `.env`，该文件已被 `.gitignore` 排除。
-生产运行环境也需要单独设置这些变量。
+生产环境已单独配置这些变量（服务器 `.env` 和运行容器）。
 
 - `SHOPIFY_APP_ID`：Dev Dashboard 的数字应用 ID，不用于 OAuth。
 - `SHOPIFY_CLIENT_ID`：Client ID，也叫 API key。
 - `SHOPIFY_CLIENT_SECRET`：Client Secret，也叫 API secret。
 - `SHOPIFY_API_VERSION`：Admin GraphQL API 版本，目前配置为 `2026-10`。
 - `SHOPIFY_SCOPES`：请求的权限，必须与 `shopify.app.toml` 的 `access_scopes.scopes` 同步。
-- `SHOPIFY_SHOP`：安装目标店铺的 myshopify.com 子域名，暂留空。
+- `SHOPIFY_SHOP`：安装目标店铺的 myshopify.com 子域名，当前为 `ai-generate-image`（Paintingify）。
 
 不要把 Client Secret 放到 Shopify 主题、浏览器代码或 Git 中。
 
@@ -34,8 +34,8 @@ shopify = get_shopify_app()
 SDK 提供请求验证、Webhook 验签、token exchange 和 Admin GraphQL 调用。
 FastAPI 的异步处理函数使用 SDK 的 `_async` 网络方法。
 
-当前接入完成凭据配置、SDK 初始化和本地权限声明，尚未安装到店铺、发布权限配置、
-实现 OAuth 路由或取得店铺 access token。Client Secret 本身不是店铺 access token。
+当前已部署凭据配置和 SDK，发布权限版本并安装到 Paintingify。
+尚未实现 OAuth 路由、token 持久化或取得店铺 access token。Client Secret 本身不是店铺 access token。
 
 ## 应用配置和权限
 
@@ -55,7 +55,7 @@ FastAPI 的异步处理函数使用 SDK 的 `_async` 网络方法。
 `.env` 是后端配置，修改它不会自动授予 Shopify 权限，SDK 初始化也不会申请权限。
 TOML 中的权限需要通过 `shopify app deploy` 发布（或在 Dev Dashboard 发布对应版本），
 然后安装应用并完成店铺授权，才会体现在 access token 中。
-本次只准备本地文件，没有发布权限版本或安装应用。
+权限版本 `paintingify-python-20261012` 已发布，且已通过 Paintingify 安装授权。
 
 参考：https://shopify.dev/docs/apps/build/cli-for-apps/app-configuration
 和 https://shopify.dev/docs/api/usage/access-scopes 。
@@ -119,4 +119,17 @@ python -m unittest discover -s tests -p test_shopify_integration.py -v
 ```
 
 这是一套接入基础文件，尚不包含店铺安装 OAuth 回调、token 持久化和订单/客户业务页面。
-现有自定义分发应用仍需配置安装店铺及适用的授权流程，才能实际调用店铺 API。
+现有自定义分发应用已安装到 Paintingify；实际调用店铺 API 前仍需完成适用的 token 获取流程。
+
+## 2026-10-12 部署记录
+
+- 后端代码提交：`636e5e2cf6eb9d0fe4302975eef6c39f290ca8a3`。
+- GitHub Actions 镜像构建成功，生产 `ai-image-api` 容器运行该提交。
+- `/health` 与 `/shopify` 均返回 200，Docker healthy，Nginx 配置校验通过。
+- 官方 SDK `shopifyapp==1.0.2` 在生产环境初始化成功。
+- 已安装店铺：Paintingify，永久域名 `ai-generate-image.myshopify.com`。
+- 回退容器保留；本地其他未提交改动没有纳入本次发布。
+- 服务器已有每 10 分钟自动更新任务，脚本位于
+  `/www/server/panel/scripts/custom/ai-image-auto-update.sh`。
+  手动部署须与它共用 `/var/lock/ai-image-api-auto-update.lock`，
+  避免同时重建容器。自动更新从 `/www/wwwroot/ai-image-api/.env` 加载凭据。
