@@ -238,5 +238,6 @@
   "time_compare": "Comparison timezones",
   "time_add": "Add comparison timezone",
   "time_remove": "Remove",
-  "time_help": "Defaults to the store timezone. Add up to 5 comparison timezones for task history and clocks. Backend timestamps are stored in UTC."
+  "time_help": "Defaults to the store timezone. Add up to 5 comparison timezones for task history and clocks. Backend timestamps are stored in UTC.",
+  "time_shop_default": " (Store default)"
 }
