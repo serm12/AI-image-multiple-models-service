@@ -71,10 +71,17 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                 key = escape(os.getenv("SHOPIFY_API_KEY") or os.getenv("SHOPIFY_CLIENT_ID", ""), quote=True)
                 bridge = (f'<meta name="shopify-api-key" content="{key}">'
                           '<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>'
+                          '<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>'
                           '<script>setInterval(async()=>{try{const token=await shopify.idToken();'
                           'await fetch("/shopify/session",{method:"POST",headers:{Authorization:"Bearer "+token}});'
                           '}catch(e){}},300000);</script>')
                 body = body.replace(b"<head>", ("<head>" + bridge).encode(), 1)
+                navigation = ('<s-app-nav>'
+                              '<s-link href="/shopify" rel="home">首页</s-link>'
+                              '<s-link href="/admin/tasks">任务记录</s-link>'
+                              '<s-link href="/admin/config">设置</s-link>'
+                              '</s-app-nav>')
+                body = body.replace(b'<body>', ('<body>' + navigation).encode(), 1)
                 headers = dict(response.headers)
                 headers.pop("content-length", None)
                 return Response(body, status_code=response.status_code, headers=headers, background=response.background)
