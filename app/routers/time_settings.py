@@ -1,3 +1,4 @@
+from app.services.i18n import render as _i18n, Message as _i18n_message
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -29,6 +30,6 @@ def save_settings(value: TimeSettingsInput, request: Request):
     if request.headers.get('origin') != str(request.base_url).rstrip('/'):
         raise HTTPException(403, 'Invalid request origin')
     if value.custom_timezone not in available_timezones():
-        raise HTTPException(422, '请选择有效的时区')
+        raise HTTPException(422, _i18n('template_d220d6bfa02b'))
     settings.update(value.model_dump())
     return JSONResponse(settings.settings_response(), headers={'Cache-Control': 'no-store'})

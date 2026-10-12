@@ -101,6 +101,9 @@ app.add_middleware(
 app.include_router(api_router)
 app.add_middleware(ShopifyAdminMiddleware)
 app.include_router(admin_router)
+from app.routers.language_settings import router as language_settings_router, LanguageMiddleware
+app.include_router(language_settings_router)
+app.add_middleware(LanguageMiddleware)
 app.include_router(shopify_router)
 
 if APIConfig.REPLICATE_API_TOKEN:

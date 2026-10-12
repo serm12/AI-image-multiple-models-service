@@ -1,3 +1,4 @@
+from app.services.i18n import render as _i18n, Message as _i18n_message, t as _t
 import os
 import tempfile
 from html import escape
@@ -46,17 +47,17 @@ ADMIN_CONFIG_NAMES = {
 }
 SENSITIVE_CONFIG_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 CONVERSION_FILTER_OPTIONS = (
-    ("added_to_cart", "加购"),
-    ("checkout_intent", "结账意图"),
-    ("checkout_started", "开始结账"),
-    ("checkout_completed", "已付款"),
+    ("added_to_cart", _i18n_message('template_f0d14c5499db')),
+    ("checkout_intent", _i18n_message('template_b3992285e8b2')),
+    ("checkout_started", _i18n_message('template_f460e795b575')),
+    ("checkout_completed", _i18n_message('template_a461133d405c')),
 )
 TIME_RANGE_OPTIONS = (
-    ("", "全部时间"),
-    ("today", "今天"),
-    ("yesterday", "昨天"),
-    ("last_7_days", "最近 7 天"),
-    ("last_30_days", "最近 1 月"),
+    ("", _i18n_message('template_1a1111c82dfe')),
+    ("today", _i18n_message('template_e079844b9087')),
+    ("yesterday", _i18n_message('template_5e0a77c951cd')),
+    ("last_7_days", _i18n_message('template_57763cded20c')),
+    ("last_30_days", _i18n_message('template_00634cb4b53a')),
 )
 TRAFFIC_SOURCE_ICONS = (
     ("google", "Google", "https://cdn.simpleicons.org/google/4285F4"),
@@ -84,19 +85,10 @@ def _admin_next(value: str | None) -> str:
 
 def _login_page(next_url: str, error: bool = False) -> HTMLResponse:
     message = (
-        '<p class="error" role="alert">用户名或密码不正确，请重试。</p>'
+        _i18n('template_6b1313f1949c')
         if error else ""
     )
-    return HTMLResponse(f'''<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>登录 · AI 图片管理</title>
-<style>*{{box-sizing:border-box}}body{{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eef4ff,#f8fafc);color:#172033;font:15px/1.5 system-ui,-apple-system,sans-serif}}main{{width:min(100%,420px);padding:36px;border:1px solid #dbe4f0;border-radius:18px;background:#fff;box-shadow:0 18px 48px #2737521f}}h1{{margin:0 0 8px;font-size:25px}}.subtitle{{margin:0 0 27px;color:#64748b}}label{{display:block;margin:16px 0 6px;font-weight:650}}input[type=text],input[type=password]{{width:100%;height:44px;padding:0 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}}input:focus{{outline:3px solid #b9d6ff;border-color:#3979c7}}.remember{{display:flex;align-items:center;gap:8px;margin:18px 0 22px;color:#42546d}}button{{width:100%;height:45px;border:0;border-radius:9px;background:#1769d2;color:#fff;font:650 15px inherit;cursor:pointer}}button:hover{{background:#1259b3}}.error{{margin:0 0 16px;padding:9px 11px;border-radius:8px;background:#fff1f0;color:#b42318}}.notice{{margin:22px 0 0;color:#718096;font-size:12px;text-align:center}}</style>
-</head><body><main><h1>AI 图片管理</h1><p class="subtitle">请登录以查看生成记录</p>{message}
-<form method="post" action="/admin/login"><input type="hidden" name="next" value="{_text(next_url)}">
-<label for="username">用户名</label><input id="username" name="username" type="text" autocomplete="username" required autofocus>
-<label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" required>
-<label class="remember"><input name="remember" type="checkbox" value="true" checked> 记住我（30 天）</label>
-<button type="submit">登录</button></form><p class="notice">请勿在公共设备上勾选“记住我”。</p></main></body></html>''', status_code=401 if error else 200)
+    return HTMLResponse(f'{_i18n('template_dbf75f2ff239')}{message}\n<form method="post" action="/admin/login"><input type="hidden" name="next" value="{_text(next_url)}{_i18n('template_dd51954c7f8a')}', status_code=401 if error else 200)
 
 
 @router.get("/admin/login", response_class=HTMLResponse)
@@ -144,8 +136,8 @@ def _text(value) -> str:
 
 def _config_value(name: str, value: str) -> str:
     if any(marker in name.upper() for marker in SENSITIVE_CONFIG_MARKERS):
-        return "已设置（已隐藏）" if value else "未设置"
-    return value or "未设置"
+        return _i18n('template_4b7366d5c95d') if value else _i18n('template_20310590eff4')
+    return value or _i18n('template_20310590eff4')
 
 
 @router.get("/admin/styles", response_class=HTMLResponse)
@@ -165,12 +157,10 @@ def admin_styles(_username: str = Depends(require_admin_login)):
 
     rows = "".join(
         f"<tr><th><code>{_text(value)}</code></th><td>{_text(description)}</td>"
-        f"<td><pre>{_text(prompt or '无额外风格提示词')}</pre></td></tr>"
+        f"<td><pre>{_text(prompt or _i18n('template_cc29bbde8853'))}</pre></td></tr>"
         for value, description, prompt in style_entries
     )
-    return HTMLResponse(f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
-<title>风格预设 · AI 图片管理</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}main{{max-width:1500px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}}h1{{margin:0;font-size:25px}}p{{color:#64748b}}a{{color:#1769d2;text-decoration:none}}.actions{{display:flex;gap:8px;flex-wrap:wrap}}.button{{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}}.panel{{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}}table{{width:100%;border-collapse:collapse;min-width:1000px}}th,td{{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}}th{{width:220px;background:#f8fafc;color:#40536d}}td:nth-child(2){{width:260px;color:#52647d}}code{{font:12px ui-monospace,SFMono-Regular,monospace}}pre{{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;color:#304761}}.notice{{padding:10px 12px;border-radius:8px;background:#eef6ff;color:#245b9c}}</style></head><body><main><header><div><h1>风格预设</h1><p>v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)} · 所有预设及其后端实际追加的提示词。</p></div><nav class="actions"><a class="button" href="/admin/tasks">任务记录</a><a class="button" href="/admin/config">设置</a></nav></header><p class="notice">“无额外风格提示词”表示该预设不会在产品提示词前自动追加内容。</p><div class="panel"><table><thead><tr><th>风格标识</th><th>说明</th><th>实际风格提示词</th></tr></thead><tbody>{rows}</tbody></table></div></main></body></html>''')
+    return HTMLResponse(f'{_i18n('template_6179db4eb1df')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_b58e913342a8')}{rows}</tbody></table></div></main></body></html>')
 
 
 @router.get("/admin/config", response_class=HTMLResponse)
@@ -226,7 +216,7 @@ def _paid_traffic_badge(*values: object) -> str:
         "adwords", "fbclid", "gclid", "msclkid",
     )
     if any(marker in source_text for marker in paid_markers):
-        return '<span class="paid-traffic-badge" title="付费投放流量">付费</span>'
+        return _i18n('template_a844489ea6c1')
     return ""
 
 
@@ -245,12 +235,7 @@ def _task_row(task: dict, return_url: str) -> str:
             f"{quote(filename, safe='')}"
         )
         images += (
-            f'<a class="image-item image-item--reference glightbox" href="{_text(url)}" '
-            f'data-gallery="{gallery_name}" data-title="编辑参考图" '
-            f'title="来源任务：{_text(reference_task_id)}">'
-            '<span class="image-item__badge">参考</span>'
-            f'<img src="{_text(thumbnail_url)}" loading="lazy" decoding="async" '
-            'alt="编辑参考图"></a>'
+            f'<a class="image-item image-item--reference glightbox" href="{_text(url)}" data-gallery="{gallery_name}{_i18n('template_d05675f67f08')}{_text(reference_task_id)}{_i18n('template_f240fdb5ba46')}{_text(thumbnail_url)}{_i18n('template_c7b86ba0a051')}'
         )
     for url in task.get("output_files", []):
         filename = unquote(os.path.basename(urlparse(str(url)).path))
@@ -265,14 +250,7 @@ def _task_row(task: dict, return_url: str) -> str:
             'alt="Generated image"></a>'
         )
     image_strip = (
-        '<div class="image-strip" data-image-strip>'
-        '<button class="image-scroll image-scroll-prev" type="button" '
-        'aria-label="向左滚动图片" title="上一张">‹</button>'
-        '<div class="images" tabindex="0" aria-label="生成图片列表">'
-        f'{images}</div>'
-        '<button class="image-scroll image-scroll-next" type="button" '
-        'aria-label="向右滚动图片" title="下一张">›</button>'
-        '</div>'
+        f'{_i18n('template_b3dfc2391711')}{images}{_i18n('template_a01bdbec5e13')}'
         if images
         else '<span class="muted">—</span>'
     )
@@ -284,7 +262,7 @@ def _task_row(task: dict, return_url: str) -> str:
             f'rel="noopener">{_text(request_path)}</a>'
         )
     else:
-        request_link = '<span class="muted">旧任务</span>'
+        request_link = _i18n('template_a79200734f5a')
     raw_source_page_url = str(task.get("source_page_url") or "")
     source_page_url = _text(raw_source_page_url)
     source_title = _text(
@@ -312,7 +290,7 @@ def _task_row(task: dict, return_url: str) -> str:
         source_link = '<span class="muted">—</span>'
     raw_traffic_source = task.get("traffic_source")
     raw_traffic_referrer = task.get("traffic_referrer")
-    traffic_source = _text(raw_traffic_source) or '<span class="muted">旧任务 / 未采集</span>'
+    traffic_source = _text(raw_traffic_source) or _i18n('template_f53635f77d94')
     traffic_referrer = _text(raw_traffic_referrer)
     utm_parts = [
         ("utm_source", task.get("utm_source")),
@@ -343,13 +321,7 @@ def _task_row(task: dict, return_url: str) -> str:
     ip_task_total = task.get("ip_task_total")
     if client_ip and ip_task_sequence:
         client_ip = (
-            f'<span class="client-ip__address">{client_ip}</span> '
-            f'<span class="ip-task-sequence" '
-            f'title="该 IP 发起的第 {_text(ip_task_sequence)} 个任务">'
-            f'#{_text(ip_task_sequence)}</span> '
-            f'<span class="ip-task-total" '
-            f'title="该 IP 累计发起 {_text(ip_task_total)} 个任务">'
-            f'共 {_text(ip_task_total)} 次</span>'
+            f'<span class="client-ip__address">{client_ip}{_i18n('template_4462a1a7815f')}{_text(ip_task_sequence)}{_i18n('template_5cda91f67114')}{_text(ip_task_sequence)}{_i18n('template_98bf3b84b1f8')}{_text(ip_task_total)}{_i18n('template_3583da37e1d3')}{_text(ip_task_total)}{_i18n('template_9a4e91264c64')}'
         )
     elif client_ip:
         client_ip = f'<span class="client-ip__address">{client_ip}</span>'
@@ -371,8 +343,8 @@ def _task_row(task: dict, return_url: str) -> str:
         )
     raw_task_id = task_id
     task_id = _text(task_id)
-    star_title = "取消收藏" if task.get("starred") else "收藏任务"
-    star_label = "已收藏" if task.get("starred") else "收藏"
+    star_title = _i18n('template_52fd8704a992') if task.get("starred") else _i18n('template_b785ec7a76ae')
+    star_label = _i18n('template_1dc1f9a399ca') if task.get("starred") else _i18n('template_4293266621b8')
     star_class = " is-starred" if task.get("starred") else ""
     star_control = (
         f'<form class="star-form" method="post" action="/admin/tasks/{quote(raw_task_id, safe="")}/star">'
@@ -387,25 +359,22 @@ def _task_row(task: dict, return_url: str) -> str:
     prompt_content = ""
     if edit_instructions:
         prompt_content += (
-            '<section class="prompt-card__section prompt-card__section--edit">'
-            '<strong>客户修改要求</strong>'
-            f'<div>{edit_instructions}</div></section>'
+            f'{_i18n('template_44b6c70e2d53')}{edit_instructions}</div></section>'
         )
     if prompt:
         prompt_content += (
             '<section class="prompt-card__section">'
-            f'<strong>{"完整提示词" if edit_instructions else "提示词"}</strong>'
+            f'<strong>{_i18n('template_34edb121b015') if edit_instructions else _i18n('template_98b17503c159')}</strong>'
             f'<div>{prompt}</div></section>'
         )
     prompt_view = (
-        '<details class="prompt-details"><summary>查看提示词</summary>'
-        f'<div class="prompt-card">{prompt_content}</div></details>'
+        f'{_i18n('template_2a3f984d7954')}{prompt_content}</div></details>'
         if prompt_content
         else '<span class="muted">—</span>'
     )
     duration_value = task.get("generation_duration_seconds")
     try:
-        duration = f"{float(duration_value):.1f} 秒"
+        duration = f'{float(duration_value):.1f}{_i18n('template_bc1c87c71f42')}'
     except (TypeError, ValueError):
         duration = '<span class="muted">—</span>'
     customer_email = _text(task.get("customer_email"))
@@ -416,52 +385,51 @@ def _task_row(task: dict, return_url: str) -> str:
     customer_url = (f'https://admin.shopify.com/store/paintingify/customers/{linked_customer_id}'
                     if linked_customer_id.isascii() and linked_customer_id.isdigit() else '')
     if customer_email:
-        customer_title = f"Customer ID: {customer_id}" if customer_id else "前端填写的邮箱"
-        identity_label = "已登录" if task.get("customer_logged_in") and customer_id else "已填写邮箱"
+        customer_title = f"Customer ID: {customer_id}" if customer_id else _i18n('template_c82b767c7740')
+        identity_label = _i18n('template_bb788be6b37c') if task.get("customer_logged_in") and customer_id else _i18n('template_2fe600893ce2')
         identity = (
             f'<span class="identity identity--customer">{identity_label}</span>'
-            + (f'<a class="customer-email" href="{customer_url}" target="_blank" rel="noopener noreferrer" title="查看 Shopify 客户详情">{customer_email} 🔗</a>'
+            + (f'<a class="customer-email" href="{customer_url}{_i18n('template_f2cac1919c64')}{customer_email} 🔗</a>'
                if customer_url else f'<span class="customer-email" title="{customer_title}">{customer_email}</span>')
         )
     elif customer_id:
         identity = (
-            '<span class="identity identity--customer">已登录</span>'
-            + (f'<a href="{customer_url}" target="_blank" rel="noopener noreferrer" title="查看 Shopify 客户详情">{customer_id} 🔗</a>'
-               if customer_url else f'<code title="尚未采集邮箱 · Customer ID: {customer_id}">{customer_id}</code>')
+            _i18n('template_a83acd03042b')
+            + (f'<a href="{customer_url}{_i18n('template_f2cac1919c64')}{customer_id} 🔗</a>'
+               if customer_url else f'{_i18n('template_cef6d5dab960')}{customer_id}">{customer_id}</code>')
         )
     elif visitor_id:
         identity = (
-            '<span class="identity">访客</span>'
-            f'<code title="Visitor ID: {visitor_id}">{visitor_id[:10]}…</code>'
+            f'{_i18n('template_96e626479cd7')}{visitor_id}">{visitor_id[:10]}…</code>'
         )
     else:
         identity = '<span class="muted">—</span>'
     subscription_labels = {
-        "accepted": "订阅表单：提交成功",
-        "verification_required": "订阅：需要验证",
-        "failed": "订阅：提交失败",
-        "unconfirmed": "订阅：结果未确认",
-        "not_attempted": "订阅：未提交",
+        "accepted": _i18n('template_7a0f86c45e41'),
+        "verification_required": _i18n('template_2a089fbc2c45'),
+        "failed": _i18n('template_e0764f5a6749'),
+        "unconfirmed": _i18n('template_eb74eba1754c'),
+        "not_attempted": _i18n('template_1e52f26c934c'),
     }
-    subscription_label = subscription_labels.get(task.get("subscription_status"), "订阅：未记录")
-    subscription_detail = "前端回报；非 Shopify 最终订阅或账号注册确认。" + str(task.get("subscription_reason") or "")
+    subscription_label = subscription_labels.get(task.get("subscription_status"), _i18n('template_53250ef070d6'))
+    subscription_detail = _i18n('template_edc8a35f4861') + str(task.get("subscription_reason") or "")
     synced = task.get('customer_sync') or {}
     if synced:
-        subscription_label = {'queued': '客户同步：等待处理', 'retry': '客户同步：等待重试',
-            'failed': '客户同步：失败', 'subscribed': '客户已关联 · 已订阅',
-            'preserved': '客户已关联 · 保留原订阅状态'}.get(synced.get('state'), subscription_label)
-        subscription_detail = synced.get('detail') or '后台将自动同步至 Shopify'
+        subscription_label = {'queued': _i18n('template_bfe688a5a764'), 'retry': _i18n('template_67d439b7a8c6'),
+            'failed': _i18n('template_1d69f4d2229c'), 'subscribed': _i18n('template_1b08d243675e'),
+            'preserved': _i18n('template_289ed03acf95')}.get(synced.get('state'), subscription_label)
+        subscription_detail = synced.get('detail') or _i18n('template_31c6f244b45f')
     identity += f'<span class="muted" title="{_text(subscription_detail)}">{_text(subscription_label)}</span>'
     event_times = task.get("storefront_event_times") or {}
     funnel_states = (
-        ("added-to-cart", "added_to_cart", "加购", task.get("added_to_cart")),
-        ("checkout-intent", "checkout_intent", "结账意图", task.get("checkout_intent")),
-        ("checkout-started", "checkout_started", "开始结账", task.get("checkout_started")),
-        ("checkout-completed", "checkout_completed", "已付款", task.get("checkout_completed")),
+        ("added-to-cart", "added_to_cart", _i18n('template_f0d14c5499db'), task.get("added_to_cart")),
+        ("checkout-intent", "checkout_intent", _i18n('template_b3992285e8b2'), task.get("checkout_intent")),
+        ("checkout-started", "checkout_started", _i18n('template_f460e795b575'), task.get("checkout_started")),
+        ("checkout-completed", "checkout_completed", _i18n('template_a461133d405c'), task.get("checkout_completed")),
     )
     funnel_parts = []
     for stage_class, event_type, label, active in funnel_states:
-        state_label = "已触发" if active else "未触发"
+        state_label = _i18n('template_fb1b45b8d31f') if active else _i18n('template_ffd199c8f31c')
         event_time = _text(event_times.get(event_type))
         title = f"{label}：{state_label}"
         if event_time:
@@ -473,14 +441,12 @@ def _task_row(task: dict, return_url: str) -> str:
         )
     funnel = "".join(funnel_parts)
     if task.get('checkout_completed') and not task.get('shopify_orders'):
-        identity += '<span class="muted">订单待匹配</span>'
+        identity += _i18n('template_d153eecf0624')
     for order in task.get('shopify_orders', []):
-        status = {'PAID': '已付款', 'PARTIALLY_REFUNDED': '部分退款', 'REFUNDED': '已退款',
-                  'PENDING': '待付款', 'AUTHORIZED': '已授权', 'VOIDED': '已作废',
-                  'PARTIALLY_PAID': '部分付款'}.get(order.get('financial_status'), '状态待确认')
-        identity += (f'<a class="customer-email" href="{_text(order["url"])}" target="_blank" '
-                     f'rel="noopener noreferrer" title="按订单商品任务 ID 精确关联">'
-                     f'订单 {_text(order["name"])} · {_text(status)} ↗</a>')
+        status = {'PAID': _i18n('template_a461133d405c'), 'PARTIALLY_REFUNDED': _i18n('template_6f52bfb56ce2'), 'REFUNDED': _i18n('template_4fbf5c598aac'),
+                  'PENDING': _i18n('template_bb6cb7d2c01b'), 'AUTHORIZED': _i18n('template_d5498f3548b5'), 'VOIDED': _i18n('template_456ebc9b3dad'),
+                  'PARTIALLY_PAID': _i18n('template_4ca78ac48c44')}.get(order.get('financial_status'), _i18n('template_5ea44804ef9c'))
+        identity += (f'<a class="customer-email" href="{_text(order['url'])}{_i18n('template_769c5fdec4c1')}{_text(order['name'])} · {_text(status)} ↗</a>')
     display_zone = effective_timezone()
     beijing_time = _display_time(task["created_at"], task.get("time_zone"), display_zone)
     eastern_time = _display_time(
@@ -490,35 +456,10 @@ def _task_row(task: dict, return_url: str) -> str:
         task["created_at"], task.get("time_zone"), US_PACIFIC_TIMEZONE
     )
     time_cell = (
-        '<div class="task-time">'
-        f'<time title="{_text(display_zone.key)}：{_text(beijing_time)}"><span>当前</span>'
-        f'{_text(_compact_display_time(task["created_at"], task.get("time_zone"), display_zone))}</time>'
-        f'<time title="美国东部：{_text(eastern_time)}"><span>美东</span>'
-        f'{_text(_compact_display_time(task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE))}</time>'
-        f'<time title="美国西部：{_text(pacific_time)}"><span>美西</span>'
-        f'{_text(_compact_display_time(task["created_at"], task.get("time_zone"), US_PACIFIC_TIMEZONE))}</time>'
-        '</div>'
+        f'<div class="task-time"><time title="{_text(display_zone.key)}：{_text(beijing_time)}{_i18n('template_262afda947c6')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), display_zone))}{_i18n('template_8d0f3a6de339')}{_text(eastern_time)}{_i18n('template_dc97174a0c82')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), US_EASTERN_TIMEZONE))}{_i18n('template_5acc02cca0f3')}{_text(pacific_time)}{_i18n('template_b0a6cb06ae24')}{_text(_compact_display_time(task['created_at'], task.get('time_zone'), US_PACIFIC_TIMEZONE))}</time></div>'
     )
     return (
-        "<tr>"
-        f'<td><div class="star-cell">{star_control}<code title="{task_id}">{task_id[:17]}…</code></div></td>'
-        f'<td><span class="status">{_text(task["status"])}</span></td>'
-        f'<td>{time_cell}</td>'
-        f"<td>{duration}</td>"
-        f'<td class="provider">{_text(task.get("api_provider"))}</td>'
-        f'<td class="client-ip">{client_ip}</td>'
-        f'<td><span class="country">{country}</span></td>'
-        f'<td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td>'
-        '<td class="source-cell">'
-        f'<div class="source-cell__title">{source_title_view}</div>'
-        f'<div class="source-cell__detail"><span>流量</span>{paid_traffic_badge}{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>'
-        f'{traffic_attribution_line}'
-        f'<div class="source-cell__detail"><span>来源</span>{source_link}</div>'
-        f'<div class="source-cell__detail"><span>请求</span>{request_link}</div>'
-        '</td>'
-        f'<td class="prompt">{prompt_view}</td>'
-        f'<td class="images-cell">{image_strip}</td>'
-        "</tr>"
+        f'<tr><td><div class="star-cell">{star_control}<code title="{task_id}">{task_id[:17]}…</code></div></td><td><span class="status">{_text(task['status'])}</span></td><td>{time_cell}</td><td>{duration}</td><td class="provider">{_text(task.get('api_provider'))}</td><td class="client-ip">{client_ip}</td><td><span class="country">{country}</span></td><td class="identity-cell">{identity}<div class="funnel">{funnel}</div></td><td class="source-cell"><div class="source-cell__title">{source_title_view}{_i18n('template_5fe7cab5d12f')}{paid_traffic_badge}{traffic_icon}<strong title="{traffic_detail}">{traffic_source}</strong></div>{traffic_attribution_line}{_i18n('template_6fd6c4689a64')}{source_link}{_i18n('template_0b76794fe50f')}{request_link}</div></td><td class="prompt">{prompt_view}</td><td class="images-cell">{image_strip}</td></tr>'
     )
 
 
@@ -574,17 +515,17 @@ def _pagination(
         previous_number = number
 
     previous = (
-        page_link(page - 1, "‹ 上一页", "pagination__direction")
+        page_link(page - 1, _i18n('template_7d4b87fe917c'), "pagination__direction")
         if data["has_previous"]
-        else '<span class="pagination__direction is-disabled">‹ 上一页</span>'
+        else _i18n('template_b40a647c8028')
     )
     following = (
-        page_link(page + 1, "下一页 ›", "pagination__direction")
+        page_link(page + 1, _i18n('template_dd7541324981'), "pagination__direction")
         if data["has_next"]
-        else '<span class="pagination__direction is-disabled">下一页 ›</span>'
+        else _i18n('template_68cd079c4e2b')
     )
     size_options = "".join(
-        f'<option value="{size}"{" selected" if size == page_size else ""}>{size} 条/页</option>'
+        f'<option value="{size}"{(' selected' if size == page_size else '')}>{size}{_i18n('template_c1354a5fc066')}'
         for size in (25, 50, 100)
     )
     jump_items = [
@@ -604,19 +545,10 @@ def _pagination(
         if value != ""
     )
     page_jump = (
-        '<form class="pagination__jump" action="/admin/tasks" method="get">'
-        f'{jump_fields}<label>跳至 <input name="page" type="number" min="1" '
-        f'max="{total_pages}" value="{page}" inputmode="numeric" aria-label="跳转到页码"> 页</label>'
-        '<button type="submit">跳转</button></form>'
+        f'<form class="pagination__jump" action="/admin/tasks" method="get">{jump_fields}{_i18n('template_e9e29c7c2b06')}{total_pages}" value="{page}{_i18n('template_bb4292aeb2ff')}'
     )
     return (
-        '<nav class="pagination" aria-label="任务分页">'
-        f'<div class="pagination__links">{previous}{"".join(number_links)}{following}</div>'
-        '<label class="pagination__size">每页显示 '
-        f'<select id="page-size-select">{size_options}</select></label>'
-        f'{page_jump}'
-        f'<span class="pagination__summary">第 {page} / {total_pages} 页</span>'
-        '</nav>'
+        f'{_i18n('template_6497414084d7')}{previous}{''.join(number_links)}{following}{_i18n('template_da22c9bc88f9')}{size_options}</select></label>{page_jump}{_i18n('template_ce462b242464')}{page} / {total_pages}{_i18n('template_f4f0088a6048')}'
     )
 
 
@@ -629,7 +561,7 @@ def admin_task_thumbnail(
     """Return a small cached preview instead of transferring the original image."""
     source_path = resolve_task_file_path(task_id, filename)
     if not source_path or not os.path.isfile(source_path):
-        return HTMLResponse("图片不存在", status_code=404)
+        return HTMLResponse(_i18n('template_d138c43e600e'), status_code=404)
 
     source = Path(source_path)
     cache_dir = source.parent / ".admin-thumbnails"
@@ -673,7 +605,7 @@ def admin_task_star(
 ):
     """Toggle the admin-only star for a task and return to the current list."""
     if set_task_starred(task_id, starred.strip().lower() != "true") is None:
-        return HTMLResponse("任务不存在", status_code=404)
+        return HTMLResponse(_i18n('template_9c60c5b1f3d6'), status_code=404)
     return RedirectResponse(_admin_next(next), status_code=303)
 
 
@@ -732,7 +664,7 @@ def admin_tasks(
     for task in data['tasks']:
         task['shopify_orders'] = order_links.get(task['task_id'], [])
     rows = "".join(_task_row(task, return_url) for task in data["tasks"])
-    body = rows or '<tr><td colspan="12" class="empty">暂无任务记录</td></tr>'
+    body = rows or _i18n('template_0d3a2439e735')
     pagination = _pagination(
         data,
         client_ip_query,
@@ -752,19 +684,7 @@ def admin_tasks(
         for value, label in CONVERSION_FILTER_OPTIONS
     )
     conversion_filter_form = (
-        '<form id="conversion-search" class="column-search" action="/admin/tasks" '
-        'method="get" style="width:300px;flex-wrap:wrap;align-items:center">'
-        '<input type="hidden" name="page" value="1">'
-        f'<input type="hidden" name="page_size" value="{page_size}">'
-        f'<input type="hidden" name="client_ip" value="{_text(client_ip_query)}">'
-        f'<input type="hidden" name="user" value="{_text(user_query)}">'
-        f'<input type="hidden" name="task_id" value="{_text(task_id_query)}">'
-        f'<input type="hidden" name="provider" value="{_text(provider_query)}">'
-        f'<input type="hidden" name="starred" value="{"true" if starred else "false"}">'
-        f'<input type="hidden" name="time_range" value="{_text(time_range_query)}">'
-        '<fieldset style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;border:0;margin:0;padding:0">'
-        '<legend style="padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700">转化状态</legend>'
-        f'{conversion_filter_options}</fieldset><button type="submit">筛选</button></form>'
+        f'<form id="conversion-search" class="column-search" action="/admin/tasks" method="get" style="width:300px;flex-wrap:wrap;align-items:center"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input type="hidden" name="starred" value="{('true' if starred else 'false')}"><input type="hidden" name="time_range" value="{_text(time_range_query)}{_i18n('template_5f28ded94aac')}{conversion_filter_options}{_i18n('template_a3afab951e91')}'
     )
     time_range_options = "".join(
         f'<option value="{value}"{" selected" if value == time_range_query else ""}>'
@@ -786,11 +706,9 @@ def admin_tasks(
             f'<input type="hidden" name="conversion_status" value="{status}">'
             for status in conversion_statuses
         )
-        + '<label>筛选时间 <select name="time_range" onchange="this.form.submit()" '
-        'style="height:28px;border:0;background:transparent;color:#245b9c;font:600 12px system-ui;cursor:pointer">'
-        f'{time_range_options}</select></label></form>'
+        + f'{_i18n('template_f3e8af90d327')}{time_range_options}</select></label></form>'
     )
-    time_range_label = dict(TIME_RANGE_OPTIONS).get(time_range_query, "全部时间")
+    time_range_label = dict(TIME_RANGE_OPTIONS).get(time_range_query, _i18n('template_1a1111c82dfe'))
 
     def clear_filter_url(filter_name: str, filter_value: str = "") -> str:
         query_items = [("page", "1"), ("page_size", str(page_size))]
@@ -815,32 +733,27 @@ def admin_tasks(
     active_filters = []
     if time_range_query:
         active_filters.append(
-            ("时间", time_range_label, clear_filter_url("time_range"))
+            (_i18n('template_dc22a0c11491'), time_range_label, clear_filter_url("time_range"))
         )
     for status, label in CONVERSION_FILTER_OPTIONS:
         if status in conversion_statuses:
             active_filters.append(
-                ("转化", label, clear_filter_url("conversion_status", status))
+                (_i18n('template_6478e5e6d208'), label, clear_filter_url("conversion_status", status))
             )
     if user_query:
-        active_filters.append(("用户", user_query, clear_filter_url("user")))
+        active_filters.append((_i18n('template_063ec4bc36b6'), user_query, clear_filter_url("user")))
     if client_ip_query:
         active_filters.append(("IP", client_ip_query, clear_filter_url("client_ip")))
     if task_id_query:
-        active_filters.append(("任务 ID", task_id_query, clear_filter_url("task_id")))
+        active_filters.append((_i18n('template_3e3eb34acea6'), task_id_query, clear_filter_url("task_id")))
     if provider_query:
         active_filters.append(("Provider", provider_query, clear_filter_url("provider")))
     if starred:
-        active_filters.append(("收藏", "已收藏", clear_filter_url("starred")))
+        active_filters.append((_i18n('template_4293266621b8'), _i18n('template_1dc1f9a399ca'), clear_filter_url("starred")))
     active_filter_chips = (
-        '<div aria-label="已选筛选条件" style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;'
-        'margin:0 0 12px;color:#53657e;font-size:12px"><span>已选：</span>'
+        _i18n('template_9e9b7d0c1ab0')
         + "".join(
-            f'<span style="display:inline-flex;align-items:center;gap:5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-            'padding:3px 7px;border:1px solid #cfe0f6;border-radius:999px;background:#eef5ff;color:#245b9c">'
-            f'<span style="overflow:hidden;text-overflow:ellipsis">{_text(label)}：{_text(value)}</span>'
-            f'<a href="{_text(clear_url)}" aria-label="清除{_text(label)}筛选：{_text(value)}" title="清除筛选" '
-            'style="color:#245b9c;font-size:15px;font-weight:700;line-height:1;text-decoration:none">×</a></span>'
+            f'<span style="display:inline-flex;align-items:center;gap:5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:3px 7px;border:1px solid #cfe0f6;border-radius:999px;background:#eef5ff;color:#245b9c"><span style="overflow:hidden;text-overflow:ellipsis">{_text(label)}：{_text(value)}</span><a href="{_text(clear_url)}{_i18n('template_433903e3ed9b')}{_text(label)}{_i18n('template_804d1da7c015')}{_text(value)}{_i18n('template_b5fce338b695')}'
             for label, value, clear_url in active_filters
         )
         + '</div>'
@@ -848,174 +761,5 @@ def admin_tasks(
         else ""
     )
     return HTMLResponse(
-        f"""<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><title>AI 图片生成记录</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/css/glightbox.min.css">
-<style>
-*{{box-sizing:border-box}}body{{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}}
-main{{max-width:1800px;margin:auto;padding:28px}}header{{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}}.header-actions{{display:flex;align-items:center;gap:8px;margin-top:9px}}.logout-form{{margin:0}}.logout-button,.config-link{{border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#53657e;padding:6px 10px;cursor:pointer;text-decoration:none}}
-h1{{margin:0;font-size:25px}}.header-meta{{display:flex;align-items:center;gap:10px;margin-top:2px}}.count,.muted{{color:#718096}}.version{{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}}.current-times{{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}}.current-time{{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}}.current-time__label{{color:#718096;font-size:12px}}.current-time time{{font-weight:600;white-space:nowrap}}.panel{{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}}
-.service-status{{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}}.service-dot{{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}}.service-status.checking{{color:#718096;background:#f8fafc;border-color:#e3e8f0}}.service-status.checking .service-dot{{background:#94a3b8;box-shadow:none}}.service-status.error{{color:#b42318;background:#fff6f5;border-color:#f4d6d2}}.service-status.error .service-dot{{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}}
-table{{width:100%;border-collapse:collapse;min-width:1280px;table-layout:fixed}}th,td{{padding:8px 7px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}}th{{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}}.column-heading{{display:inline-flex;align-items:center;gap:4px;position:relative}}.column-search-toggle{{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:#64748b;cursor:pointer}}.column-search-toggle:hover,.column-search-toggle[aria-expanded=true]{{background:#e7effa;color:#1769d2}}.column-search-toggle svg{{width:14px;height:14px}}.column-search{{display:none;position:absolute;top:calc(100% + 7px);left:0;z-index:8;width:210px;padding:8px;border:1px solid #d8e1ec;border-radius:9px;background:#fff;box-shadow:0 10px 24px #17203324}}.column-search.is-open{{display:flex;gap:6px}}.column-search input{{min-width:0;width:100%;height:30px;padding:0 8px;border:1px solid #cbd5e1;border-radius:6px;color:#24344d;font:12px system-ui,-apple-system,sans-serif}}.column-search input:focus{{outline:2px solid #b9d6ff;border-color:#3979c7}}.column-search button{{height:30px;padding:0 9px;border:0;border-radius:6px;background:#1769d2;color:#fff;font:600 12px system-ui,-apple-system,sans-serif;cursor:pointer}}tbody tr{{height:76px}}tbody tr:hover{{background:#fafcff}}
-th:nth-child(1){{width:58px}}th:nth-child(2){{width:135px}}th:nth-child(3){{width:72px}}th:nth-child(4){{width:138px}}th:nth-child(5){{width:65px}}th:nth-child(6){{width:125px}}th:nth-child(7){{width:130px}}th:nth-child(8){{width:62px}}th:nth-child(9){{width:220px}}th:nth-child(10){{width:340px}}th:nth-child(11){{width:85px}}th:nth-child(12){{width:auto}}.star-form{{margin:0}}.star-button{{display:inline-flex;align-items:center;gap:2px;padding:3px 5px;border:1px solid #d8e1ec;border-radius:7px;background:#fff;color:#94a3b8;font:600 11px system-ui;cursor:pointer}}.star-button:hover{{border-color:#e3ae22;color:#b77900;background:#fff9e9}}.star-button.is-starred{{border-color:#edc45c;color:#b77900;background:#fff7d6}}.star-button__text{{font-size:10px}}
-code{{font-size:11px;white-space:nowrap}}.nowrap{{white-space:nowrap}}.task-time{{display:grid;gap:2px;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}}.task-time time{{display:flex;align-items:center;gap:5px}}.task-time time+time{{color:#718096}}.task-time span{{display:inline-block;width:27px;color:#8a98aa;font-size:10px}}.provider{{overflow-wrap:anywhere}}.status{{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;background:#eaf7ed;color:#247436;font-size:11px;font-weight:600;line-height:1.35}}.client-ip{{white-space:normal;line-height:1.3}}.client-ip__address{{overflow-wrap:anywhere;word-break:break-all}}.ip-task-sequence,.ip-task-total{{display:inline-flex;align-items:center;justify-content:center;margin-top:3px;padding:1px 5px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.4;white-space:nowrap}}.ip-task-sequence{{min-width:26px;margin-left:3px;background:#e8f1ff;color:#245b9c}}.ip-task-total{{background:#eef7ed;color:#28733a}}.country-flag{{object-fit:contain;flex-shrink:0}}.country{{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;min-width:32px;justify-content:center;padding:2px 6px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}}.identity-cell{{display:flex;flex-direction:column;align-items:flex-start;gap:3px}}.identity-cell .funnel{{margin-top:2px}}.identity{{padding:1px 5px;border-radius:999px;background:#eef3fa;color:#3f5675;font-size:10px;font-weight:700}}.identity--customer{{background:#eaf7ed;color:#247436}}.funnel{{display:flex;flex-wrap:wrap;gap:3px}}.funnel-step{{padding:2px 5px;border-radius:6px;background:#f1f3f6;color:#98a2b3;font-size:10px;white-space:nowrap}}.funnel-step.is-active{{background:#eaf7ed;color:#247436;font-weight:700}}.source-cell{{overflow:hidden}}.source-cell__title,.source-cell__detail{{display:flex;min-width:0;align-items:center;gap:6px}}.source-cell__title a,.source-cell__detail a{{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}.source-cell__detail{{font-size:11px;color:#718096}}.source-cell__detail>span{{flex:0 0 24px;color:#8a98aa}}.source-title{{font-weight:650;color:#174f9b}}a{{color:#1769d2}}th:nth-child(11),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(11){{z-index:4;background:#f8fafc}}tbody tr:hover td.images-cell{{background:#fafcff}}.image-strip{{display:grid;grid-template-columns:23px minmax(52px,1fr) 23px;align-items:center;gap:3px;min-width:0}}.images{{display:flex;gap:4px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:1px 1px 4px}}.images::-webkit-scrollbar{{height:5px}}.images::-webkit-scrollbar-track{{background:#edf2f7;border-radius:999px}}.images::-webkit-scrollbar-thumb{{background:#a8b5c7;border-radius:999px}}.image-item{{position:relative;flex:0 0 auto;scroll-snap-align:start}}.image-item__badge{{position:absolute;left:2px;bottom:2px;z-index:1;padding:1px 3px;border-radius:4px;background:#1769d2;color:#fff;font-size:9px;font-weight:700;line-height:1.25}}.image-item--reference img{{border-color:#1769d2;box-shadow:0 0 0 1px #1769d2}}.images img{{display:block;width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #dbe2ea;transition:.15s}}.images img:hover{{transform:scale(1.04)}}.image-scroll{{display:grid;place-items:center;width:23px;height:34px;padding:0;border:1px solid #dbe2ea;border-radius:7px;background:#f8fafc;color:#36516f;font:700 18px/1 system-ui;cursor:pointer}}.image-scroll:hover:not(:disabled){{background:#eaf2fb;border-color:#b9cae0}}.image-scroll:disabled{{opacity:.28;cursor:default}}.pagination{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}}.pagination__links{{display:flex;align-items:center;gap:6px}}.pagination__page,.pagination__direction{{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}}.pagination__page.is-current{{border-color:#366fac;background:#366fac;color:#fff}}.pagination__direction.is-disabled{{color:#a2adbb;background:#f3f6f9}}.pagination__ellipsis{{padding:0 2px}}.pagination__size{{display:flex;align-items:center;gap:6px}}.pagination__size select{{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}}.pagination__summary{{font-size:12px}}.gcounter{{position:fixed;left:50%;bottom:12px;z-index:100001;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827d9;color:#fff;font-size:13px;font-variant-numeric:tabular-nums;pointer-events:none}}.empty{{padding:50px;text-align:center;color:#718096}}
-.customer-email{{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}}.funnel-step{{border:1px solid #e4e7ec;background:#f8fafc}}.funnel-step.is-active{{font-weight:700}}.funnel-step--added-to-cart.is-active{{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}}.funnel-step--checkout-intent.is-active{{border-color:#f2d394;background:#fff7e6;color:#9a6700}}.funnel-step--checkout-started.is-active{{border-color:#d7c4f5;background:#f5efff;color:#6941c6}}.funnel-step--checkout-completed.is-active{{border-color:#bfe3c7;background:#eaf7ed;color:#247436}}
-.prompt-details{{position:relative}}.prompt-details summary{{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}}.prompt-details summary::-webkit-details-marker{{display:none}}.prompt-details summary:after{{content:" ›"}}.prompt-details[open] summary:after{{content:" ×"}}.prompt-card{{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}}.prompt-card__section{{display:grid;gap:6px}}.prompt-card__section+ .prompt-card__section{{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}}.prompt-card__section strong{{font-size:12px;color:#53657e}}.prompt-card__section--edit{{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}}.prompt-card__section--edit strong{{color:#9a6700}}
-@media(max-width:700px){{main{{padding:16px}}h1{{font-size:21px}}header{{align-items:center}}.current-times{{flex-direction:column;align-items:flex-start}}.panel{{border-radius:10px}}}}
-@media(max-width:700px){{.admin-header{{align-items:flex-start;justify-content:flex-start;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:4px}}.admin-header>div{{flex:0 0 auto;scroll-snap-align:start}}.admin-header .current-times{{flex-direction:row;flex-wrap:nowrap;align-items:flex-start}}.admin-header .current-time{{flex:0 0 auto}}.admin-header .header-actions{{flex-wrap:nowrap}}}}
-th:nth-child(12),td.images-cell{{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}}th:nth-child(12){{z-index:4;background:#f8fafc}}
-th:nth-child(1){{width:135px}}th:nth-child(2){{width:72px}}th:nth-child(3){{width:138px}}th:nth-child(4){{width:65px}}th:nth-child(5){{width:125px}}th:nth-child(6){{width:130px}}th:nth-child(7){{width:82px}}th:nth-child(8){{width:220px}}th:nth-child(9){{width:340px}}th:nth-child(10){{width:85px}}th:nth-child(11){{width:auto}}.star-cell{{display:flex;align-items:center;gap:5px}}
-.pagination__jump{{display:flex;align-items:center;gap:5px}}.pagination__jump label{{display:flex;align-items:center;gap:4px;white-space:nowrap}}.pagination__jump input{{width:52px;height:34px;padding:0 6px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e;font:inherit;text-align:center}}.pagination__jump button{{height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;font:600 13px system-ui;cursor:pointer}}.pagination__jump button:hover{{border-color:#9bb9de;background:#f3f8ff}}
-.traffic-icon{{display:block;flex:0 0 14px;width:14px;height:14px;object-fit:contain}}
-.paid-traffic-badge{{display:inline-flex;align-items:center;flex:0 0 auto!important;min-width:max-content;padding:1px 4px;border:1px solid #f2d394;border-radius:4px;background:#fff7e6;color:#9a6700;font-size:10px;font-weight:700;line-height:1.35;white-space:nowrap}}
-.task-filter-link{{display:inline-flex;align-items:center;height:36px;margin:0 0 12px}}
-.customer-email{{max-width:none;overflow-wrap:anywhere;white-space:normal}}
-</style></head><body><main><header class="admin-header"><div><h1>AI 图片生成记录</h1><div class="header-meta"><span class="count">共 {_text(data['total'])} 条任务</span><span class="version">v{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}</span></div><div class="current-times" aria-label="当前时间"><span class="current-time"><span class="current-time__label">{_text(effective_timezone().key)}</span><time id="current-beijing-time">--</time></span><span class="current-time"><span class="current-time__label">美国东部</span><time id="current-us-eastern-time">--</time></span><span class="current-time"><span class="current-time__label">美国西部</span><time id="current-us-pacific-time">--</time></span></div></div><div><div id="service-status" class="service-status checking"><span class="service-dot"></span><span class="service-text">状态检测中</span></div><div class="header-actions"><a class="config-link" href="/admin/styles">风格预设</a><a class="config-link" href="/admin/config">设置</a><form class="logout-form" method="post" action="/admin/logout"><button class="logout-button" type="submit">退出登录</button></form></div></div></header>
-<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px"><a class="config-link task-filter-link" href="{_text(starred_filter_url)}">{'全部任务' if starred else '★ 只看收藏'}</a>{time_range_filter}{active_filter_chips}</div>
-<template id="conversion-search-template">{conversion_filter_form}</template>
-<div class="panel"><table><thead><tr><th><span class="column-heading">任务 ID <button class="column-search-toggle" type="button" aria-label="筛选任务 ID" aria-expanded="false" aria-controls="task-id-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="task-id-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}" placeholder="输入任务 ID 筛选" aria-label="任务 ID"><button type="submit">筛选</button></form></span></th><th>状态</th><th>时间</th><th>总耗时</th><th><span class="column-heading">Provider <button class="column-search-toggle" type="button" aria-label="筛选 Provider" aria-expanded="false" aria-controls="provider-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="provider-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}" placeholder="输入 Provider 筛选" aria-label="Provider"><button type="submit">筛选</button></form></span></th><th><span class="column-heading">访客 IP <button class="column-search-toggle" type="button" aria-label="筛选访客 IP" aria-expanded="false" aria-controls="ip-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="ip-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}" placeholder="输入 IP 筛选" aria-label="访客 IP"><button type="submit">筛选</button></form></span></th><th>国家/地区</th><th><span class="column-heading">用户 / 转化状态 <button class="column-search-toggle" type="button" aria-label="筛选用户" aria-expanded="false" aria-controls="user-search"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg></button><form id="user-search" class="column-search" action="/admin/tasks" method="get"><input type="hidden" name="page" value="1"><input type="hidden" name="page_size" value="{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}" placeholder="邮箱、客户或访客 ID" aria-label="用户"><button type="submit">筛选</button></form></span></th><th>页面信息</th><th>提示词</th><th>图片</th></tr></thead><tbody>{body}</tbody></table></div>
-{pagination}
-</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>
-const statusEl=document.getElementById('service-status');
-const statusText=statusEl.querySelector('.service-text');
-const clocks=[
-  [document.getElementById('current-beijing-time'),'{_text(effective_timezone().key)}'],
-  [document.getElementById('current-us-eastern-time'),'America/New_York'],
-  [document.getElementById('current-us-pacific-time'),'America/Los_Angeles']
-];
-const clockFormatters=new Map(clocks.map(([,zone])=>[zone,new Intl.DateTimeFormat('sv-SE',{{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}})]));
-function updateCurrentTimes(){{
-  const now=new Date();
-  clocks.forEach(([element,zone])=>{{
-    element.textContent=clockFormatters.get(zone).format(now);
-    element.dateTime=now.toISOString();
-  }});
-}}
-updateCurrentTimes();
-setInterval(updateCurrentTimes,1000);
-document.getElementById('page-size-select')?.addEventListener('change',event=>{{
-  const params=new URLSearchParams(window.location.search);
-  params.set('page','1');
-  params.set('page_size',event.target.value);
-  window.location.href=`/admin/tasks?${{params.toString()}}`;
-}});
-const selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');
-const selectedTimeRange=new URLSearchParams(window.location.search).get('time_range');
-const selectedStarred=new URLSearchParams(window.location.search).get('starred')==='true';
-const conversionSearchTemplate=document.getElementById('conversion-search-template');
-const userSearchForm=document.getElementById('user-search');
-const conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);
-const identityHeading=userSearchForm.closest('.column-heading');
-const conversionSearchToggle=document.createElement('button');
-conversionSearchToggle.type='button';
-conversionSearchToggle.className='column-search-toggle';
-conversionSearchToggle.setAttribute('aria-label','筛选转化状态');
-conversionSearchToggle.setAttribute('aria-expanded','false');
-conversionSearchToggle.setAttribute('aria-controls','conversion-search');
-conversionSearchToggle.textContent='▾';
-identityHeading.appendChild(conversionSearchToggle);
-identityHeading.appendChild(conversionSearchForm);
-conversionSearchToggle.addEventListener('click',()=>{{
-  const isOpen=conversionSearchForm.classList.toggle('is-open');
-  conversionSearchToggle.setAttribute('aria-expanded',String(isOpen));
-}});
-document.querySelectorAll('.column-search').forEach(form=>{{
-  if(form.id==='conversion-search')return;
-  form.addEventListener('submit',()=>{{
-    if(selectedTimeRange){{
-      const timeRangeInput=document.createElement('input');
-      timeRangeInput.type='hidden';
-      timeRangeInput.name='time_range';
-      timeRangeInput.value=selectedTimeRange;
-      form.appendChild(timeRangeInput);
-    }}
-    if(selectedStarred){{
-      const starredInput=document.createElement('input');
-      starredInput.type='hidden';
-      starredInput.name='starred';
-      starredInput.value='true';
-      form.appendChild(starredInput);
-    }}
-    selectedConversionStatuses.forEach(status=>{{
-      const input=document.createElement('input');
-      input.type='hidden';
-      input.name='conversion_status';
-      input.value=status;
-      form.appendChild(input);
-    }});
-  }});
-}});
-document.querySelectorAll('.column-search-toggle').forEach(toggle=>{{
-  const form=document.getElementById(toggle.getAttribute('aria-controls'));
-  if(form.id==='conversion-search')return;
-  toggle.addEventListener('click',()=>{{
-    const isOpen=form.classList.toggle('is-open');
-    toggle.setAttribute('aria-expanded',String(isOpen));
-    if(isOpen)form.querySelector('input[type=search]').focus();
-  }});
-}});
-document.addEventListener('click',event=>{{
-  const activePrompt=event.target.closest('.prompt-details');
-  document.querySelectorAll('.prompt-details[open]').forEach(details=>{{
-    if(details!==activePrompt)details.open=false;
-  }});
-}});
-document.addEventListener('click',event=>{{
-  if(event.target.closest('.column-heading'))return;
-  document.querySelectorAll('.column-search.is-open').forEach(form=>{{
-    form.classList.remove('is-open');
-    document.querySelector(`[aria-controls="${{form.id}}"]`)?.setAttribute('aria-expanded','false');
-  }});
-}});
-fetch('/health',{{cache:'no-store'}}).then(response=>{{if(!response.ok)throw new Error();return response.json()}}).then(data=>{{
-  statusEl.className='service-status';
-  statusText.textContent=data.status==='ok'?'服务正常':'服务异常';
-  if(data.status!=='ok')statusEl.classList.add('error');
-}}).catch(()=>{{statusEl.className='service-status error';statusText.textContent='服务异常'}});
-document.querySelectorAll('[data-image-strip]').forEach(strip=>{{
-  const viewport=strip.querySelector('.images');
-  const previous=strip.querySelector('.image-scroll-prev');
-  const next=strip.querySelector('.image-scroll-next');
-  const update=()=>{{
-    const maxScroll=Math.max(0,viewport.scrollWidth-viewport.clientWidth);
-    previous.disabled=viewport.scrollLeft<=1;
-    next.disabled=viewport.scrollLeft>=maxScroll-1;
-  }};
-  const move=direction=>viewport.scrollBy({{left:direction*Math.max(75,viewport.clientWidth*.8),behavior:'smooth'}});
-  previous.addEventListener('click',()=>move(-1));
-  next.addEventListener('click',()=>move(1));
-  viewport.addEventListener('scroll',update,{{passive:true}});
-  viewport.addEventListener('keydown',event=>{{
-    if(event.key==='ArrowLeft'){{event.preventDefault();move(-1)}}
-    if(event.key==='ArrowRight'){{event.preventDefault();move(1)}}
-    if(event.key==='Home'){{event.preventDefault();viewport.scrollTo({{left:0,behavior:'smooth'}})}}
-    if(event.key==='End'){{event.preventDefault();viewport.scrollTo({{left:viewport.scrollWidth,behavior:'smooth'}})}}
-  }});
-  new ResizeObserver(update).observe(viewport);
-  update();
-}});
-const lightbox=GLightbox({{
-  selector:'.glightbox',
-  touchNavigation:true,
-  loop:true,
-  zoomable:true,
-  draggable:true,
-  openEffect:'fade',
-  closeEffect:'fade'
-}});
-function updateLightboxCounter(index){{
-  if(!lightbox.modal)return;
-  let counter=lightbox.modal.querySelector('.gcounter');
-  if(!counter){{
-    counter=document.createElement('div');
-    counter.className='gcounter';
-    counter.setAttribute('aria-live','polite');
-    lightbox.modal.appendChild(counter);
-  }}
-  counter.textContent=`${{index+1}} / ${{lightbox.elements.length}}`;
-}}
-lightbox.on('open',()=>updateLightboxCounter(lightbox.index));
-lightbox.on('slide_changed',({{current}})=>updateLightboxCounter(current.slideIndex));
-</script></body></html>"""
+        f"""{_i18n('template_8e717af0e0f2')}{_text(data['total'])}{_i18n('template_7e99a8cb2afc')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_eb644375d4cc')}{_text(effective_timezone().key)}{_i18n('template_31b2e91d9ddd')}{_text(starred_filter_url)}">{(_t('ui_6ff9473563') if starred else '★ ' + _t('ui_bff836d78d'))}</a>{time_range_filter}{active_filter_chips}</div>\n<template id="conversion-search-template">{conversion_filter_form}{_i18n('template_1635e1a58008')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}{_i18n('template_846c1a8e355b')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}{_i18n('template_9cf32afef570')}{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}{_i18n('template_856c47de30d6')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}{_i18n('template_12caa5d405f0')}{body}</tbody></table></div>\n{pagination}\n</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>\nconst statusEl=document.getElementById('service-status');\nconst statusText=statusEl.querySelector('.service-text');\nconst clocks=[\n  [document.getElementById('current-beijing-time'),'{_text(effective_timezone().key)}{_i18n('template_e4e7470d5e25')}"""
     )

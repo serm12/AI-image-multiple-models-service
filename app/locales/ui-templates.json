@@ -1,0 +1,1324 @@
+{
+  "template_262afda947c6": [
+    "\"><span>",
+    {
+      "key": "ui_cb62ebd689",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_8d0f3a6de339": [
+    "</time><time title=\"",
+    {
+      "key": "ui_a4c551251a",
+      "context": "html"
+    },
+    ""
+  ],
+  "template_dc97174a0c82": [
+    "\"><span>",
+    {
+      "key": "ui_fddc9a1910",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_5acc02cca0f3": [
+    "</time><time title=\"",
+    {
+      "key": "ui_602249d107",
+      "context": "html"
+    },
+    ""
+  ],
+  "template_b0a6cb06ae24": [
+    "\"><span>",
+    {
+      "key": "ui_f9efd4340f",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_5fe7cab5d12f": [
+    "</div><div class=\"source-cell__detail\"><span>",
+    {
+      "key": "ui_81a9d0b5a2",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_6fd6c4689a64": [
+    "<div class=\"source-cell__detail\"><span>",
+    {
+      "key": "ui_a488e93d69",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_0b76794fe50f": [
+    "</div><div class=\"source-cell__detail\"><span>",
+    {
+      "key": "ui_393e124155",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_e9e29c7c2b06": [
+    "<label>",
+    {
+      "key": "ui_83954f3e3c",
+      "context": "html"
+    },
+    " <input name=\"page\" type=\"number\" min=\"1\" max=\""
+  ],
+  "template_bb4292aeb2ff": [
+    "\" inputmode=\"numeric\" aria-label=\"",
+    {
+      "key": "ui_ede3ba6d9c",
+      "context": "html"
+    },
+    "\"> ",
+    {
+      "key": "ui_d24d3c9946",
+      "context": "html"
+    },
+    "</label><button type=\"submit\">",
+    {
+      "key": "ui_afd0b9482d",
+      "context": "html"
+    },
+    "</button></form>"
+  ],
+  "template_6497414084d7": [
+    "<nav class=\"pagination\" aria-label=\"",
+    {
+      "key": "ui_270e63f6aa",
+      "context": "html"
+    },
+    "\"><div class=\"pagination__links\">"
+  ],
+  "template_da22c9bc88f9": [
+    "</div><label class=\"pagination__size\">",
+    {
+      "key": "ui_3be014d778",
+      "context": "html"
+    },
+    " <select id=\"page-size-select\">"
+  ],
+  "template_ce462b242464": [
+    "<span class=\"pagination__summary\">",
+    {
+      "key": "ui_af50a0fe2a",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_f4f0088a6048": [
+    " ",
+    {
+      "key": "ui_d24d3c9946",
+      "context": "html"
+    },
+    "</span></nav>"
+  ],
+  "template_5f28ded94aac": [
+    "\"><fieldset style=\"display:flex;align-items:center;flex-wrap:wrap;gap:5px;border:0;margin:0;padding:0\"><legend style=\"padding:0 5px 0 0;color:#40536d;font-size:12px;font-weight:700\">",
+    {
+      "key": "ui_4bc9c3a785",
+      "context": "html"
+    },
+    "</legend>"
+  ],
+  "template_a3afab951e91": [
+    "</fieldset><button type=\"submit\">",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "</button></form>"
+  ],
+  "template_f0d14c5499db": [
+    "",
+    {
+      "key": "ui_47e827fb4f",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_b3992285e8b2": [
+    "",
+    {
+      "key": "ui_1de8f508aa",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_f460e795b575": [
+    "",
+    {
+      "key": "ui_52e19cd59a",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_a461133d405c": [
+    "",
+    {
+      "key": "ui_73dd345ef1",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1a1111c82dfe": [
+    "",
+    {
+      "key": "ui_b28e2113fe",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_e079844b9087": [
+    "",
+    {
+      "key": "ui_d5f5a7a010",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_5e0a77c951cd": [
+    "",
+    {
+      "key": "ui_0c184871f6",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_57763cded20c": [
+    "",
+    {
+      "key": "ui_997a5e6e51",
+      "context": "plain"
+    },
+    " 7 ",
+    {
+      "key": "ui_49da61ceee",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_00634cb4b53a": [
+    "",
+    {
+      "key": "ui_997a5e6e51",
+      "context": "plain"
+    },
+    " 1 ",
+    {
+      "key": "ui_1625179bad",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_6b1313f1949c": [
+    "<p class=\"error\" role=\"alert\">",
+    {
+      "key": "ui_3cf8610fc2",
+      "context": "html"
+    },
+    "</p>"
+  ],
+  "template_dbf75f2ff239": [
+    "<!doctype html>\n<html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex,nofollow\"><title>",
+    {
+      "key": "ui_1e2df9c307",
+      "context": "html"
+    },
+    " · AI ",
+    {
+      "key": "ui_07c502db42",
+      "context": "html"
+    },
+    "</title>\n<style>*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eef4ff,#f8fafc);color:#172033;font:15px/1.5 system-ui,-apple-system,sans-serif}main{width:min(100%,420px);padding:36px;border:1px solid #dbe4f0;border-radius:18px;background:#fff;box-shadow:0 18px 48px #2737521f}h1{margin:0 0 8px;font-size:25px}.subtitle{margin:0 0 27px;color:#64748b}label{display:block;margin:16px 0 6px;font-weight:650}input[type=text],input[type=password]{width:100%;height:44px;padding:0 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}input:focus{outline:3px solid #b9d6ff;border-color:#3979c7}.remember{display:flex;align-items:center;gap:8px;margin:18px 0 22px;color:#42546d}button{width:100%;height:45px;border:0;border-radius:9px;background:#1769d2;color:#fff;font:650 15px inherit;cursor:pointer}button:hover{background:#1259b3}.error{margin:0 0 16px;padding:9px 11px;border-radius:8px;background:#fff1f0;color:#b42318}.notice{margin:22px 0 0;color:#718096;font-size:12px;text-align:center}</style>\n</head><body><main><h1>AI ",
+    {
+      "key": "ui_07c502db42",
+      "context": "html"
+    },
+    "</h1><p class=\"subtitle\">",
+    {
+      "key": "ui_ede5dc1f52",
+      "context": "html"
+    },
+    "</p>"
+  ],
+  "template_dd51954c7f8a": [
+    "\">\n<label for=\"username\">",
+    {
+      "key": "ui_1a3f0617d6",
+      "context": "html"
+    },
+    "</label><input id=\"username\" name=\"username\" type=\"text\" autocomplete=\"username\" required autofocus>\n<label for=\"password\">",
+    {
+      "key": "ui_a621ab606d",
+      "context": "html"
+    },
+    "</label><input id=\"password\" name=\"password\" type=\"password\" autocomplete=\"current-password\" required>\n<label class=\"remember\"><input name=\"remember\" type=\"checkbox\" value=\"true\" checked> ",
+    {
+      "key": "ui_ed02ae6c07",
+      "context": "html"
+    },
+    "30 ",
+    {
+      "key": "ui_295a82824a",
+      "context": "html"
+    },
+    "</label>\n<button type=\"submit\">",
+    {
+      "key": "ui_1e2df9c307",
+      "context": "html"
+    },
+    "</button></form><p class=\"notice\">",
+    {
+      "key": "ui_8347afc611",
+      "context": "html"
+    },
+    "</p></main></body></html>"
+  ],
+  "template_20310590eff4": [
+    "",
+    {
+      "key": "ui_2f5f1d6fbf",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_6179db4eb1df": [
+    "<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"robots\" content=\"noindex,nofollow\">\n<title>",
+    {
+      "key": "ui_b15b137a49",
+      "context": "html"
+    },
+    " · AI ",
+    {
+      "key": "ui_07c502db42",
+      "context": "html"
+    },
+    "</title><style>*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}main{max-width:1500px;margin:auto;padding:28px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px}h1{margin:0;font-size:25px}p{color:#64748b}a{color:#1769d2;text-decoration:none}.actions{display:flex;gap:8px;flex-wrap:wrap}.button{padding:7px 11px;border:1px solid #d8e1ec;border-radius:8px;background:#fff}.panel{overflow:auto;border:1px solid #e3e8f0;border-radius:14px;background:#fff;box-shadow:0 8px 30px #18243b0d}table{width:100%;border-collapse:collapse;min-width:1000px}th,td{padding:12px 14px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:top}th{width:220px;background:#f8fafc;color:#40536d}td:nth-child(2){width:260px;color:#52647d}code{font:12px ui-monospace,SFMono-Regular,monospace}pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.6 ui-monospace,SFMono-Regular,monospace;color:#304761}.notice{padding:10px 12px;border-radius:8px;background:#eef6ff;color:#245b9c}</style></head><body><main><header><div><h1>",
+    {
+      "key": "ui_b15b137a49",
+      "context": "html"
+    },
+    "</h1><p>v"
+  ],
+  "template_b58e913342a8": [
+    " · ",
+    {
+      "key": "ui_5284969719",
+      "context": "html"
+    },
+    "</p></div><nav class=\"actions\"><a class=\"button\" href=\"/admin/tasks\">",
+    {
+      "key": "ui_c542f21d8c",
+      "context": "html"
+    },
+    "</a><a class=\"button\" href=\"/admin/config\">",
+    {
+      "key": "ui_df3d58c7d8",
+      "context": "html"
+    },
+    "</a></nav></header><p class=\"notice\">“",
+    {
+      "key": "ui_d9c29c9b76",
+      "context": "html"
+    },
+    "</p><div class=\"panel\"><table><thead><tr><th>",
+    {
+      "key": "ui_b2f6c5ed64",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_4262c45dc7",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_d4ae54235c",
+      "context": "html"
+    },
+    "</th></tr></thead><tbody>"
+  ],
+  "template_a844489ea6c1": [
+    "<span class=\"paid-traffic-badge\" title=\"",
+    {
+      "key": "ui_375b9cd69a",
+      "context": "html"
+    },
+    "\">",
+    {
+      "key": "ui_f9beb133f6",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_d05675f67f08": [
+    "\" data-title=\"",
+    {
+      "key": "ui_cf02f026ec",
+      "context": "html"
+    },
+    "\" title=\"",
+    {
+      "key": "ui_95904ce983",
+      "context": "html"
+    },
+    ""
+  ],
+  "template_f240fdb5ba46": [
+    "\"><span class=\"image-item__badge\">",
+    {
+      "key": "ui_c6f305e9b1",
+      "context": "html"
+    },
+    "</span><img src=\""
+  ],
+  "template_c7b86ba0a051": [
+    "\" loading=\"lazy\" decoding=\"async\" alt=\"",
+    {
+      "key": "ui_cf02f026ec",
+      "context": "html"
+    },
+    "\"></a>"
+  ],
+  "template_b3dfc2391711": [
+    "<div class=\"image-strip\" data-image-strip><button class=\"image-scroll image-scroll-prev\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_e8bf904e16",
+      "context": "html"
+    },
+    "\" title=\"",
+    {
+      "key": "ui_bcf200709d",
+      "context": "html"
+    },
+    "\">‹</button><div class=\"images\" tabindex=\"0\" aria-label=\"",
+    {
+      "key": "ui_5b53fbf5c4",
+      "context": "html"
+    },
+    "\">"
+  ],
+  "template_a01bdbec5e13": [
+    "</div><button class=\"image-scroll image-scroll-next\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_7be556158b",
+      "context": "html"
+    },
+    "\" title=\"",
+    {
+      "key": "ui_dcd4eb0273",
+      "context": "html"
+    },
+    "\">›</button></div>"
+  ],
+  "template_a79200734f5a": [
+    "<span class=\"muted\">",
+    {
+      "key": "ui_091460bcc3",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_f53635f77d94": [
+    "<span class=\"muted\">",
+    {
+      "key": "ui_091460bcc3",
+      "context": "html"
+    },
+    " / ",
+    {
+      "key": "ui_6bf6938963",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_4462a1a7815f": [
+    "</span> <span class=\"ip-task-sequence\" title=\"",
+    {
+      "key": "ui_8c43cf577a",
+      "context": "html"
+    },
+    " IP ",
+    {
+      "key": "ui_37dd9b67d5",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_5cda91f67114": [
+    " ",
+    {
+      "key": "ui_d3389202d8",
+      "context": "html"
+    },
+    "\">#"
+  ],
+  "template_98bf3b84b1f8": [
+    "</span> <span class=\"ip-task-total\" title=\"",
+    {
+      "key": "ui_8c43cf577a",
+      "context": "html"
+    },
+    " IP ",
+    {
+      "key": "ui_3370701fa5",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_3583da37e1d3": [
+    " ",
+    {
+      "key": "ui_d3389202d8",
+      "context": "html"
+    },
+    "\">",
+    {
+      "key": "ui_76e547a8fa",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_9a4e91264c64": [
+    " ",
+    {
+      "key": "ui_172fb7e67b",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_52fd8704a992": [
+    "",
+    {
+      "key": "ui_dca60869e7",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_b785ec7a76ae": [
+    "",
+    {
+      "key": "ui_d658967e8e",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1dc1f9a399ca": [
+    "",
+    {
+      "key": "ui_471dd4d7f8",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_4293266621b8": [
+    "",
+    {
+      "key": "ui_60a53514eb",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_44b6c70e2d53": [
+    "<section class=\"prompt-card__section prompt-card__section--edit\"><strong>",
+    {
+      "key": "ui_53701f8ad9",
+      "context": "html"
+    },
+    "</strong><div>"
+  ],
+  "template_2a3f984d7954": [
+    "<details class=\"prompt-details\"><summary>",
+    {
+      "key": "ui_603a67e099",
+      "context": "html"
+    },
+    "</summary><div class=\"prompt-card\">"
+  ],
+  "template_bc1c87c71f42": [
+    " ",
+    {
+      "key": "ui_9dcdc2b289",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_7a0f86c45e41": [
+    "",
+    {
+      "key": "ui_f5bfbf6085",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_2a089fbc2c45": [
+    "",
+    {
+      "key": "ui_36ea3c3762",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_e0764f5a6749": [
+    "",
+    {
+      "key": "ui_184ecdeb10",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_eb74eba1754c": [
+    "",
+    {
+      "key": "ui_4396c5f6d3",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1e52f26c934c": [
+    "",
+    {
+      "key": "ui_12a6a455a7",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_53250ef070d6": [
+    "",
+    {
+      "key": "ui_e2e05c35e3",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_edc8a35f4861": [
+    "",
+    {
+      "key": "ui_67e66458c0",
+      "context": "plain"
+    },
+    " Shopify ",
+    {
+      "key": "ui_b36d9d5872",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_d153eecf0624": [
+    "<span class=\"muted\">",
+    {
+      "key": "ui_703d0726d6",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_769c5fdec4c1": [
+    "\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"",
+    {
+      "key": "ui_59cf751248",
+      "context": "html"
+    },
+    " ID ",
+    {
+      "key": "ui_ca832d69ac",
+      "context": "html"
+    },
+    "\">",
+    {
+      "key": "ui_3d5436ea23",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_b40a647c8028": [
+    "<span class=\"pagination__direction is-disabled\">‹ ",
+    {
+      "key": "ui_c9b9ae7a61",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_68cd079c4e2b": [
+    "<span class=\"pagination__direction is-disabled\">",
+    {
+      "key": "ui_8a8542f696",
+      "context": "html"
+    },
+    " ›</span>"
+  ],
+  "template_0d3a2439e735": [
+    "<tr><td colspan=\"12\" class=\"empty\">",
+    {
+      "key": "ui_e393f849bf",
+      "context": "html"
+    },
+    "</td></tr>"
+  ],
+  "template_f3e8af90d327": [
+    "<label>",
+    {
+      "key": "ui_584f17e980",
+      "context": "html"
+    },
+    " <select name=\"time_range\" onchange=\"this.form.submit()\" style=\"height:28px;border:0;background:transparent;color:#245b9c;font:600 12px system-ui;cursor:pointer\">"
+  ],
+  "template_8e717af0e0f2": [
+    "<!doctype html>\n<html lang=\"zh-CN\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<meta name=\"robots\" content=\"noindex,nofollow\"><title>AI ",
+    {
+      "key": "ui_e8f01fdccb",
+      "context": "html"
+    },
+    "</title>\n<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/css/glightbox.min.css\">\n<style>\n*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#172033;font:14px/1.5 system-ui,-apple-system,sans-serif}\nmain{max-width:1800px;margin:auto;padding:28px}header{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.header-actions{display:flex;align-items:center;gap:8px;margin-top:9px}.logout-form{margin:0}.logout-button,.config-link{border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#53657e;padding:6px 10px;cursor:pointer;text-decoration:none}\nh1{margin:0;font-size:25px}.header-meta{display:flex;align-items:center;gap:10px;margin-top:2px}.count,.muted{color:#718096}.version{color:#4f6380;font-size:12px;padding:2px 7px;border:1px solid #dce4ee;border-radius:999px;background:#fff}.current-times{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.current-time{display:flex;align-items:baseline;gap:7px;padding:5px 9px;border:1px solid #dce4ee;border-radius:8px;background:#fff;color:#24344d;font-variant-numeric:tabular-nums}.current-time__label{color:#718096;font-size:12px}.current-time time{font-weight:600;white-space:nowrap}.panel{background:#fff;border:1px solid #e3e8f0;border-radius:14px;overflow:auto;box-shadow:0 8px 30px #18243b0d}\n.service-status{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border:1px solid #dce7df;border-radius:999px;background:#f5fbf6;color:#28733a;font-size:13px;font-weight:600}.service-dot{width:8px;height:8px;border-radius:50%;background:#22a447;box-shadow:0 0 0 3px #22a44720}.service-status.checking{color:#718096;background:#f8fafc;border-color:#e3e8f0}.service-status.checking .service-dot{background:#94a3b8;box-shadow:none}.service-status.error{color:#b42318;background:#fff6f5;border-color:#f4d6d2}.service-status.error .service-dot{background:#e23b2e;box-shadow:0 0 0 3px #e23b2e20}\ntable{width:100%;border-collapse:collapse;min-width:1280px;table-layout:fixed}th,td{padding:8px 7px;border-bottom:1px solid #edf0f5;text-align:left;vertical-align:middle}th{position:sticky;top:0;z-index:2;background:#f8fafc;font-size:12px;color:#64748b;white-space:nowrap}.column-heading{display:inline-flex;align-items:center;gap:4px;position:relative}.column-search-toggle{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:#64748b;cursor:pointer}.column-search-toggle:hover,.column-search-toggle[aria-expanded=true]{background:#e7effa;color:#1769d2}.column-search-toggle svg{width:14px;height:14px}.column-search{display:none;position:absolute;top:calc(100% + 7px);left:0;z-index:8;width:210px;padding:8px;border:1px solid #d8e1ec;border-radius:9px;background:#fff;box-shadow:0 10px 24px #17203324}.column-search.is-open{display:flex;gap:6px}.column-search input{min-width:0;width:100%;height:30px;padding:0 8px;border:1px solid #cbd5e1;border-radius:6px;color:#24344d;font:12px system-ui,-apple-system,sans-serif}.column-search input:focus{outline:2px solid #b9d6ff;border-color:#3979c7}.column-search button{height:30px;padding:0 9px;border:0;border-radius:6px;background:#1769d2;color:#fff;font:600 12px system-ui,-apple-system,sans-serif;cursor:pointer}tbody tr{height:76px}tbody tr:hover{background:#fafcff}\nth:nth-child(1){width:58px}th:nth-child(2){width:135px}th:nth-child(3){width:72px}th:nth-child(4){width:138px}th:nth-child(5){width:65px}th:nth-child(6){width:125px}th:nth-child(7){width:130px}th:nth-child(8){width:62px}th:nth-child(9){width:220px}th:nth-child(10){width:340px}th:nth-child(11){width:85px}th:nth-child(12){width:auto}.star-form{margin:0}.star-button{display:inline-flex;align-items:center;gap:2px;padding:3px 5px;border:1px solid #d8e1ec;border-radius:7px;background:#fff;color:#94a3b8;font:600 11px system-ui;cursor:pointer}.star-button:hover{border-color:#e3ae22;color:#b77900;background:#fff9e9}.star-button.is-starred{border-color:#edc45c;color:#b77900;background:#fff7d6}.star-button__text{font-size:10px}\ncode{font-size:11px;white-space:nowrap}.nowrap{white-space:nowrap}.task-time{display:grid;gap:2px;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}.task-time time{display:flex;align-items:center;gap:5px}.task-time time+time{color:#718096}.task-time span{display:inline-block;width:27px;color:#8a98aa;font-size:10px}.provider{overflow-wrap:anywhere}.status{display:inline-flex;align-items:center;padding:1px 6px;border-radius:999px;background:#eaf7ed;color:#247436;font-size:11px;font-weight:600;line-height:1.35}.client-ip{white-space:normal;line-height:1.3}.client-ip__address{overflow-wrap:anywhere;word-break:break-all}.ip-task-sequence,.ip-task-total{display:inline-flex;align-items:center;justify-content:center;margin-top:3px;padding:1px 5px;border-radius:999px;font-size:10px;font-weight:700;line-height:1.4;white-space:nowrap}.ip-task-sequence{min-width:26px;margin-left:3px;background:#e8f1ff;color:#245b9c}.ip-task-total{background:#eef7ed;color:#28733a}.country-flag{object-fit:contain;flex-shrink:0}.country{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;min-width:32px;justify-content:center;padding:2px 6px;border-radius:6px;background:#eef3fa;color:#3f5675;font-weight:600}.identity-cell{display:flex;flex-direction:column;align-items:flex-start;gap:3px}.identity-cell .funnel{margin-top:2px}.identity{padding:1px 5px;border-radius:999px;background:#eef3fa;color:#3f5675;font-size:10px;font-weight:700}.identity--customer{background:#eaf7ed;color:#247436}.funnel{display:flex;flex-wrap:wrap;gap:3px}.funnel-step{padding:2px 5px;border-radius:6px;background:#f1f3f6;color:#98a2b3;font-size:10px;white-space:nowrap}.funnel-step.is-active{background:#eaf7ed;color:#247436;font-weight:700}.source-cell{overflow:hidden}.source-cell__title,.source-cell__detail{display:flex;min-width:0;align-items:center;gap:6px}.source-cell__title a,.source-cell__detail a{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.source-cell__detail{font-size:11px;color:#718096}.source-cell__detail>span{flex:0 0 24px;color:#8a98aa}.source-title{font-weight:650;color:#174f9b}a{color:#1769d2}th:nth-child(11),td.images-cell{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}th:nth-child(11){z-index:4;background:#f8fafc}tbody tr:hover td.images-cell{background:#fafcff}.image-strip{display:grid;grid-template-columns:23px minmax(52px,1fr) 23px;align-items:center;gap:3px;min-width:0}.images{display:flex;gap:4px;min-width:0;overflow-x:auto;overscroll-behavior-inline:contain;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#a8b5c7 #edf2f7;padding:1px 1px 4px}.images::-webkit-scrollbar{height:5px}.images::-webkit-scrollbar-track{background:#edf2f7;border-radius:999px}.images::-webkit-scrollbar-thumb{background:#a8b5c7;border-radius:999px}.image-item{position:relative;flex:0 0 auto;scroll-snap-align:start}.image-item__badge{position:absolute;left:2px;bottom:2px;z-index:1;padding:1px 3px;border-radius:4px;background:#1769d2;color:#fff;font-size:9px;font-weight:700;line-height:1.25}.image-item--reference img{border-color:#1769d2;box-shadow:0 0 0 1px #1769d2}.images img{display:block;width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid #dbe2ea;transition:.15s}.images img:hover{transform:scale(1.04)}.image-scroll{display:grid;place-items:center;width:23px;height:34px;padding:0;border:1px solid #dbe2ea;border-radius:7px;background:#f8fafc;color:#36516f;font:700 18px/1 system-ui;cursor:pointer}.image-scroll:hover:not(:disabled){background:#eaf2fb;border-color:#b9cae0}.image-scroll:disabled{opacity:.28;cursor:default}.pagination{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:14px;margin:18px 0 2px;color:#53657e}.pagination__links{display:flex;align-items:center;gap:6px}.pagination__page,.pagination__direction{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;text-decoration:none}.pagination__page.is-current{border-color:#366fac;background:#366fac;color:#fff}.pagination__direction.is-disabled{color:#a2adbb;background:#f3f6f9}.pagination__ellipsis{padding:0 2px}.pagination__size{display:flex;align-items:center;gap:6px}.pagination__size select{height:34px;padding:0 28px 0 9px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e}.pagination__summary{font-size:12px}.gcounter{position:fixed;left:50%;bottom:12px;z-index:100001;transform:translateX(-50%);padding:5px 11px;border-radius:999px;background:#101827d9;color:#fff;font-size:13px;font-variant-numeric:tabular-nums;pointer-events:none}.empty{padding:50px;text-align:center;color:#718096}\n.customer-email{max-width:125px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#24344d}.funnel-step{border:1px solid #e4e7ec;background:#f8fafc}.funnel-step.is-active{font-weight:700}.funnel-step--added-to-cart.is-active{border-color:#bfd7f6;background:#eaf3ff;color:#245b9c}.funnel-step--checkout-intent.is-active{border-color:#f2d394;background:#fff7e6;color:#9a6700}.funnel-step--checkout-started.is-active{border-color:#d7c4f5;background:#f5efff;color:#6941c6}.funnel-step--checkout-completed.is-active{border-color:#bfe3c7;background:#eaf7ed;color:#247436}\n.prompt-details{position:relative}.prompt-details summary{cursor:pointer;color:#1769d2;white-space:nowrap;list-style:none}.prompt-details summary::-webkit-details-marker{display:none}.prompt-details summary:after{content:\" ›\"}.prompt-details[open] summary:after{content:\" ×\"}.prompt-card{position:absolute;right:0;top:30px;z-index:10;width:min(460px,70vw);max-height:360px;overflow:auto;padding:15px;border:1px solid #dbe2ea;border-radius:10px;background:#fff;box-shadow:0 14px 40px #1720332b;white-space:pre-wrap;line-height:1.65}.prompt-card__section{display:grid;gap:6px}.prompt-card__section+ .prompt-card__section{margin-top:13px;padding-top:13px;border-top:1px solid #e3e8f0}.prompt-card__section strong{font-size:12px;color:#53657e}.prompt-card__section--edit{padding:10px;border:1px solid #f1d59e;border-radius:8px;background:#fff8e8;color:#7a4d00}.prompt-card__section--edit strong{color:#9a6700}\n@media(max-width:700px){main{padding:16px}h1{font-size:21px}header{align-items:center}.current-times{flex-direction:column;align-items:flex-start}.panel{border-radius:10px}}\n@media(max-width:700px){.admin-header{align-items:flex-start;justify-content:flex-start;gap:16px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;padding-bottom:4px}.admin-header>div{flex:0 0 auto;scroll-snap-align:start}.admin-header .current-times{flex-direction:row;flex-wrap:nowrap;align-items:flex-start}.admin-header .current-time{flex:0 0 auto}.admin-header .header-actions{flex-wrap:nowrap}}\nth:nth-child(12),td.images-cell{position:sticky;right:0;background:#fff;box-shadow:-8px 0 16px #1720330a}th:nth-child(12){z-index:4;background:#f8fafc}\nth:nth-child(1){width:135px}th:nth-child(2){width:72px}th:nth-child(3){width:138px}th:nth-child(4){width:65px}th:nth-child(5){width:125px}th:nth-child(6){width:130px}th:nth-child(7){width:82px}th:nth-child(8){width:220px}th:nth-child(9){width:340px}th:nth-child(10){width:85px}th:nth-child(11){width:auto}.star-cell{display:flex;align-items:center;gap:5px}\n.pagination__jump{display:flex;align-items:center;gap:5px}.pagination__jump label{display:flex;align-items:center;gap:4px;white-space:nowrap}.pagination__jump input{width:52px;height:34px;padding:0 6px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#33455e;font:inherit;text-align:center}.pagination__jump button{height:34px;padding:0 10px;border:1px solid #d8e1ec;border-radius:8px;background:#fff;color:#245b9c;font:600 13px system-ui;cursor:pointer}.pagination__jump button:hover{border-color:#9bb9de;background:#f3f8ff}\n.traffic-icon{display:block;flex:0 0 14px;width:14px;height:14px;object-fit:contain}\n.paid-traffic-badge{display:inline-flex;align-items:center;flex:0 0 auto!important;min-width:max-content;padding:1px 4px;border:1px solid #f2d394;border-radius:4px;background:#fff7e6;color:#9a6700;font-size:10px;font-weight:700;line-height:1.35;white-space:nowrap}\n.task-filter-link{display:inline-flex;align-items:center;height:36px;margin:0 0 12px}\n.customer-email{max-width:none;overflow-wrap:anywhere;white-space:normal}\n</style></head><body><main><header class=\"admin-header\"><div><h1>AI ",
+    {
+      "key": "ui_e8f01fdccb",
+      "context": "html"
+    },
+    "</h1><div class=\"header-meta\"><span class=\"count\">",
+    {
+      "key": "ui_76e547a8fa",
+      "context": "html"
+    },
+    " "
+  ],
+  "template_7e99a8cb2afc": [
+    " ",
+    {
+      "key": "ui_09724983a0",
+      "context": "html"
+    },
+    "</span><span class=\"version\">v"
+  ],
+  "template_eb644375d4cc": [
+    "</span></div><div class=\"current-times\" aria-label=\"",
+    {
+      "key": "ui_8bc0ff588c",
+      "context": "html"
+    },
+    "\"><span class=\"current-time\"><span class=\"current-time__label\">"
+  ],
+  "template_31b2e91d9ddd": [
+    "</span><time id=\"current-beijing-time\">--</time></span><span class=\"current-time\"><span class=\"current-time__label\">",
+    {
+      "key": "ui_852e723b41",
+      "context": "html"
+    },
+    "</span><time id=\"current-us-eastern-time\">--</time></span><span class=\"current-time\"><span class=\"current-time__label\">",
+    {
+      "key": "ui_ff6681114a",
+      "context": "html"
+    },
+    "</span><time id=\"current-us-pacific-time\">--</time></span></div></div><div><div id=\"service-status\" class=\"service-status checking\"><span class=\"service-dot\"></span><span class=\"service-text\">",
+    {
+      "key": "ui_822cb2169c",
+      "context": "html"
+    },
+    "</span></div><div class=\"header-actions\"><a class=\"config-link\" href=\"/admin/styles\">",
+    {
+      "key": "ui_b15b137a49",
+      "context": "html"
+    },
+    "</a><a class=\"config-link\" href=\"/admin/config\">",
+    {
+      "key": "ui_df3d58c7d8",
+      "context": "html"
+    },
+    "</a><form class=\"logout-form\" method=\"post\" action=\"/admin/logout\"><button class=\"logout-button\" type=\"submit\">",
+    {
+      "key": "ui_3ab8cc1593",
+      "context": "html"
+    },
+    "</button></form></div></div></header>\n<div style=\"display:flex;align-items:center;flex-wrap:wrap;gap:8px\"><a class=\"config-link task-filter-link\" href=\""
+  ],
+  "template_1635e1a58008": [
+    "</template>\n<div class=\"panel\"><table><thead><tr><th><span class=\"column-heading\">",
+    {
+      "key": "ui_5253040db8",
+      "context": "html"
+    },
+    " ID <button class=\"column-search-toggle\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_9f5242332f",
+      "context": "html"
+    },
+    " ID\" aria-expanded=\"false\" aria-controls=\"task-id-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"6\"></circle><path d=\"m16 16 4 4\"></path></svg></button><form id=\"task-id-search\" class=\"column-search\" action=\"/admin/tasks\" method=\"get\"><input type=\"hidden\" name=\"page\" value=\"1\"><input type=\"hidden\" name=\"page_size\" value=\""
+  ],
+  "template_846c1a8e355b": [
+    "\" placeholder=\"",
+    {
+      "key": "ui_0e64ce1ce2",
+      "context": "html"
+    },
+    " ID ",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "\" aria-label=\"",
+    {
+      "key": "ui_5253040db8",
+      "context": "html"
+    },
+    " ID\"><button type=\"submit\">",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "</button></form></span></th><th>",
+    {
+      "key": "ui_6320b4a872",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_8b6ff49851",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_42aa8e01e9",
+      "context": "html"
+    },
+    "</th><th><span class=\"column-heading\">Provider <button class=\"column-search-toggle\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    " Provider\" aria-expanded=\"false\" aria-controls=\"provider-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"6\"></circle><path d=\"m16 16 4 4\"></path></svg></button><form id=\"provider-search\" class=\"column-search\" action=\"/admin/tasks\" method=\"get\"><input type=\"hidden\" name=\"page\" value=\"1\"><input type=\"hidden\" name=\"page_size\" value=\""
+  ],
+  "template_9cf32afef570": [
+    "\" placeholder=\"",
+    {
+      "key": "ui_2087c777c0",
+      "context": "html"
+    },
+    " Provider ",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "\" aria-label=\"Provider\"><button type=\"submit\">",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "</button></form></span></th><th><span class=\"column-heading\">",
+    {
+      "key": "ui_8b358d0f97",
+      "context": "html"
+    },
+    " IP <button class=\"column-search-toggle\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_db577e0636",
+      "context": "html"
+    },
+    " IP\" aria-expanded=\"false\" aria-controls=\"ip-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"6\"></circle><path d=\"m16 16 4 4\"></path></svg></button><form id=\"ip-search\" class=\"column-search\" action=\"/admin/tasks\" method=\"get\"><input type=\"hidden\" name=\"page\" value=\"1\"><input type=\"hidden\" name=\"page_size\" value=\""
+  ],
+  "template_856c47de30d6": [
+    "\" placeholder=\"",
+    {
+      "key": "ui_2087c777c0",
+      "context": "html"
+    },
+    " IP ",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "\" aria-label=\"",
+    {
+      "key": "ui_8b358d0f97",
+      "context": "html"
+    },
+    " IP\"><button type=\"submit\">",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "</button></form></span></th><th>",
+    {
+      "key": "ui_0cc659a9f5",
+      "context": "html"
+    },
+    "/",
+    {
+      "key": "ui_0b5daa9276",
+      "context": "html"
+    },
+    "</th><th><span class=\"column-heading\">",
+    {
+      "key": "ui_0d0e1a86b3",
+      "context": "html"
+    },
+    " / ",
+    {
+      "key": "ui_4bc9c3a785",
+      "context": "html"
+    },
+    " <button class=\"column-search-toggle\" type=\"button\" aria-label=\"",
+    {
+      "key": "ui_69630c12a7",
+      "context": "html"
+    },
+    "\" aria-expanded=\"false\" aria-controls=\"user-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"6\"></circle><path d=\"m16 16 4 4\"></path></svg></button><form id=\"user-search\" class=\"column-search\" action=\"/admin/tasks\" method=\"get\"><input type=\"hidden\" name=\"page\" value=\"1\"><input type=\"hidden\" name=\"page_size\" value=\""
+  ],
+  "template_12caa5d405f0": [
+    "\" placeholder=\"",
+    {
+      "key": "ui_46f99a7875",
+      "context": "html"
+    },
+    " ID\" aria-label=\"",
+    {
+      "key": "ui_0d0e1a86b3",
+      "context": "html"
+    },
+    "\"><button type=\"submit\">",
+    {
+      "key": "ui_b5f15473fd",
+      "context": "html"
+    },
+    "</button></form></span></th><th>",
+    {
+      "key": "ui_c19fcd78dc",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_4b47dbae97",
+      "context": "html"
+    },
+    "</th><th>",
+    {
+      "key": "ui_d24c10d37d",
+      "context": "html"
+    },
+    "</th></tr></thead><tbody>"
+  ],
+  "template_e4e7470d5e25": [
+    "'],\n  [document.getElementById('current-us-eastern-time'),'America/New_York'],\n  [document.getElementById('current-us-pacific-time'),'America/Los_Angeles']\n];\nconst clockFormatters=new Map(clocks.map(([,zone])=>[zone,new Intl.DateTimeFormat('sv-SE',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})]));\nfunction updateCurrentTimes(){\n  const now=new Date();\n  clocks.forEach(([element,zone])=>{\n    element.textContent=clockFormatters.get(zone).format(now);\n    element.dateTime=now.toISOString();\n  });\n}\nupdateCurrentTimes();\nsetInterval(updateCurrentTimes,1000);\ndocument.getElementById('page-size-select')?.addEventListener('change',event=>{\n  const params=new URLSearchParams(window.location.search);\n  params.set('page','1');\n  params.set('page_size',event.target.value);\n  window.location.href=`/admin/tasks?${params.toString()}`;\n});\nconst selectedConversionStatuses=new URLSearchParams(window.location.search).getAll('conversion_status');\nconst selectedTimeRange=new URLSearchParams(window.location.search).get('time_range');\nconst selectedStarred=new URLSearchParams(window.location.search).get('starred')==='true';\nconst conversionSearchTemplate=document.getElementById('conversion-search-template');\nconst userSearchForm=document.getElementById('user-search');\nconst conversionSearchForm=conversionSearchTemplate.content.firstElementChild.cloneNode(true);\nconst identityHeading=userSearchForm.closest('.column-heading');\nconst conversionSearchToggle=document.createElement('button');\nconversionSearchToggle.type='button';\nconversionSearchToggle.className='column-search-toggle';\nconversionSearchToggle.setAttribute('aria-label','",
+    {
+      "key": "ui_22fd2ba205",
+      "context": "js"
+    },
+    "');\nconversionSearchToggle.setAttribute('aria-expanded','false');\nconversionSearchToggle.setAttribute('aria-controls','conversion-search');\nconversionSearchToggle.textContent='▾';\nidentityHeading.appendChild(conversionSearchToggle);\nidentityHeading.appendChild(conversionSearchForm);\nconversionSearchToggle.addEventListener('click',()=>{\n  const isOpen=conversionSearchForm.classList.toggle('is-open');\n  conversionSearchToggle.setAttribute('aria-expanded',String(isOpen));\n});\ndocument.querySelectorAll('.column-search').forEach(form=>{\n  if(form.id==='conversion-search')return;\n  form.addEventListener('submit',()=>{\n    if(selectedTimeRange){\n      const timeRangeInput=document.createElement('input');\n      timeRangeInput.type='hidden';\n      timeRangeInput.name='time_range';\n      timeRangeInput.value=selectedTimeRange;\n      form.appendChild(timeRangeInput);\n    }\n    if(selectedStarred){\n      const starredInput=document.createElement('input');\n      starredInput.type='hidden';\n      starredInput.name='starred';\n      starredInput.value='true';\n      form.appendChild(starredInput);\n    }\n    selectedConversionStatuses.forEach(status=>{\n      const input=document.createElement('input');\n      input.type='hidden';\n      input.name='conversion_status';\n      input.value=status;\n      form.appendChild(input);\n    });\n  });\n});\ndocument.querySelectorAll('.column-search-toggle').forEach(toggle=>{\n  const form=document.getElementById(toggle.getAttribute('aria-controls'));\n  if(form.id==='conversion-search')return;\n  toggle.addEventListener('click',()=>{\n    const isOpen=form.classList.toggle('is-open');\n    toggle.setAttribute('aria-expanded',String(isOpen));\n    if(isOpen)form.querySelector('input[type=search]').focus();\n  });\n});\ndocument.addEventListener('click',event=>{\n  const activePrompt=event.target.closest('.prompt-details');\n  document.querySelectorAll('.prompt-details[open]').forEach(details=>{\n    if(details!==activePrompt)details.open=false;\n  });\n});\ndocument.addEventListener('click',event=>{\n  if(event.target.closest('.column-heading'))return;\n  document.querySelectorAll('.column-search.is-open').forEach(form=>{\n    form.classList.remove('is-open');\n    document.querySelector(`[aria-controls=\"${form.id}\"]`)?.setAttribute('aria-expanded','false');\n  });\n});\nfetch('/health',{cache:'no-store'}).then(response=>{if(!response.ok)throw new Error();return response.json()}).then(data=>{\n  statusEl.className='service-status';\n  statusText.textContent=data.status==='ok'?'",
+    {
+      "key": "ui_1a2bb12599",
+      "context": "js"
+    },
+    "':'",
+    {
+      "key": "ui_268ff797e6",
+      "context": "js"
+    },
+    "';\n  if(data.status!=='ok')statusEl.classList.add('error');\n}).catch(()=>{statusEl.className='service-status error';statusText.textContent='",
+    {
+      "key": "ui_268ff797e6",
+      "context": "js"
+    },
+    "'});\ndocument.querySelectorAll('[data-image-strip]').forEach(strip=>{\n  const viewport=strip.querySelector('.images');\n  const previous=strip.querySelector('.image-scroll-prev');\n  const next=strip.querySelector('.image-scroll-next');\n  const update=()=>{\n    const maxScroll=Math.max(0,viewport.scrollWidth-viewport.clientWidth);\n    previous.disabled=viewport.scrollLeft<=1;\n    next.disabled=viewport.scrollLeft>=maxScroll-1;\n  };\n  const move=direction=>viewport.scrollBy({left:direction*Math.max(75,viewport.clientWidth*.8),behavior:'smooth'});\n  previous.addEventListener('click',()=>move(-1));\n  next.addEventListener('click',()=>move(1));\n  viewport.addEventListener('scroll',update,{passive:true});\n  viewport.addEventListener('keydown',event=>{\n    if(event.key==='ArrowLeft'){event.preventDefault();move(-1)}\n    if(event.key==='ArrowRight'){event.preventDefault();move(1)}\n    if(event.key==='Home'){event.preventDefault();viewport.scrollTo({left:0,behavior:'smooth'})}\n    if(event.key==='End'){event.preventDefault();viewport.scrollTo({left:viewport.scrollWidth,behavior:'smooth'})}\n  });\n  new ResizeObserver(update).observe(viewport);\n  update();\n});\nconst lightbox=GLightbox({\n  selector:'.glightbox',\n  touchNavigation:true,\n  loop:true,\n  zoomable:true,\n  draggable:true,\n  openEffect:'fade',\n  closeEffect:'fade'\n});\nfunction updateLightboxCounter(index){\n  if(!lightbox.modal)return;\n  let counter=lightbox.modal.querySelector('.gcounter');\n  if(!counter){\n    counter=document.createElement('div');\n    counter.className='gcounter';\n    counter.setAttribute('aria-live','polite');\n    lightbox.modal.appendChild(counter);\n  }\n  counter.textContent=`${index+1} / ${lightbox.elements.length}`;\n}\nlightbox.on('open',()=>updateLightboxCounter(lightbox.index));\nlightbox.on('slide_changed',({current})=>updateLightboxCounter(current.slideIndex));\n</script></body></html>"
+  ],
+  "template_4b7366d5c95d": [
+    "",
+    {
+      "key": "ui_f65257bb2a",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_c82b767c7740": [
+    "",
+    {
+      "key": "ui_8601869c2d",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_bb788be6b37c": [
+    "",
+    {
+      "key": "ui_0a01eee1cd",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_2fe600893ce2": [
+    "",
+    {
+      "key": "ui_9310a7a828",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_31c6f244b45f": [
+    "",
+    {
+      "key": "ui_241cd85dd2",
+      "context": "plain"
+    },
+    " Shopify"
+  ],
+  "template_fb1b45b8d31f": [
+    "",
+    {
+      "key": "ui_e16530dd5c",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_ffd199c8f31c": [
+    "",
+    {
+      "key": "ui_c4440e9511",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_5ea44804ef9c": [
+    "",
+    {
+      "key": "ui_cdea037991",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_7d4b87fe917c": [
+    "‹ ",
+    {
+      "key": "ui_c9b9ae7a61",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_dd7541324981": [
+    "",
+    {
+      "key": "ui_8a8542f696",
+      "context": "plain"
+    },
+    " ›"
+  ],
+  "template_c1354a5fc066": [
+    " ",
+    {
+      "key": "ui_f004f1d84c",
+      "context": "html"
+    },
+    "/",
+    {
+      "key": "ui_d24d3c9946",
+      "context": "html"
+    },
+    "</option>"
+  ],
+  "template_d138c43e600e": [
+    "",
+    {
+      "key": "ui_9823c52e63",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_9c60c5b1f3d6": [
+    "",
+    {
+      "key": "ui_d18174953f",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_f2cac1919c64": [
+    "\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"",
+    {
+      "key": "ui_db8db05304",
+      "context": "html"
+    },
+    " Shopify ",
+    {
+      "key": "ui_c1bfe0881f",
+      "context": "html"
+    },
+    "\">"
+  ],
+  "template_a83acd03042b": [
+    "<span class=\"identity identity--customer\">",
+    {
+      "key": "ui_0a01eee1cd",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_96e626479cd7": [
+    "<span class=\"identity\">",
+    {
+      "key": "ui_8b358d0f97",
+      "context": "html"
+    },
+    "</span><code title=\"Visitor ID: "
+  ],
+  "template_dc22a0c11491": [
+    "",
+    {
+      "key": "ui_8b6ff49851",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_063ec4bc36b6": [
+    "",
+    {
+      "key": "ui_0d0e1a86b3",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_3e3eb34acea6": [
+    "",
+    {
+      "key": "ui_5253040db8",
+      "context": "plain"
+    },
+    " ID"
+  ],
+  "template_9e9b7d0c1ab0": [
+    "<div aria-label=\"",
+    {
+      "key": "ui_9254a4494d",
+      "context": "html"
+    },
+    "\" style=\"display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:0 0 12px;color:#53657e;font-size:12px\"><span>",
+    {
+      "key": "ui_d18ed1a023",
+      "context": "html"
+    },
+    "</span>"
+  ],
+  "template_34edb121b015": [
+    "",
+    {
+      "key": "ui_1ae0d6d3e4",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_98b17503c159": [
+    "",
+    {
+      "key": "ui_4b47dbae97",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_cef6d5dab960": [
+    "<code title=\"",
+    {
+      "key": "ui_0627b19d95",
+      "context": "html"
+    },
+    " · Customer ID: "
+  ],
+  "template_bfe688a5a764": [
+    "",
+    {
+      "key": "ui_fa755bfda0",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_67d439b7a8c6": [
+    "",
+    {
+      "key": "ui_ec50035350",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1d69f4d2229c": [
+    "",
+    {
+      "key": "ui_b1a2e4d590",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1b08d243675e": [
+    "",
+    {
+      "key": "ui_37c751f676",
+      "context": "plain"
+    },
+    " · ",
+    {
+      "key": "ui_5ac3c37374",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_289ed03acf95": [
+    "",
+    {
+      "key": "ui_37c751f676",
+      "context": "plain"
+    },
+    " · ",
+    {
+      "key": "ui_f360b32f48",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_6f52bfb56ce2": [
+    "",
+    {
+      "key": "ui_ce8a5019c4",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_4fbf5c598aac": [
+    "",
+    {
+      "key": "ui_9696e9a617",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_bb6cb7d2c01b": [
+    "",
+    {
+      "key": "ui_10cbe2deb3",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_d5498f3548b5": [
+    "",
+    {
+      "key": "ui_521e65ffc7",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_456ebc9b3dad": [
+    "",
+    {
+      "key": "ui_59d5d9ae74",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_4ca78ac48c44": [
+    "",
+    {
+      "key": "ui_5aab6eacee",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_6478e5e6d208": [
+    "",
+    {
+      "key": "ui_7ad0adcca6",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_0d9b5b27905e": [
+    "",
+    {
+      "key": "ui_6ff9473563",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_1662f2c06a27": [
+    "★ ",
+    {
+      "key": "ui_bff836d78d",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_433903e3ed9b": [
+    "\" aria-label=\"",
+    {
+      "key": "ui_bce2377283",
+      "context": "html"
+    },
+    ""
+  ],
+  "template_804d1da7c015": [
+    "",
+    {
+      "key": "ui_45d50a18dc",
+      "context": "html"
+    },
+    ""
+  ],
+  "template_b5fce338b695": [
+    "\" title=\"",
+    {
+      "key": "ui_657d9cbf45",
+      "context": "html"
+    },
+    "\" style=\"color:#245b9c;font-size:15px;font-weight:700;line-height:1;text-decoration:none\">×</a></span>"
+  ],
+  "template_cc29bbde8853": [
+    "",
+    {
+      "key": "ui_ce59eabc70",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_5ac216d3ac03": [
+    "<s-app-nav><s-link href=\"/shopify\" rel=\"home\">",
+    {
+      "key": "ui_203c08e0d4",
+      "context": "html"
+    },
+    "</s-link><s-link href=\"/admin/tasks\">",
+    {
+      "key": "ui_c542f21d8c",
+      "context": "html"
+    },
+    "</s-link><s-link href=\"/admin/config\">",
+    {
+      "key": "ui_df3d58c7d8",
+      "context": "html"
+    },
+    "</s-link></s-app-nav>"
+  ],
+  "template_d220d6bfa02b": [
+    "",
+    {
+      "key": "ui_da5651fe61",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_e1383ec1b292": [
+    "",
+    {
+      "key": "ui_8933b1fc07",
+      "context": "plain"
+    },
+    ""
+  ],
+  "template_79cff0faec60": [
+    "",
+    {
+      "key": "ui_c0b588adc5",
+      "context": "plain"
+    },
+    ""
+  ]
+}

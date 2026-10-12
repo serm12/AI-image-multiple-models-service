@@ -36,6 +36,8 @@ class AdminTasksTests(unittest.TestCase):
         AppConfig.ADMIN_USER = "admin"
         AppConfig.ADMIN_PASSWORD = "secret"
         DirectoryConfig.TASKS_DIR = self.temp_dir.name
+        from app.services.time_settings import update
+        update({"shop_timezone": "Asia/Shanghai"})
 
     def tearDown(self):
         AppConfig.ADMIN_USER = self.old_user
@@ -155,7 +157,7 @@ class AdminTasksTests(unittest.TestCase):
         self.assertIn("shop.example/products/custom-portrait", response.text)
         self.assertIn("12.3 秒", response.text)
         self.assertIn("buyer@example.com", response.text)
-        self.assertIn("Customer ID: 123456", response.text)
+        self.assertIn("https://admin.shopify.com/store/paintingify/customers/123456", response.text)
         self.assertIn("✓</span> 加购", response.text)
         self.assertIn("○</span> 结账意图", response.text)
         self.assertIn("✓</span> 开始结账", response.text)
@@ -163,7 +165,7 @@ class AdminTasksTests(unittest.TestCase):
 
         self.assertIn("<th>时间</th>", response.text)
         self.assertNotIn("时间（美国东部）", response.text)
-        self.assertIn("<span>北京</span>08-28 18:00:00", response.text)
+        self.assertIn("<span>当前</span>08-28 18:00:00", response.text)
         self.assertIn("<span>美东</span>08-28 06:00:00", response.text)
         self.assertIn("<span>美西</span>08-28 03:00:00", response.text)
         self.assertIn('id="current-beijing-time"', response.text)

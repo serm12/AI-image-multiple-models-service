@@ -1,3 +1,4 @@
+from app.services.i18n import t
 """Persist editable watermark settings on the existing durable task volume."""
 import io
 import json
@@ -73,18 +74,18 @@ def asset_path(settings, kind):
 
 def store_asset(content):
     if not content or len(content) > 5 * 1024 * 1024:
-        raise ValueError('图片不能超过 5 MB')
+        raise ValueError(t('watermark.file_too_large'))
     try:
         with Image.open(io.BytesIO(content)) as image:
             if image.format not in {'PNG', 'JPEG', 'WEBP'} or image.width * image.height > 16000000:
-                raise ValueError('请使用不超过 1600 万像素的 PNG、JPG 或 WebP 图片')
+                raise ValueError(t('watermark.invalid_dimensions'))
             image.load()
             name = uuid.uuid4().hex + '.png'
             assets_dir().mkdir(parents=True, exist_ok=True)
             image.convert('RGBA').save(assets_dir() / name, 'PNG')
             return name
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as error:
-        raise ValueError('无法读取图片，请选择有效的 PNG、JPG 或 WebP 文件') from error
+        raise ValueError(t('watermark.invalid_image')) from error
 
 
 def runtime_config(settings=None):

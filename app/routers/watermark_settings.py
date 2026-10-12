@@ -1,3 +1,4 @@
+from app.services.i18n import render as _i18n, Message as _i18n_message
 import io
 import json
 import tempfile
@@ -15,8 +16,9 @@ router = APIRouter(prefix='/admin/watermark', dependencies=[Depends(require_admi
 
 
 def settings_page():
+    from app.services.i18n import render_page
     page = Path(__file__).with_name('watermark_settings.html').read_text('utf-8')
-    return HTMLResponse(page, headers={'Cache-Control': 'no-store'})
+    return HTMLResponse(render_page(page), headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/settings')
@@ -56,7 +58,7 @@ async def submitted_settings(request):
                 setattr(result, field + '_asset', name)
         return result
     except (ValueError, ValidationError) as error:
-        raise HTTPException(400, '请检查配置范围及图片格式：' + str(error)[:350]) from None
+        raise HTTPException(400, _i18n('template_79cff0faec60') + str(error)[:350]) from None
     finally:
         await form.close()
 
@@ -65,7 +67,7 @@ async def submitted_settings(request):
 async def update_settings(request: Request):
     value = await submitted_settings(request)
     await run_in_threadpool(settings.save_settings, value)
-    return {'message': '已保存，新生成的预览图将使用此配置。'}
+    return {'message': _i18n('template_e1383ec1b292')}
 
 
 def render_preview(value):

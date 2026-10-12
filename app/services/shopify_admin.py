@@ -1,3 +1,4 @@
+from app.services.i18n import render as _i18n, Message as _i18n_message
 """Short-lived, partitioned admin sessions issued only after Shopify verification."""
 import os
 import time
@@ -76,11 +77,7 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                           'await fetch("/shopify/session",{method:"POST",headers:{Authorization:"Bearer "+token}});'
                           '}catch(e){}},300000);</script>')
                 body = body.replace(b"<head>", ("<head>" + bridge).encode(), 1)
-                navigation = ('<s-app-nav>'
-                              '<s-link href="/shopify" rel="home">首页</s-link>'
-                              '<s-link href="/admin/tasks">任务记录</s-link>'
-                              '<s-link href="/admin/config">设置</s-link>'
-                              '</s-app-nav>')
+                navigation = (_i18n('template_5ac216d3ac03'))
                 body = body.replace(b'<body>', ('<body>' + navigation).encode(), 1)
                 headers = dict(response.headers)
                 headers.pop("content-length", None)
