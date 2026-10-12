@@ -51,12 +51,12 @@ function Originals() {
         catch {setError('Please sign in and refresh this page.');}
       }}>Sign in to download</s-button>}
       <s-query-container>
-      <s-grid gridTemplateColumns="@container (inline-size > 480px) minmax(0, 1fr) minmax(0, 1fr), minmax(0, 1fr)" gap="base" alignItems="start">
+      <s-grid gridTemplateColumns="@container (inline-size > 480px) 1fr 1fr, 1fr" gap="base" alignItems="start">
       {result?.items.map(item => <s-box key={`${item.line_item_id}-${item.task_id}`} padding="base" border="base" borderRadius="base">
         <s-stack gap="base">
           <s-heading>{item.title}</s-heading>
           {item.image ? <>
-            <s-image src={item.image.url} alt={`${item.title} — original artwork`} aspectRatio="1/1" objectFit="contain" />
+            <s-box maxInlineSize="260px"><s-image src={item.image.url} alt={`${item.title} — original artwork`} aspectRatio="1/1" objectFit="contain" /></s-box>
             <s-button href={item.image.download_url} target="_blank" variant="primary">Download original image</s-button>
             <s-link href={item.image.url} target="_blank">View full-size image</s-link>
           </> : <s-text>Your original image is being prepared. Please check back soon.</s-text>}
