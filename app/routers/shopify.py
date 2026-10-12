@@ -1,11 +1,14 @@
 """Shopify app foundation. No store data is exposed by these routes."""
+from urllib.parse import urlencode
+import base64
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from shopify_app import ShopifyApp
 
 from app.services.shopify_client import get_shopify_app
 from app.services.shopify_http import request_to_shopify, shopify_response
+from app.services.shopify_admin import allowed_shop, set_session
 
 router = APIRouter(prefix="/shopify", tags=["Shopify"])
 
@@ -18,15 +21,47 @@ def shopify_dependency() -> ShopifyApp:
 
 
 @router.get("", response_class=HTMLResponse, include_in_schema=False)
-async def app_home():
-    return HTMLResponse(
-        '<!doctype html><html lang="zh-CN"><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<title>Paintingify AI Backend</title><body>'
-        '<h1>Paintingify AI Backend</h1><p>Paintingify 图片服务应用。</p>'
-        '</body></html>',
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
-    )
+async def app_home(request: Request, sdk: ShopifyApp = Depends(shopify_dependency)):
+    return await verified_session(request, sdk, redirect=True)
+
+
+async def verified_session(request, sdk, redirect=False):
+    result = sdk.verify_app_home_req(await request_to_shopify(request),
+                                    app_home_patch_id_token_path="/shopify/patch-id-token")
+    if not result.ok:
+        return shopify_response(result.response)
+    claims = result.id_token.claims
+    if (result.shop != allowed_shop() or not result.user_id
+            or claims.get("dest") != f"https://{allowed_shop()}.myshopify.com"
+            or claims.get("iss") != f"https://{allowed_shop()}.myshopify.com/admin"
+            or not isinstance(claims.get("exp"), int)):
+        raise HTTPException(403, "Shop is not authorized")
+    context = urlencode({"shop": f"{allowed_shop()}.myshopify.com", "embedded": "1",
+                         "host": base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
+    response = RedirectResponse("/admin/tasks?" + context, status_code=303) if redirect else Response(status_code=204)
+    response.headers.update(result.response.headers)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    set_session(response, result.user_id)
+    return response
+
+
+@router.post("/session", include_in_schema=False)
+async def refresh_session(request: Request, sdk: ShopifyApp = Depends(shopify_dependency)):
+    if not request.headers.get("authorization", "").startswith("Bearer "):
+        raise HTTPException(401, "Shopify session token required")
+    return await verified_session(request, sdk)
+
+
+@router.get("/patch-id-token", include_in_schema=False)
+async def patch_id_token(request: Request, sdk: ShopifyApp = Depends(shopify_dependency)):
+    if request.query_params.get("shop") != f"{allowed_shop()}.myshopify.com":
+        raise HTTPException(403, "Shop is not authorized")
+    if request.query_params.get("shopify-reload") != "/shopify" and not request.query_params.get("shopify-reload", "").startswith("/shopify?"):
+        raise HTTPException(400, "Invalid reload path")
+    response = shopify_response(sdk.app_home_patch_id_token(await request_to_shopify(request)).response)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.post("/webhooks", include_in_schema=False)

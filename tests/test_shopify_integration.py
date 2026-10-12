@@ -2,6 +2,10 @@ import base64
 import hashlib
 import hmac
 import unittest
+import os
+import time
+from unittest.mock import patch
+import jwt
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -10,20 +14,32 @@ from shopify_app.types import Res
 
 from app.routers.shopify import router, shopify_dependency
 from app.services.shopify_http import shopify_response
+from app.services.shopify_admin import ShopifyAdminMiddleware, COOKIE, session_shop
+from fastapi import Request
+from fastapi.responses import HTMLResponse
 
 
 class ShopifyIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.secret = "test-secret-not-a-real-credential"
+        self.env = patch.dict(os.environ, {"SHOPIFY_CLIENT_SECRET": self.secret, "SHOPIFY_SHOP": "ai-generate-image", "SHOPIFY_API_SECRET": ""})
+        self.env.start()
         app = FastAPI()
+        app.add_middleware(ShopifyAdminMiddleware)
+        @app.api_route('/admin/tasks', methods=['GET', 'POST'])
+        def tasks(request: Request):
+            if not getattr(request.state, 'shopify_admin', False):
+                return HTMLResponse('Login required', status_code=401)
+            return HTMLResponse('<html><head></head><body>Tasks</body></html>')
         app.include_router(router)
         app.dependency_overrides[shopify_dependency] = lambda: ShopifyApp(
             client_id="test-client", client_secret=self.secret
         )
-        self.client = TestClient(app)
+        self.client = TestClient(app, base_url='https://image-api.shopupup.com')
 
     def tearDown(self):
         self.client.close()
+        self.env.stop()
 
     def headers(self, body, topic="app/uninstalled"):
         signature = base64.b64encode(
@@ -62,10 +78,47 @@ class ShopifyIntegrationTests(unittest.TestCase):
         self.assertEqual(response.body, b'denied')
         self.assertEqual(response.headers['Content-Security-Policy'], "frame-ancestors 'none'")
 
-    def test_public_home_is_static(self):
+    def test_untrusted_shop_cannot_login(self):
         response = self.client.get('/shopify?shop=attacker.example')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
         self.assertNotIn('attacker.example', response.text)
+
+    def token(self, **changes):
+        claims = {'aud': 'test-client', 'dest': 'https://ai-generate-image.myshopify.com',
+                  'iss': 'https://ai-generate-image.myshopify.com/admin', 'sub': '123',
+                  'exp': int(time.time()) + 60, 'nbf': int(time.time()) - 1}
+        claims.update(changes)
+        return jwt.encode(claims, self.secret, algorithm='HS256')
+
+    def test_verified_shop_gets_partitioned_session_and_tasks(self):
+        response = self.client.get('/shopify', headers={'Authorization': 'Bearer ' + self.token()}, follow_redirects=False)
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.headers['location'].startswith('/admin/tasks?'))
+        for flag in ['HttpOnly', 'Secure', 'SameSite=none', 'Partitioned']:
+            self.assertIn(flag, response.headers['set-cookie'])
+        page = self.client.get('/admin/tasks')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('app-bridge.js', page.text)
+        self.assertIn('admin.shopify.com', page.headers['content-security-policy'])
+        self.assertEqual(self.client.post('/admin/tasks', headers={'Origin': 'https://evil.example'}).status_code, 403)
+        self.assertEqual(self.client.post('/admin/tasks', headers={'Origin': 'https://image-api.shopupup.com'}).status_code, 200)
+
+    def test_wrong_shop_audience_expired_and_tampered_tokens_rejected(self):
+        for token in [self.token(dest='https://other.myshopify.com'), self.token(aud='other'),
+                      self.token(exp=int(time.time()) - 60), self.token() + 'x']:
+            self.client.cookies.clear()
+            response = self.client.post('/shopify/session', headers={'Authorization': 'Bearer ' + token})
+            self.assertIn(response.status_code, (401, 403))
+            self.assertNotIn('set-cookie', response.headers)
+
+    def test_direct_access_and_forged_cookie_require_login(self):
+        self.assertEqual(self.client.get('/admin/tasks?shop=ai-generate-image.myshopify.com').status_code, 401)
+        self.client.cookies.set(COOKIE, 'forged')
+        self.assertEqual(self.client.get('/admin/tasks').status_code, 401)
+
+    def test_patch_rejects_external_redirect(self):
+        response = self.client.get('/shopify/patch-id-token', params={'shop':'ai-generate-image.myshopify.com', 'shopify-reload':'https://evil.example'})
+        self.assertEqual(response.status_code, 400)
 
 
 if __name__ == '__main__':

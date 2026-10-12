@@ -127,6 +127,8 @@ def require_admin_login(
     credentials: HTTPBasicCredentials | None = Depends(http_basic),
 ):
     """Protect browser admin pages with a signed session, accepting legacy Basic Auth."""
+    if getattr(request.state, "shopify_admin", False):
+        return AppConfig.ADMIN_USER
     session_user = get_admin_session_user(request.cookies.get(ADMIN_SESSION_COOKIE))
     if session_user:
         return session_user

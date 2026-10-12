@@ -13,6 +13,7 @@ from app.routers.admin import router as admin_router
 from app.routers.shopify import router as shopify_router
 from app.services.async_task_manager import task_manager
 from app.services.runtime_state import clear_http_clients, set_http_clients
+from app.services.shopify_admin import ShopifyAdminMiddleware
 from app.utils.memory_utils import release_process_memory
 
 
@@ -94,6 +95,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.add_middleware(ShopifyAdminMiddleware)
 app.include_router(admin_router)
 app.include_router(shopify_router)
 

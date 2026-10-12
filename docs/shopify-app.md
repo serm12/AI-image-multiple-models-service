@@ -91,11 +91,13 @@ SDK 接入现有 FastAPI 服务，不是从官方 Python 模板生成。
 | `scripts/shopify_dev.py` | 启动现有 `app.main:app`，读取 CLI 分配的端口 |
 | `app/services/shopify_client.py` | SDK 初始化，支持 CLI 注入的 `SHOPIFY_API_KEY/API_SECRET` |
 | `app/services/shopify_http.py` | 原始请求和 SDK 响应到 FastAPI 的适配 |
-| `app/routers/shopify.py` | `/shopify` 静态首页及 `/shopify/webhooks` 验签入口 |
+| `app/routers/shopify.py` | Shopify 会话验证、任务页跳转及 Webhook 验签入口 |
+| `app/services/shopify_admin.py` | 15 分钟嵌入式登录会话及 App Bridge 接入 |
 | `tests/test_shopify_integration.py` | Webhook 签名、篡改、重复请求等验证 |
 
 路由已经挂载到现有 `app.main:app`。Webhook 目前只接受 `app/uninstalled`，
-没有保存店铺 token/session，因此该事件暂时无需清理持久化状态；后续引入存储时必须补上清理。
+没有持久化店铺 access token；嵌入登录 cookie 最长有效 15 分钟，卸载后不再刷新。
+后续引入服务端会话存储时必须补上即时撤销。
 未实现的事件返回 404，未配置自动订阅，也没有伪造订单同步或隐私删除成功响应。
 
 本地启动（先安装完整 Python 依赖）：
@@ -122,6 +124,13 @@ python -m unittest discover -s tests -p test_shopify_integration.py -v
 现有自定义分发应用已安装到 Paintingify；实际调用店铺 API 前仍需完成适用的 token 获取流程。
 
 ## 2026-10-12 部署记录
+
+嵌入模式：`embedded = true`。入口 `/shopify` 使用官方 SDK 验证 ID token，
+检查 audience、签名、过期时间、issuer、destination 和 Paintingify 店铺白名单，
+通过后进入 `/admin/tasks`。缺少/过期 token 时使用 SDK 的 App Bridge 恢复页面。
+登录 cookie 使用 Secure、HttpOnly、SameSite=None 和 Partitioned，15 分钟有效，
+页面每 5 分钟用新 Shopify ID token 刷新；后台写操作校验 Origin。
+外部直接访问后台继续使用原有密码登录。iframe 支持依赖浏览器允许分区 cookie。
 
 - 后端代码提交：`636e5e2cf6eb9d0fe4302975eef6c39f290ca8a3`。
 - GitHub Actions 镜像构建成功，生产 `ai-image-api` 容器运行该提交。

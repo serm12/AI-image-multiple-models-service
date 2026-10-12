@@ -3,7 +3,7 @@
 client_id = "ac822a9555ca89b362bb52fcbfa81d5b"
 name = "Paintingify AI Backend"
 application_url = "https://image-api.shopupup.com/shopify"
-embedded = false
+embedded = true
 
 [build]
 automatically_update_urls_on_dev = false
