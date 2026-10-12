@@ -1,0 +1,30 @@
+# Learn more about configuring your Customer account UI extension:
+# https://shopify.dev/docs/api/customer-account-ui-extensions/latest#configuration
+
+# The version of APIs your extension will receive. Learn more:
+# https://shopify.dev/docs/api/usage/versioning
+api_version = "2026-07"
+
+[[extensions]]
+name = "Paintingify Original Downloads"
+handle = "paintingify-customer-originals"
+type = "ui_extension"
+uid = "b2e65b97-f832-9c20-878a-4916b17615408dbf7cd1"
+
+# Controls where in Shopify your extension will be injected,
+# and the file that contains your extension’s source code. Learn more:
+# https://shopify.dev/docs/api/customer-account-ui-extensions/latest/targets
+
+[[extensions.targeting]]
+module = "./src/OrderStatusBlock.tsx"
+target = "customer-account.order-status.block.render"
+
+[extensions.capabilities]
+# Gives your extension access to directly query Shopify’s storefront API.
+# https://shopify.dev/docs/apps/build/customer-accounts/capabilities#storefront-api-access
+api_access = false
+
+# Gives your extension access to make external network calls, using the
+# JavaScript `fetch()` API. Learn more:
+# https://shopify.dev/docs/apps/build/customer-accounts/capabilities#network-access
+network_access = true

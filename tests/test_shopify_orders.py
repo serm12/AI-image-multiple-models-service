@@ -70,7 +70,7 @@ class OrderSyncTests(unittest.IsolatedAsyncioTestCase):
             exchange_using_token_exchange_async=AsyncMock(return_value=SimpleNamespace(ok=True, access_token=SimpleNamespace(token='test'))),
             admin_graphql_request_async=AsyncMock(side_effect=[
                 SimpleNamespace(ok=True, data={'webhookSubscriptions': {'nodes': [
-                    {'topic': topic, 'uri': orders.WEBHOOK_URI} for topic in orders.WEBHOOK_TOPICS],
+                    {'id': topic, 'topic': topic, 'uri': orders.WEBHOOK_URI, 'includeFields': orders.WEBHOOK_FIELDS} for topic in orders.WEBHOOK_TOPICS],
                     'pageInfo': {'hasNextPage': False}}}),
                 SimpleNamespace(ok=True, data={'orders': {'nodes': [order()], 'pageInfo': {'hasNextPage': True, 'endCursor': 'next'}}}),
                 SimpleNamespace(ok=False, data=None)]))

@@ -41,7 +41,7 @@ def set_session(response, user_id):
 
 class ShopifyAdminMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        extension_images = request.url.path.startswith('/shopify/orders/') and request.url.path.endswith('/images')
+        extension_images = request.url.path.startswith(('/shopify/orders/', '/shopify/customer/orders/')) and request.url.path.endswith('/images')
         if extension_images and request.method == 'OPTIONS':
             # Shopify extensions run in sandboxed origins. This endpoint uses
             # only verified Bearer tokens, never ambient browser credentials.

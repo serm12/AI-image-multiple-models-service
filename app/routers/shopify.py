@@ -110,3 +110,33 @@ async def order_images(order_id: str, request: Request, sdk: ShopifyApp = Depend
         raise HTTPException(403, 'Shop is not authorized')
     from fastapi.responses import JSONResponse
     return JSONResponse(await get_order_images(sdk, verified, order_id), headers={'Cache-Control': 'no-store'})
+
+
+@router.get('/customer/orders/{order_id}/images', include_in_schema=False)
+async def customer_order_images(order_id: str, request: Request, sdk: ShopifyApp = Depends(shopify_dependency)):
+    if not re.fullmatch(r'[0-9]{1,30}', order_id):
+        raise HTTPException(400, 'Invalid order ID')
+    verified = sdk.verify_customer_account_ui_ext_req(await request_to_shopify(request))
+    if not verified.ok:
+        return shopify_response(verified.response)
+    claims = verified.id_token.claims
+    if (verified.shop != allowed_shop()
+            or claims.get('dest') not in {f'{allowed_shop()}.myshopify.com', f'https://{allowed_shop()}.myshopify.com'}
+            or not isinstance(claims.get('exp'), int)):
+        raise HTTPException(403, 'Shop is not authorized')
+    customer_id = claims.get('sub', '')
+    if not isinstance(customer_id, str) or not re.fullmatch(r'gid://shopify/Customer/[0-9]+', customer_id):
+        raise HTTPException(401, 'Please sign in to download your artwork')
+    from app.services.shopify_customer_images import customer_images
+    from fastapi.responses import JSONResponse
+    return JSONResponse(customer_images(order_id, customer_id), headers={'Cache-Control': 'no-store'})
+
+
+@router.get('/customer/download', include_in_schema=False)
+async def customer_download(token: str):
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from app.services.shopify_customer_images import download_original
+    path = download_original(token)
+    return FileResponse(path, filename=f'Paintingify-{Path(path).parent.name}{Path(path).suffix}',
+                        headers={'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer'})

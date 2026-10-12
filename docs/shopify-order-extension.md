@@ -24,3 +24,28 @@ python -m unittest discover -s tests -p "test_shopify*.py"
 node_modules/.bin/tsc --project extensions/paintingify-order-images/tsconfig.json
 shopify app build
 ```
+# Customer order downloads
+
+`extensions/paintingify-customer-originals` adds **Your original artwork** to
+`customer-account.order-status.block.render`. Add **Paintingify Original Downloads**
+to the live customer-account Order status page in the checkout/accounts editor.
+The English copy matches the storefront. It displays item titles, original previews,
+full-size links, and attachment downloads. Missing originals show a pending message.
+
+The separate customer endpoint verifies Shopify's customer-account session token
+using the official Python SDK and requires a signed-in `gid://shopify/Customer/...`
+subject. It compares the subject with order ownership captured from signed Shopify
+order webhooks; it never trusts a customer ID, image URL, or task ID from the browser.
+Existing webhook subscriptions are upgraded to include customer IDs. Historical
+orders from the accessible last 59 days are backfilled on the next verified admin
+app visit. Orders outside that window require Shopify's read_all_orders permission
+and a separate backfill. No names, email addresses, or addresses are stored for this.
+
+Downloads use a separate 15-minute signed link, recheck current order ownership and
+task association, and stream the local original with Content-Disposition: attachment.
+Refresh images to renew an expired link. Existing task/CDN preview URLs retain their
+existing access model; this change does not make that storage private.
+Anonymous/pre-authenticated order viewers must sign in before downloading.
+The orders/create, orders/paid, and orders/updated webhooks remain primary;
+admin-session reconciliation remains a fallback only.
+

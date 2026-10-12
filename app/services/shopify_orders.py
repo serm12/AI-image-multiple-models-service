@@ -21,7 +21,7 @@ WEBHOOK_URI = 'https://image-api.shopupup.com/shopify/webhooks'
 WEBHOOK_TOPICS = ['ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_UPDATED']
 WEBHOOK_QUERY = """query OrderWebhooks($after: String, $uri: String) {
  webhookSubscriptions(first: 100, after: $after, uri: $uri) {
-  nodes { topic uri } pageInfo { hasNextPage endCursor }
+  nodes { id topic uri includeFields } pageInfo { hasNextPage endCursor }
  }
 }"""
 WEBHOOK_CREATE = """mutation OrderWebhook($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) {
@@ -30,10 +30,16 @@ WEBHOOK_CREATE = """mutation OrderWebhook($topic: WebhookSubscriptionTopic!, $in
  }
 }"""
 TASK_ID = re.compile(r"\d{8}_\d{6}_[a-f0-9]{8}\Z")
+WEBHOOK_FIELDS = ['id', 'name', 'updated_at', 'financial_status', 'line_items', 'customer']
+WEBHOOK_UPDATE = """mutation UpdateOrderWebhook($id: ID!, $input: WebhookSubscriptionInput!) {
+ webhookSubscriptionUpdate(id: $id, webhookSubscription: $input) {
+  webhookSubscription { id } userErrors { field message }
+ }
+}"""
 ORDER_QUERY = """query TaskOrders($after: String, $query: String) {
   orders(first: 25, after: $after, query: $query) {
-    nodes { id name updatedAt displayFinancialStatus
-      lineItems(first: 100) { nodes { customAttributes { key value } }
+    nodes { id name updatedAt displayFinancialStatus customer { id }
+      lineItems(first: 100) { nodes { id title customAttributes { key value } }
         pageInfo { hasNextPage endCursor } }
     }
     pageInfo { hasNextPage endCursor }
@@ -41,7 +47,7 @@ ORDER_QUERY = """query TaskOrders($after: String, $query: String) {
 }"""
 LINE_QUERY = """query OrderLines($id: ID!, $after: String) {
   order(id: $id) { lineItems(first: 100, after: $after) {
-    nodes { customAttributes { key value } } pageInfo { hasNextPage endCursor }
+    nodes { id title customAttributes { key value } } pageInfo { hasNextPage endCursor }
   } }
 }"""
 
@@ -86,7 +92,9 @@ def _save_orders(orders, event_id=None, subscriptions_ready=False):
     if event_id and event_id in event_ids:
         return len(cache.get('tasks', {}))
     revisions = cache.get('revisions', {})
+    customer_orders = cache.get('customer_orders', {})
     orders = [order for order in orders if not revisions.get(order['id']) or
+              (order.get('updatedAt') == revisions[order['id']] and order['id'] not in customer_orders and 'customer' in order) or
               datetime.fromisoformat(order.get('updatedAt', '1970-01-01T00:00:00+00:00').replace('Z', '+00:00')) >
               datetime.fromisoformat(revisions[order['id']].replace('Z', '+00:00'))]
     previous = cache.get('tasks', {})
@@ -102,12 +110,18 @@ def _save_orders(orders, event_id=None, subscriptions_ready=False):
         item = {'id': order['id'], 'name': order['name'],
                 'financial_status': order['displayFinancialStatus'],
                 'url': f'https://admin.shopify.com/store/paintingify/orders/{numeric_id}'}
+        customer_orders[order['id']] = {
+            'customer_id': (order.get('customer') or {}).get('id'),
+            'name': order['name'],
+            'items': [{'line_item_id': line.get('id', ''), 'title': line.get('title', 'Your artwork'), 'task_id': task}
+                      for line in order['lineItems']['nodes']
+                      for task in sorted(matched_task_ids({'lineItems': {'nodes': [line]}}))]}
         for task_id in matched_task_ids(order):
             mapping.setdefault(task_id, []).append(item)
     if event_id:
         event_ids = (event_ids + [event_id])[-2000:]
     data = {'shop': allowed_shop(), 'synced_at': datetime.now(timezone.utc).isoformat(),
-            'revisions': revisions, 'event_ids': event_ids,
+            'revisions': revisions, 'event_ids': event_ids, 'customer_orders': customer_orders,
             'webhook_topics': WEBHOOK_TOPICS if subscriptions_ready else cache.get('webhook_topics', []),
             'tasks': {key: value for key, value in mapping.items() if value}}
     path = cache_path()
@@ -129,9 +143,10 @@ def receive_order_webhook(payload, event_id):
     if timestamp.tzinfo is None:
         raise ValueError('Invalid order timestamp')
     order = {'id': f'gid://shopify/Order/{numeric_id}', 'name': str(payload['name']),
+             'customer': {'id': f"gid://shopify/Customer/{payload['customer']['id']}"} if (payload.get('customer') or {}).get('id') else None,
              'updatedAt': timestamp.isoformat(),
              'displayFinancialStatus': str(payload.get('financial_status') or '').upper(),
-             'lineItems': {'nodes': [{'customAttributes': [
+             'lineItems': {'nodes': [{'id': str(line.get('id', '')), 'title': line.get('title', 'Your artwork'), 'customAttributes': [
                  {'key': p.get('name', ''), 'value': p.get('value', '')}
                  for p in (line.get('properties') or [])]}
                  for line in payload.get('line_items', [])]}}
@@ -167,6 +182,11 @@ async def sync_orders(sdk, verified):
                 while True:
                     subscriptions = (await query(WEBHOOK_QUERY, {'after': cursor, 'uri': WEBHOOK_URI}))['webhookSubscriptions']
                     existing.update(item['topic'] for item in subscriptions['nodes'] if item['uri'] == WEBHOOK_URI)
+                    for subscription in subscriptions['nodes']:
+                        if subscription['topic'] in WEBHOOK_TOPICS and subscription['uri'] == WEBHOOK_URI and set(subscription.get('includeFields', [])) != set(WEBHOOK_FIELDS):
+                            updated = (await query(WEBHOOK_UPDATE, {'id': subscription['id'], 'input': {'includeFields': WEBHOOK_FIELDS}}))['webhookSubscriptionUpdate']
+                            if updated['userErrors']:
+                                raise RuntimeError('webhook_update_failed')
                     if not subscriptions['pageInfo']['hasNextPage']:
                         break
                     cursor = subscriptions['pageInfo']['endCursor']
@@ -174,7 +194,7 @@ async def sync_orders(sdk, verified):
                     if topic not in existing:
                         created = (await query(WEBHOOK_CREATE, {'topic': topic, 'input': {
                             'uri': WEBHOOK_URI, 'format': 'JSON',
-                            'includeFields': ['id', 'name', 'updated_at', 'financial_status', 'line_items']}}))['webhookSubscriptionCreate']
+                            'includeFields': WEBHOOK_FIELDS}}))['webhookSubscriptionCreate']
                         if created['userErrors'] or not created['webhookSubscription']:
                             raise RuntimeError('webhook_registration_failed')
 
