@@ -255,5 +255,9 @@
   "keys_placeholder": "输入新密钥以替换，留空不修改",
   "keys_save": "保存密钥",
   "keys_saved": "已保存，密钥不会在页面回显。",
-  "keys_error": "密钥设置操作失败，请检查输入或稍后重试。"
+  "keys_error": "密钥设置操作失败，请检查输入或稍后重试。",
+  "copy_ip": "复制 IP",
+  "copy_email": "复制邮箱",
+  "copy_done": "已复制",
+  "copy_failed": "复制失败，请手动复制"
 }

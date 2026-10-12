@@ -255,5 +255,9 @@
   "keys_placeholder": "Enter a replacement key, or leave empty to keep the current key",
   "keys_save": "Save API keys",
   "keys_saved": "Saved. Keys are never displayed on this page.",
-  "keys_error": "Unable to update API keys. Check the input or retry later."
+  "keys_error": "Unable to update API keys. Check the input or retry later.",
+  "copy_ip": "Copy IP",
+  "copy_email": "Copy email",
+  "copy_done": "Copied",
+  "copy_failed": "Copy failed. Please copy manually."
 }

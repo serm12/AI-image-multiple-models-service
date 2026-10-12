@@ -1,4 +1,4 @@
-from app.services.i18n import render as _i18n, Message as _i18n_message, t as _t
+from app.services.i18n import render as _i18n, Message as _i18n_message, t as _t, render_page as _render_page
 import os
 import tempfile
 from html import escape
@@ -173,6 +173,14 @@ def admin_config(_username: str = Depends(require_admin_login)):
     return settings_page()
 
 
+def _copy_control(value, content, label_key):
+    label = _text(_t(label_key))
+    return (f'<span class="copy-field">{content}<button type="button" class="copy-button" '
+            f'data-copy-value="{_text(value)}" aria-label="{label}" title="{label}">'
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">'
+            '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></span>')
+
+
 def _display_time(value, source_timezone="UTC", target_timezone=CHINA_TIMEZONE) -> str:
     raw = str(value or "")
     try:
@@ -321,6 +329,8 @@ def _task_row(task: dict, return_url: str) -> str:
         else ""
     )
     client_ip = _text(task.get("client_ip"))
+    if client_ip:
+        client_ip = _copy_control(task.get("client_ip"), client_ip, "copy_ip")
     ip_task_sequence = task.get("ip_task_sequence")
     ip_task_total = task.get("ip_task_total")
     if client_ip and ip_task_sequence:
@@ -393,8 +403,8 @@ def _task_row(task: dict, return_url: str) -> str:
         identity_label = _i18n('template_bb788be6b37c') if task.get("customer_logged_in") and customer_id else _i18n('template_2fe600893ce2')
         identity = (
             f'<span class="identity identity--customer">{identity_label}</span>'
-            + (f'<a class="customer-email" href="{customer_url}{_i18n('template_f2cac1919c64')}{customer_email} 🔗</a>'
-               if customer_url else f'<span class="customer-email" title="{customer_title}">{customer_email}</span>')
+            + _copy_control(task.get("customer_email"), (f'<a class="customer-email" href="{customer_url}{_i18n('template_f2cac1919c64')}{customer_email} 🔗</a>'
+               if customer_url else f'<span class="customer-email" title="{customer_title}">{customer_email}</span>'), "copy_email")
         )
     elif customer_id:
         identity = (
@@ -762,5 +772,5 @@ def admin_tasks(
         for zone in display_timezones()
     )
     return HTMLResponse(
-        f"""{_i18n('template_8e717af0e0f2')}{_text(data['total'])}{_i18n('template_7e99a8cb2afc')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_eb644375d4cc')}{clock_markup}{_i18n('template_31b2e91d9ddd')}{_text(starred_filter_url)}">{(_t('ui_6ff9473563') if starred else '★ ' + _t('ui_bff836d78d'))}</a>{time_range_filter}{active_filter_chips}</div>\n<template id="conversion-search-template">{conversion_filter_form}{_i18n('template_1635e1a58008')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}{_i18n('template_846c1a8e355b')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}{_i18n('template_9cf32afef570')}{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}{_i18n('template_856c47de30d6')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}{_i18n('template_12caa5d405f0')}{body}</tbody></table></div>\n{pagination}\n</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>\nconst statusEl=document.getElementById('service-status');\nconst statusText=statusEl.querySelector('.service-text');\nconst clocks=[...document.querySelectorAll('[data-clock-zone]')].map(element=>[element,element.dataset.clockZone]);\n{_i18n('template_e4e7470d5e25')}"""
+        f"""{_i18n('template_8e717af0e0f2')}{_text(data['total'])}{_i18n('template_7e99a8cb2afc')}{_text(APP_VERSION)} · {_text(APP_RELEASE_DATE)}{_i18n('template_eb644375d4cc')}{clock_markup}{_i18n('template_31b2e91d9ddd')}{_text(starred_filter_url)}">{(_t('ui_6ff9473563') if starred else '★ ' + _t('ui_bff836d78d'))}</a>{time_range_filter}{active_filter_chips}</div>\n<template id="conversion-search-template">{conversion_filter_form}{_i18n('template_1635e1a58008')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="task_id" type="search" value="{_text(task_id_query)}{_i18n('template_846c1a8e355b')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input name="provider" type="search" value="{_text(provider_query)}{_i18n('template_9cf32afef570')}{page_size}"><input type="hidden" name="user" value="{_text(user_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="client_ip" type="search" value="{_text(client_ip_query)}{_i18n('template_856c47de30d6')}{page_size}"><input type="hidden" name="client_ip" value="{_text(client_ip_query)}"><input type="hidden" name="task_id" value="{_text(task_id_query)}"><input type="hidden" name="provider" value="{_text(provider_query)}"><input name="user" type="search" value="{_text(user_query)}{_i18n('template_12caa5d405f0')}{body}</tbody></table></div>\n{pagination}\n{_render_page(Path(__file__).with_name("task_copy_controls.html").read_text("utf-8"))}</main><script src="https://cdn.jsdelivr.net/npm/glightbox@3.3.1/dist/js/glightbox.min.js"></script><script>\nconst statusEl=document.getElementById('service-status');\nconst statusText=statusEl.querySelector('.service-text');\nconst clocks=[...document.querySelectorAll('[data-clock-zone]')].map(element=>[element,element.dataset.clockZone]);\n{_i18n('template_e4e7470d5e25')}"""
     )
