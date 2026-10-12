@@ -132,6 +132,16 @@ python -m unittest discover -s tests -p test_shopify_integration.py -v
 页面每 5 分钟用新 Shopify ID token 刷新；后台写操作校验 Origin。
 外部直接访问后台继续使用原有密码登录。iframe 支持依赖浏览器允许分区 cookie。
 
+订单关联：`app/services/shopify_orders.py` 在已验证的 Shopify 登录/会话刷新时，
+通过官方 SDK token exchange 获取临时 online token，分页读取最近 59 天订单。
+每个商品优先使用 `_AI Task ID` 精确匹配；旧订单仅可从购买的 `Watermark Image URL`
+提取任务 ID，绝不使用相同邮箱或参考图片推断订单归属。
+任务页显示订单号、Shopify 付款状态和订单链接；未匹配的前端付款事件显示“订单待匹配”。
+页面保持打开时每 5 分钟同步；失败保留上次缓存，下次验证会话重试。
+缓存为持久化 tasks 卷下 `.shopify-order-links.json`，仅存任务与订单基本信息，
+不保存 API token、客户属性或跟踪令牌；已有历史匹配保留。更早的未匹配订单需要
+`read_all_orders` 授权后另外回填，目前未扩大应用权限。
+
 - 后端代码提交：`636e5e2cf6eb9d0fe4302975eef6c39f290ca8a3`。
 - GitHub Actions 镜像构建成功，生产 `ai-image-api` 容器运行该提交。
 - `/health` 与 `/shopify` 均返回 200，Docker healthy，Nginx 配置校验通过。

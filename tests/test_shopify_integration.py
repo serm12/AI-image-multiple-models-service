@@ -4,7 +4,7 @@ import hmac
 import unittest
 import os
 import time
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 import jwt
 
 from fastapi import FastAPI
@@ -24,6 +24,8 @@ class ShopifyIntegrationTests(unittest.TestCase):
         self.secret = "test-secret-not-a-real-credential"
         self.env = patch.dict(os.environ, {"SHOPIFY_CLIENT_SECRET": self.secret, "SHOPIFY_SHOP": "ai-generate-image", "SHOPIFY_API_SECRET": ""})
         self.env.start()
+        self.order_sync = patch('app.routers.shopify.sync_orders', new_callable=AsyncMock)
+        self.order_sync.start()
         app = FastAPI()
         app.add_middleware(ShopifyAdminMiddleware)
         @app.api_route('/admin/tasks', methods=['GET', 'POST'])
@@ -40,6 +42,7 @@ class ShopifyIntegrationTests(unittest.TestCase):
     def tearDown(self):
         self.client.close()
         self.env.stop()
+        self.order_sync.stop()
 
     def headers(self, body, topic="app/uninstalled"):
         signature = base64.b64encode(

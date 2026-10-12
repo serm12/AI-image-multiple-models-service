@@ -9,6 +9,7 @@ from shopify_app import ShopifyApp
 from app.services.shopify_client import get_shopify_app
 from app.services.shopify_http import request_to_shopify, shopify_response
 from app.services.shopify_admin import allowed_shop, set_session
+from app.services.shopify_orders import sync_orders
 
 router = APIRouter(prefix="/shopify", tags=["Shopify"])
 
@@ -36,6 +37,7 @@ async def verified_session(request, sdk, redirect=False):
             or claims.get("iss") != f"https://{allowed_shop()}.myshopify.com/admin"
             or not isinstance(claims.get("exp"), int)):
         raise HTTPException(403, "Shop is not authorized")
+    await sync_orders(sdk, result)
     context = urlencode({"shop": f"{allowed_shop()}.myshopify.com", "embedded": "1",
                          "host": base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
     response = RedirectResponse("/admin/tasks?" + context, status_code=303) if redirect else Response(status_code=204)

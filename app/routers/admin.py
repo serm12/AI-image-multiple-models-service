@@ -464,6 +464,15 @@ def _task_row(task: dict, return_url: str) -> str:
             f'<span aria-hidden="true">{"✓" if active else "○"}</span> {label}</span>'
         )
     funnel = "".join(funnel_parts)
+    if task.get('checkout_completed') and not task.get('shopify_orders'):
+        identity += '<span class="muted">订单待匹配</span>'
+    for order in task.get('shopify_orders', []):
+        status = {'PAID': '已付款', 'PARTIALLY_REFUNDED': '部分退款', 'REFUNDED': '已退款',
+                  'PENDING': '待付款', 'AUTHORIZED': '已授权', 'VOIDED': '已作废',
+                  'PARTIALLY_PAID': '部分付款'}.get(order.get('financial_status'), '状态待确认')
+        identity += (f'<a class="customer-email" href="{_text(order["url"])}" target="_blank" '
+                     f'rel="noopener noreferrer" title="按订单商品任务 ID 精确关联">'
+                     f'订单 {_text(order["name"])} · {_text(status)} ↗</a>')
     beijing_time = _display_time(task["created_at"], task.get("time_zone"))
     eastern_time = _display_time(
         task["created_at"], task.get("time_zone"), US_EASTERN_TIMEZONE
@@ -709,6 +718,10 @@ def admin_tasks(
         [("page", "1"), ("page_size", str(page_size))]
         + ([] if starred else [("starred", "true")])
     )
+    from app.services.shopify_orders import read_order_cache
+    order_links = read_order_cache().get('tasks', {})
+    for task in data['tasks']:
+        task['shopify_orders'] = order_links.get(task['task_id'], [])
     rows = "".join(_task_row(task, return_url) for task in data["tasks"])
     body = rows or '<tr><td colspan="12" class="empty">暂无任务记录</td></tr>'
     pagination = _pagination(
