@@ -49,19 +49,36 @@ class OrderMatchingTests(unittest.TestCase):
         self.assertEqual(next(x for x in links if x['name'] == '#1076')['financial_status'], 'REFUNDED')
         self.assertNotIn('customAttributes', self.path.read_text())
 
+    def test_webhook_duplicate_and_out_of_order_delivery(self):
+        payload = {'id': 1076, 'name': '#1076', 'updated_at': '2026-10-12T09:00:00Z',
+                   'financial_status': 'paid', 'line_items': [{'properties': [{'name': '_AI Task ID', 'value': TASK}]}]}
+        orders.receive_order_webhook(payload, 'event-paid')
+        orders.receive_order_webhook(payload, 'event-paid')
+        payload.update(updated_at='2026-10-12T08:00:00Z', financial_status='pending')
+        orders.receive_order_webhook(payload, 'event-create-delayed')
+        links = orders.read_order_cache()['tasks'][TASK]
+        self.assertEqual(len(links), 1)
+        self.assertEqual(links[0]['financial_status'], 'PAID')
+        payload.update(updated_at='2026-10-12T10:00:00Z', financial_status='refunded')
+        orders.receive_order_webhook(payload, 'event-refund')
+        self.assertEqual(orders.read_order_cache()['tasks'][TASK][0]['financial_status'], 'REFUNDED')
+
 
 class OrderSyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_paginated_read_and_no_save_on_failure(self):
         sdk = SimpleNamespace(
             exchange_using_token_exchange_async=AsyncMock(return_value=SimpleNamespace(ok=True, access_token=SimpleNamespace(token='test'))),
             admin_graphql_request_async=AsyncMock(side_effect=[
+                SimpleNamespace(ok=True, data={'webhookSubscriptions': {'nodes': [
+                    {'topic': topic, 'uri': orders.WEBHOOK_URI} for topic in orders.WEBHOOK_TOPICS],
+                    'pageInfo': {'hasNextPage': False}}}),
                 SimpleNamespace(ok=True, data={'orders': {'nodes': [order()], 'pageInfo': {'hasNextPage': True, 'endCursor': 'next'}}}),
                 SimpleNamespace(ok=False, data=None)]))
         verified = SimpleNamespace(id_token='verified', invalid_token_response=None)
         with patch.object(orders, '_last_sync', 0), patch.object(orders, 'save_orders') as save:
             await orders.sync_orders(sdk, verified)
             save.assert_not_called()
-            self.assertEqual(sdk.admin_graphql_request_async.await_count, 2)
+            self.assertEqual(sdk.admin_graphql_request_async.await_count, 3)
             self.assertEqual(sdk.admin_graphql_request_async.call_args.kwargs['variables']['after'], 'next')
 
 

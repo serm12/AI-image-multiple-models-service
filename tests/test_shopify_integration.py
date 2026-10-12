@@ -51,7 +51,7 @@ class ShopifyIntegrationTests(unittest.TestCase):
         return {
             "content-type": "application/json",
             "x-shopify-hmac-sha256": signature,
-            "x-shopify-shop-domain": "test-shop.myshopify.com",
+            "x-shopify-shop-domain": "ai-generate-image.myshopify.com",
             "x-shopify-topic": topic,
         }
 
@@ -65,6 +65,19 @@ class ShopifyIntegrationTests(unittest.TestCase):
         response = self.client.post('/shopify/webhooks', content=b'{"id":2}', headers=self.headers(b'{"id":1}'))
         self.assertEqual(response.status_code, 401)
 
+    def test_signed_order_is_dispatched_but_wrong_shop_and_tampering_are_not(self):
+        body = b'{"id":1076}'
+        with patch('app.routers.shopify.receive_order_webhook') as receive:
+            headers = self.headers(body, 'orders/paid')
+            headers['x-shopify-event-id'] = 'event-1'
+            self.assertEqual(self.client.post('/shopify/webhooks', content=body, headers=headers).status_code, 200)
+            receive.assert_called_once_with({'id': 1076}, 'event-1')
+            receive.reset_mock()
+            headers['x-shopify-shop-domain'] = 'other.myshopify.com'
+            self.assertEqual(self.client.post('/shopify/webhooks', content=body, headers=headers).status_code, 403)
+            self.assertEqual(self.client.post('/shopify/webhooks', content=b'{"id":2}', headers=headers).status_code, 401)
+            receive.assert_not_called()
+
     def test_unsigned_request_is_rejected(self):
         response = self.client.post('/shopify/webhooks', json={"id": 1})
         # Official SDK treats missing required headers as a malformed request.
@@ -72,7 +85,7 @@ class ShopifyIntegrationTests(unittest.TestCase):
 
     def test_unimplemented_topic_is_not_acknowledged(self):
         body = b'{}'
-        response = self.client.post('/shopify/webhooks', content=body, headers=self.headers(body, 'orders/create'))
+        response = self.client.post('/shopify/webhooks', content=body, headers=self.headers(body, 'products/create'))
         self.assertEqual(response.status_code, 404)
 
     def test_response_adapter_preserves_security_headers(self):

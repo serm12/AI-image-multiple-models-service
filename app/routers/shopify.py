@@ -1,6 +1,7 @@
 """Shopify app foundation. No store data is exposed by these routes."""
 from urllib.parse import urlencode
 import base64
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,7 +10,7 @@ from shopify_app import ShopifyApp
 from app.services.shopify_client import get_shopify_app
 from app.services.shopify_http import request_to_shopify, shopify_response
 from app.services.shopify_admin import allowed_shop, set_session
-from app.services.shopify_orders import sync_orders
+from app.services.shopify_orders import sync_orders, receive_order_webhook
 
 router = APIRouter(prefix="/shopify", tags=["Shopify"])
 
@@ -75,6 +76,15 @@ async def webhooks(request: Request, sdk: ShopifyApp = Depends(shopify_dependenc
     result = sdk.verify_webhook_req(incoming)
     if not result.ok:
         return shopify_response(result.response)
+
+    if request.headers.get('x-shopify-shop-domain') != f'{allowed_shop()}.myshopify.com':
+        raise HTTPException(403, 'Shop is not authorized')
+    if request.headers.get('x-shopify-topic') in {'orders/create', 'orders/paid', 'orders/updated'}:
+        try:
+            receive_order_webhook(json.loads(incoming['body']), request.headers.get('x-shopify-event-id') or request.headers.get('x-shopify-webhook-id'))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise HTTPException(400, 'Invalid order payload') from None
+        return Response(status_code=200)
 
     if request.headers.get("x-shopify-topic") == "app/uninstalled":
         # No shop sessions/tokens are persisted yet. Add token cleanup here when

@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -15,10 +16,23 @@ from app.services.shopify_admin import allowed_shop
 logger = logging.getLogger(__name__)
 _lock = asyncio.Lock()
 _last_sync = 0.0
+_write_lock = threading.Lock()
+WEBHOOK_URI = 'https://image-api.shopupup.com/shopify/webhooks'
+WEBHOOK_TOPICS = ['ORDERS_CREATE', 'ORDERS_PAID', 'ORDERS_UPDATED']
+WEBHOOK_QUERY = """query OrderWebhooks($after: String, $uri: String) {
+ webhookSubscriptions(first: 100, after: $after, uri: $uri) {
+  nodes { topic uri } pageInfo { hasNextPage endCursor }
+ }
+}"""
+WEBHOOK_CREATE = """mutation OrderWebhook($topic: WebhookSubscriptionTopic!, $input: WebhookSubscriptionInput!) {
+ webhookSubscriptionCreate(topic: $topic, webhookSubscription: $input) {
+  webhookSubscription { id topic uri } userErrors { field message }
+ }
+}"""
 TASK_ID = re.compile(r"\d{8}_\d{6}_[a-f0-9]{8}\Z")
 ORDER_QUERY = """query TaskOrders($after: String, $query: String) {
   orders(first: 25, after: $after, query: $query) {
-    nodes { id name displayFinancialStatus
+    nodes { id name updatedAt displayFinancialStatus
       lineItems(first: 100) { nodes { customAttributes { key value } }
         pageInfo { hasNextPage endCursor } }
     }
@@ -61,12 +75,27 @@ def matched_task_ids(order):
     return found
 
 
-def save_orders(orders):
-    previous = read_order_cache().get('tasks', {})
+def save_orders(orders, event_id=None, subscriptions_ready=False):
+    with _write_lock:
+        return _save_orders(orders, event_id, subscriptions_ready)
+
+
+def _save_orders(orders, event_id=None, subscriptions_ready=False):
+    cache = read_order_cache()
+    event_ids = cache.get('event_ids', [])
+    if event_id and event_id in event_ids:
+        return len(cache.get('tasks', {}))
+    revisions = cache.get('revisions', {})
+    orders = [order for order in orders if not revisions.get(order['id']) or
+              datetime.fromisoformat(order.get('updatedAt', '1970-01-01T00:00:00+00:00').replace('Z', '+00:00')) >
+              datetime.fromisoformat(revisions[order['id']].replace('Z', '+00:00'))]
+    previous = cache.get('tasks', {})
     updated_ids = {order['id'] for order in orders}
     mapping = {task: [item for item in items if item['id'] not in updated_ids]
                for task, items in previous.items()}
     for order in orders:
+        if order.get('updatedAt'):
+            revisions[order['id']] = order['updatedAt']
         numeric_id = order['id'].removeprefix('gid://shopify/Order/')
         if not numeric_id.isdigit():
             continue
@@ -75,7 +104,11 @@ def save_orders(orders):
                 'url': f'https://admin.shopify.com/store/paintingify/orders/{numeric_id}'}
         for task_id in matched_task_ids(order):
             mapping.setdefault(task_id, []).append(item)
+    if event_id:
+        event_ids = (event_ids + [event_id])[-2000:]
     data = {'shop': allowed_shop(), 'synced_at': datetime.now(timezone.utc).isoformat(),
+            'revisions': revisions, 'event_ids': event_ids,
+            'webhook_topics': WEBHOOK_TOPICS if subscriptions_ready else cache.get('webhook_topics', []),
             'tasks': {key: value for key, value in mapping.items() if value}}
     path = cache_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,6 +117,25 @@ def save_orders(orders):
         json.dump(data, file, ensure_ascii=False)
     os.replace(temporary, path)
     return len(data['tasks'])
+
+
+def receive_order_webhook(payload, event_id):
+    """Called only after SDK HMAC verification and the shop allowlist check."""
+    numeric_id = str(payload.get('id', ''))
+    if (not numeric_id.isdigit() or not payload.get('name') or not payload.get('updated_at')
+            or not isinstance(payload.get('line_items'), list)):
+        raise ValueError('Invalid order payload')
+    timestamp = datetime.fromisoformat(payload['updated_at'].replace('Z', '+00:00'))
+    if timestamp.tzinfo is None:
+        raise ValueError('Invalid order timestamp')
+    order = {'id': f'gid://shopify/Order/{numeric_id}', 'name': str(payload['name']),
+             'updatedAt': timestamp.isoformat(),
+             'displayFinancialStatus': str(payload.get('financial_status') or '').upper(),
+             'lineItems': {'nodes': [{'customAttributes': [
+                 {'key': p.get('name', ''), 'value': p.get('value', '')}
+                 for p in (line.get('properties') or [])]}
+                 for line in payload.get('line_items', [])]}}
+    return save_orders([order], event_id=event_id)
 
 
 async def sync_orders(sdk, verified):
@@ -108,6 +160,25 @@ async def sync_orders(sdk, verified):
                         raise RuntimeError('orders_query_failed')
                     return result.data
 
+                # Shopify pushes orders even when no administrator has the app
+                # open. This check repairs missing subscriptions on login.
+                existing = set()
+                cursor = None
+                while True:
+                    subscriptions = (await query(WEBHOOK_QUERY, {'after': cursor, 'uri': WEBHOOK_URI}))['webhookSubscriptions']
+                    existing.update(item['topic'] for item in subscriptions['nodes'] if item['uri'] == WEBHOOK_URI)
+                    if not subscriptions['pageInfo']['hasNextPage']:
+                        break
+                    cursor = subscriptions['pageInfo']['endCursor']
+                for topic in WEBHOOK_TOPICS:
+                    if topic not in existing:
+                        created = (await query(WEBHOOK_CREATE, {'topic': topic, 'input': {
+                            'uri': WEBHOOK_URI, 'format': 'JSON',
+                            'includeFields': ['id', 'name', 'updated_at', 'financial_status', 'line_items']}}))['webhookSubscriptionCreate']
+                        if created['userErrors'] or not created['webhookSubscription']:
+                            raise RuntimeError('webhook_registration_failed')
+
+                # Reconciliation is only a fallback for historical/missed events.
                 after = None
                 orders = []
                 since = (datetime.now(timezone.utc) - timedelta(days=59)).date().isoformat()
@@ -122,7 +193,7 @@ async def sync_orders(sdk, verified):
                     if not connection['pageInfo']['hasNextPage']:
                         break
                     after = connection['pageInfo']['endCursor']
-                count = save_orders(orders)
+                count = save_orders(orders, subscriptions_ready=True)
                 _last_sync = time.monotonic()
                 logger.info('Shopify orders synchronized: %s task matches', count)
         except Exception as error:

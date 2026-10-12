@@ -19,3 +19,6 @@ redirect_urls = []
 
 [webhooks]
 api_version = "2026-10"
+# Store-specific orders/create, orders/paid, orders/updated subscriptions are
+# reconciled through this app's Admin API session (shopify_orders.py).
+# Do not duplicate these with app-wide subscriptions.

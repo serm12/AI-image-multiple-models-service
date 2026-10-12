@@ -132,12 +132,16 @@ python -m unittest discover -s tests -p test_shopify_integration.py -v
 页面每 5 分钟用新 Shopify ID token 刷新；后台写操作校验 Origin。
 外部直接访问后台继续使用原有密码登录。iframe 支持依赖浏览器允许分区 cookie。
 
-订单关联：`app/services/shopify_orders.py` 在已验证的 Shopify 登录/会话刷新时，
-通过官方 SDK token exchange 获取临时 online token，分页读取最近 59 天订单。
+订单关联主链路：Shopify `orders/create`、`orders/paid`、`orders/updated` Webhook
+到达 `/shopify/webhooks` 后，经 SDK HMAC 验签和店铺白名单验证，立即写入任务订单关联。
+无需页面打开或等待定时匹配。持久化事件去重与订单 updated_at 检查阻止重复和乱序覆盖。
+首次验证应用会话时，通过官方 SDK token exchange 临时 online token 自动建立
+当前应用所属的店铺 Webhook 订阅，后续会话会检查并修复缺失订阅。
+兜底链路：分页读取最近 59 天订单，补齐历史记录和漏掉的事件。
 每个商品优先使用 `_AI Task ID` 精确匹配；旧订单仅可从购买的 `Watermark Image URL`
 提取任务 ID，绝不使用相同邮箱或参考图片推断订单归属。
 任务页显示订单号、Shopify 付款状态和订单链接；未匹配的前端付款事件显示“订单待匹配”。
-页面保持打开时每 5 分钟同步；失败保留上次缓存，下次验证会话重试。
+页面保持打开时每 5 分钟进行兜底校对；失败保留上次缓存，下次验证会话重试。
 缓存为持久化 tasks 卷下 `.shopify-order-links.json`，仅存任务与订单基本信息，
 不保存 API token、客户属性或跟踪令牌；已有历史匹配保留。更早的未匹配订单需要
 `read_all_orders` 授权后另外回填，目前未扩大应用权限。
