@@ -41,12 +41,24 @@ def set_session(response, user_id):
 
 class ShopifyAdminMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        extension_images = request.url.path.startswith('/shopify/orders/') and request.url.path.endswith('/images')
+        if extension_images and request.method == 'OPTIONS':
+            # Shopify extensions run in sandboxed origins. This endpoint uses
+            # only verified Bearer tokens, never ambient browser credentials.
+            return Response(status_code=204, headers={
+                'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+                'Access-Control-Max-Age': '600'})
         shop = session_shop(request) if request.url.path.startswith("/admin/") else None
         if shop:
             if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") != ORIGIN:
                 return Response("Forbidden", status_code=403)
             request.state.shopify_admin = True
         response = await call_next(request)
+        if extension_images:
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            if 'access-control-allow-credentials' in response.headers:
+                del response.headers['access-control-allow-credentials']
         if shop:
             response.headers["Content-Security-Policy"] = f"frame-ancestors https://{shop}.myshopify.com https://admin.shopify.com;"
             response.headers["Cache-Control"] = "no-store"

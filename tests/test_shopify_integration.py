@@ -137,6 +137,10 @@ class ShopifyIntegrationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_order_originals_require_verified_staff_and_shop(self):
+        preflight = self.client.options('/shopify/orders/123/images', headers={'Origin': 'null', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization'})
+        self.assertEqual(preflight.status_code, 204)
+        self.assertEqual(preflight.headers['access-control-allow-origin'], '*')
+        self.assertNotIn('access-control-allow-credentials', preflight.headers)
         with patch('app.routers.shopify.get_order_images', new_callable=AsyncMock, return_value={'items': []}) as images:
             self.assertEqual(self.client.get('/shopify/orders/123/images').status_code, 401)
             self.assertEqual(self.client.get('/shopify/orders/123/images', headers={'Authorization': 'Bearer ' + self.token(dest='https://other.myshopify.com')}).status_code, 403)
