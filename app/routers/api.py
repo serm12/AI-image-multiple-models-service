@@ -327,6 +327,8 @@ async def generate_image_async(
         # 5. 异步保存参数
         async with aiofiles.open(os.path.join(task_dir, "params.json"), "w") as f:
             await f.write(json.dumps(params, ensure_ascii=False, indent=2))
+        from app.services.task_list_index import refresh_task
+        await asyncio.to_thread(refresh_task, task_dir)
         
         # 6. 创建任务记录
         task_manager.create_task(
@@ -476,6 +478,8 @@ async def process_generation_background(
             await file.write(
                 json.dumps(stored_params, ensure_ascii=False, separators=(",", ":"))
             )
+        from app.services.task_list_index import refresh_task
+        await asyncio.to_thread(refresh_task, task_dir)
 
 async def _do_generation_work(
     task_id: str, task_dir: str, prompt: str, input_image_paths: list[str],
@@ -564,6 +568,8 @@ async def _do_generation_work(
             # 单次异步写入（紧凑格式）
             async with aiofiles.open(params_path, 'w', encoding='utf-8') as pf:
                 await pf.write(json.dumps(existing_params, ensure_ascii=False, separators=(',', ':')))
+            from app.services.task_list_index import refresh_task
+            await asyncio.to_thread(refresh_task, task_dir)
             
             # 异步更新 last_seed 缓存
             if extracted_seed is not None:
@@ -1239,6 +1245,8 @@ if "flux_bfl" in APIConfig.ALL_PROVIDERS:
                 params["stage"] = "succeeded"
                 with open(params_path, 'w', encoding='utf-8') as pf:
                     json.dump(params, pf, ensure_ascii=False, indent=2)
+                from app.services.task_list_index import refresh_task
+                refresh_task(task_dir)
             except Exception as werr:
                 print(f"⚠️ 恢复时保存BFL响应失败: {werr}")
             return JSONResponse({

@@ -24,6 +24,8 @@ def save_params(params, task_dir):
     params.setdefault("time_zone", UTC_TIMEZONE_NAME)
     with open(os.path.join(task_dir, "params.json"), "w", encoding="utf-8") as f:
         json.dump(params, f, ensure_ascii=False, indent=2)
+    from app.services.task_list_index import refresh_task
+    refresh_task(task_dir)
 
 def generate_output_filenames(task_dir, input_image_filename, output_format):
     base_name = os.path.splitext(input_image_filename)[0]

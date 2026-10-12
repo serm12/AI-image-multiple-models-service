@@ -50,9 +50,13 @@ async def app_lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_periodic_task_cleanup())
     from app.services.shopify_customers import worker
     customer_sync_task = asyncio.create_task(worker())
+    from app.services.task_list_index import worker as index_worker
+    task_index_worker = asyncio.create_task(index_worker())
     try:
         yield
     finally:
+        task_index_worker.cancel()
+        await task_index_worker
         cleanup_task.cancel()
         customer_sync_task.cancel()
         await customer_sync_task

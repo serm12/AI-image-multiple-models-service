@@ -232,6 +232,8 @@ def save_upscale_task_info(
     params_file = os.path.join(task_dir, "params.json")
     with open(params_file, 'w', encoding='utf-8') as f:
         json.dump(upscale_params, f, ensure_ascii=False, indent=2)
+    from app.services.task_list_index import refresh_task
+    refresh_task(task_dir)
     
     # 保存完整响应到 JSON 文件
     response_file = os.path.join(task_dir, "replicate_response.json")

@@ -129,10 +129,12 @@ def set_task_starred(task_id: str, starred: bool) -> bool | None:
     with open(temporary_path, "w", encoding="utf-8") as file:
         json.dump(metadata, file, ensure_ascii=False, indent=2)
     os.replace(temporary_path, metadata_path)
+    from app.services.task_list_index import refresh_task
+    refresh_task(task_dir)
     return bool(starred)
 
 
-def list_task_summaries(
+def _list_task_summaries_from_files(
     page: int | None = None,
     page_size: int | None = None,
     client_ip_query: str | None = None,
@@ -269,77 +271,7 @@ def list_task_summaries(
             ip_task_counts[client_ip] += 1
             ip_task_sequences[entry.name] = ip_task_counts[client_ip]
 
-    for entry in selected_entries:
-        task_id = entry.name
-        task_dir = entry.path
-        filenames = os.listdir(task_dir)
-
-        params = selected_params.get(task_id, {})
-        source_task_id = str(params.get("source_task_id") or "").strip()
-        event_summary = summarize_storefront_events(read_storefront_events(task_dir))
-        response = _read_first_api_response(task_dir, filenames)
-        output_filenames = [
-            filename
-            for filename in filenames
-            if filename.lower().endswith(IMAGE_EXTENSIONS)
-        ]
-
-        local_output_files = [
-            f"/taskfile/{task_id}/{filename}" for filename in output_filenames
-        ]
-        tasks.append(
-            {
-                "task_id": task_id,
-                "customer_sync": customer_sync.get(task_id, {}),
-                "starred": is_task_starred(task_dir),
-                "description": params.get("description", ""),
-                "created_at": params.get("time", ""),
-                "time_zone": params.get("time_zone", "UTC"),
-                "extracted_seed": response.get("extracted_seed"),
-                "output_files_count": len(output_filenames),
-                "status": response.get("status", "unknown"),
-                "api_provider": params.get("api_provider"),
-                "request_url": params.get("request_url", ""),
-                "source_page_url": params.get("source_page_url", ""),
-                "source_page_title": params.get("source_page_title", ""),
-                "source_page_type": params.get("source_page_type", ""),
-                "source_product_id": params.get("source_product_id", ""),
-                "source_product_handle": params.get("source_product_handle", ""),
-                "source_product_title": params.get("source_product_title", ""),
-                "shop_domain": params.get("shop_domain", ""),
-                "customer_id": params.get("customer_id", ""),
-                "customer_email": params.get("customer_email", "")
-                or event_summary.get("event_customer_email", ""),
-                "customer_logged_in": params.get("customer_logged_in", False),
-                "storefront_visitor_id": params.get("storefront_visitor_id", ""),
-                "traffic_source": params.get("traffic_source", ""),
-                "traffic_referrer": params.get("traffic_referrer", ""),
-                "traffic_landing_path": params.get("traffic_landing_path", ""),
-                "utm_source": params.get("utm_source", ""),
-                "utm_medium": params.get("utm_medium", ""),
-                "utm_campaign": params.get("utm_campaign", ""),
-                "utm_term": params.get("utm_term", ""),
-                "utm_content": params.get("utm_content", ""),
-                "client_ip": params.get("client_ip", ""),
-                "ip_task_sequence": ip_task_sequences.get(task_id),
-                "ip_task_total": ip_task_counts.get(
-                    str(params.get("client_ip") or "").strip()
-                ),
-                "client_country": params.get("client_country", ""),
-                "generation_duration_seconds": params.get(
-                    "generation_duration_seconds"
-                ),
-                "user_agent": params.get("user_agent", ""),
-                "prompt": params.get("original_prompt", params.get("prompt", "")),
-                "edit_instructions": extract_edit_instructions(params),
-                "source_task_id": source_task_id,
-                "source_reference_files": get_source_reference_files(source_task_id),
-                "output_files": replace_with_cdn_urls(
-                    local_output_files, read_r2_mapping(task_dir)
-                ),
-                **event_summary,
-            }
-        )
+    tasks = _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_sequences, customer_sync)
 
     return {
         "tasks": tasks,
@@ -459,3 +391,110 @@ def _read_json_if_exists(path: str) -> dict | list:
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_sequences, customer_sync):
+    tasks = []
+    for entry in selected_entries:
+        task_id = entry.name
+        task_dir = entry.path
+        filenames = os.listdir(task_dir)
+
+        params = selected_params.get(task_id, {})
+        source_task_id = str(params.get("source_task_id") or "").strip()
+        event_summary = summarize_storefront_events(read_storefront_events(task_dir))
+        response = _read_first_api_response(task_dir, filenames)
+        output_filenames = [
+            filename
+            for filename in filenames
+            if filename.lower().endswith(IMAGE_EXTENSIONS)
+        ]
+
+        local_output_files = [
+            f"/taskfile/{task_id}/{filename}" for filename in output_filenames
+        ]
+        tasks.append(
+            {
+                "task_id": task_id,
+                "customer_sync": customer_sync.get(task_id, {}),
+                "starred": is_task_starred(task_dir),
+                "description": params.get("description", ""),
+                "created_at": params.get("time", ""),
+                "time_zone": params.get("time_zone", "UTC"),
+                "extracted_seed": response.get("extracted_seed"),
+                "output_files_count": len(output_filenames),
+                "status": response.get("status", "unknown"),
+                "api_provider": params.get("api_provider"),
+                "request_url": params.get("request_url", ""),
+                "source_page_url": params.get("source_page_url", ""),
+                "source_page_title": params.get("source_page_title", ""),
+                "source_page_type": params.get("source_page_type", ""),
+                "source_product_id": params.get("source_product_id", ""),
+                "source_product_handle": params.get("source_product_handle", ""),
+                "source_product_title": params.get("source_product_title", ""),
+                "shop_domain": params.get("shop_domain", ""),
+                "customer_id": params.get("customer_id", ""),
+                "customer_email": params.get("customer_email", "")
+                or event_summary.get("event_customer_email", ""),
+                "customer_logged_in": params.get("customer_logged_in", False),
+                "storefront_visitor_id": params.get("storefront_visitor_id", ""),
+                "traffic_source": params.get("traffic_source", ""),
+                "traffic_referrer": params.get("traffic_referrer", ""),
+                "traffic_landing_path": params.get("traffic_landing_path", ""),
+                "utm_source": params.get("utm_source", ""),
+                "utm_medium": params.get("utm_medium", ""),
+                "utm_campaign": params.get("utm_campaign", ""),
+                "utm_term": params.get("utm_term", ""),
+                "utm_content": params.get("utm_content", ""),
+                "client_ip": params.get("client_ip", ""),
+                "ip_task_sequence": ip_task_sequences.get(task_id),
+                "ip_task_total": ip_task_counts.get(
+                    str(params.get("client_ip") or "").strip()
+                ),
+                "client_country": params.get("client_country", ""),
+                "generation_duration_seconds": params.get(
+                    "generation_duration_seconds"
+                ),
+                "user_agent": params.get("user_agent", ""),
+                "prompt": params.get("original_prompt", params.get("prompt", "")),
+                "edit_instructions": extract_edit_instructions(params),
+                "source_task_id": source_task_id,
+                "source_reference_files": get_source_reference_files(source_task_id),
+                "output_files": replace_with_cdn_urls(
+                    local_output_files, read_r2_mapping(task_dir)
+                ),
+                **event_summary,
+            }
+        )
+
+    return tasks
+
+
+def list_task_summaries(page=None, page_size=None, client_ip_query=None, user_query=None,
+                        task_id_query=None, provider_query=None, conversion_statuses=None,
+                        time_range=None, starred_only=False):
+    from app.services.task_list_index import select_tasks
+    from app.services.shopify_customers import summaries
+    from types import SimpleNamespace
+    import sqlite3
+    arguments = dict(page=page, page_size=page_size, client_ip_query=client_ip_query,
+                     user_query=user_query, task_id_query=task_id_query, provider_query=provider_query,
+                     conversion_statuses=conversion_statuses, time_range=time_range, starred_only=starred_only)
+    try:
+        rows, pagination = select_tasks(**arguments)
+    except (sqlite3.Error, OSError):
+        import logging
+        logging.getLogger(__name__).exception('Task index unavailable; falling back to task files')
+        return _list_task_summaries_from_files(**arguments)
+    entries, params, counts, sequences = [], {}, {}, {}
+    for row in rows:
+        name = row['task_id']; folder = os.path.join(DirectoryConfig.TASKS_DIR, name)
+        if not os.path.isdir(folder):
+            from app.services.task_list_index import refresh_task
+            refresh_task(folder)
+            continue
+        entries.append(SimpleNamespace(name=name, path=folder))
+        params[name] = _read_json_if_exists(os.path.join(folder, 'params.json'))
+        if row['ip']:
+            counts[row['ip']] = row['ip_total']; sequences[name] = row['ip_sequence']
+    return {'tasks': _hydrate_entries(entries, params, counts, sequences, summaries()), **pagination}

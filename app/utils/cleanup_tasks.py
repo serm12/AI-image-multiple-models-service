@@ -87,6 +87,8 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
                     return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前)")
                 else:
                     shutil.rmtree(folder_path)
+                    from app.services.task_list_index import refresh_task
+                    refresh_task(folder_path)
                     return ("delete_folder", f"删除文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (无watermark.md和original.md，{folder_age}天前，未到7天)")
@@ -98,6 +100,8 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
                     return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
                 else:
                     shutil.rmtree(folder_path)
+                    from app.services.task_list_index import refresh_task
+                    refresh_task(folder_path)
                     return ("delete_folder", f"删除文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (有watermark.md无original.md，{folder_age}天前，未到28天)")
@@ -109,6 +113,8 @@ def cleanup_old_folders_by_rule(folder_path, base_path):
                     return ("delete_folder", f"[试运行] 将删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
                 else:
                     shutil.rmtree(folder_path)
+                    from app.services.task_list_index import refresh_task
+                    refresh_task(folder_path)
                     return ("delete_folder", f"删除文件夹 {folder_name} (有original.md，{folder_age}天前)")
             else:
                 return ("keep", f"保留文件夹 {folder_name} (有original.md，{folder_age}天前，未到365天)")

@@ -102,6 +102,8 @@ def record_storefront_event(task_id: str, tracking_token: str, event: dict) -> d
         with temp_path.open("w", encoding="utf-8") as file:
             json.dump(events, file, ensure_ascii=False, indent=2)
         os.replace(temp_path, events_path)
+    from app.services.task_list_index import refresh_task
+    refresh_task(task_dir)
     return {"event": normalized, "created": True}
 
 
