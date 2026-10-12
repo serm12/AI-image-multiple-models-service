@@ -95,10 +95,10 @@ SDK 接入现有 FastAPI 服务，不是从官方 Python 模板生成。
 | `app/services/shopify_admin.py` | 15 分钟嵌入式登录会话及 App Bridge 接入 |
 | `tests/test_shopify_integration.py` | Webhook 签名、篡改、重复请求等验证 |
 
-路由已经挂载到现有 `app.main:app`。Webhook 目前只接受 `app/uninstalled`，
+路由已经挂载到现有 `app.main:app`。Webhook 接受订单创建、付款、更新及 `app/uninstalled`，
 没有持久化店铺 access token；嵌入登录 cookie 最长有效 15 分钟，卸载后不再刷新。
 后续引入服务端会话存储时必须补上即时撤销。
-未实现的事件返回 404，未配置自动订阅，也没有伪造订单同步或隐私删除成功响应。
+未实现的事件返回 404；订单事件订阅由程序维护，没有伪造隐私删除成功响应。
 
 本地启动（先安装完整 Python 依赖）：
 
@@ -120,8 +120,8 @@ npm run config:validate
 python -m unittest discover -s tests -p test_shopify_integration.py -v
 ```
 
-这是一套接入基础文件，尚不包含店铺安装 OAuth 回调、token 持久化和订单/客户业务页面。
-现有自定义分发应用已安装到 Paintingify；实际调用店铺 API 前仍需完成适用的 token 获取流程。
+当前支持嵌入任务后台和订单实时关联，尚不包含客户管理业务页面和 token 持久化。
+现有自定义分发应用已安装到 Paintingify；Admin API 使用已验证会话的 token exchange。
 
 ## 2026-10-12 部署记录
 
