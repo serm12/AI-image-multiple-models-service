@@ -408,17 +408,23 @@ def _task_row(task: dict, return_url: str) -> str:
     customer_email = _text(task.get("customer_email"))
     customer_id = _text(task.get("customer_id"))
     visitor_id = _text(task.get("storefront_visitor_id"))
+    linked_customer_id = str((task.get('customer_sync') or {}).get('customer_id') or task.get('customer_id') or '')
+    linked_customer_id = linked_customer_id.removeprefix('gid://shopify/Customer/')
+    customer_url = (f'https://admin.shopify.com/store/paintingify/customers/{linked_customer_id}'
+                    if linked_customer_id.isascii() and linked_customer_id.isdigit() else '')
     if customer_email:
         customer_title = f"Customer ID: {customer_id}" if customer_id else "前端填写的邮箱"
         identity_label = "已登录" if task.get("customer_logged_in") and customer_id else "已填写邮箱"
         identity = (
             f'<span class="identity identity--customer">{identity_label}</span>'
-            f'<span class="customer-email" title="{customer_title}">{customer_email}</span>'
+            + (f'<a class="customer-email" href="{customer_url}" target="_blank" rel="noopener noreferrer" title="查看 Shopify 客户详情">{customer_email} 🔗</a>'
+               if customer_url else f'<span class="customer-email" title="{customer_title}">{customer_email}</span>')
         )
     elif customer_id:
         identity = (
             '<span class="identity identity--customer">已登录</span>'
-            f'<code title="尚未采集邮箱 · Customer ID: {customer_id}">{customer_id}</code>'
+            + (f'<a href="{customer_url}" target="_blank" rel="noopener noreferrer" title="查看 Shopify 客户详情">{customer_id} 🔗</a>'
+               if customer_url else f'<code title="尚未采集邮箱 · Customer ID: {customer_id}">{customer_id}</code>')
         )
     elif visitor_id:
         identity = (
