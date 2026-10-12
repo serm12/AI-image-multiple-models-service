@@ -436,6 +436,12 @@ def _task_row(task: dict, return_url: str) -> str:
     }
     subscription_label = subscription_labels.get(task.get("subscription_status"), "订阅：未记录")
     subscription_detail = "前端回报；非 Shopify 最终订阅或账号注册确认。" + str(task.get("subscription_reason") or "")
+    synced = task.get('customer_sync') or {}
+    if synced:
+        subscription_label = {'queued': '客户同步：等待处理', 'retry': '客户同步：等待重试',
+            'failed': '客户同步：失败', 'subscribed': '客户已关联 · 已订阅',
+            'preserved': '客户已关联 · 保留原订阅状态'}.get(synced.get('state'), subscription_label)
+        subscription_detail = synced.get('detail') or '后台将自动同步至 Shopify'
     identity += f'<span class="muted" title="{_text(subscription_detail)}">{_text(subscription_label)}</span>'
     event_times = task.get("storefront_event_times") or {}
     funnel_states = (

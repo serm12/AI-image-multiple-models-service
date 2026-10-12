@@ -142,6 +142,8 @@ def list_task_summaries(
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
+    from app.services.shopify_customers import summaries
+    customer_sync = summaries()
     task_entries = []
     if os.path.exists(DirectoryConfig.TASKS_DIR):
         with os.scandir(DirectoryConfig.TASKS_DIR) as entries:
@@ -280,6 +282,7 @@ def list_task_summaries(
         tasks.append(
             {
                 "task_id": task_id,
+                "customer_sync": customer_sync.get(task_id, {}),
                 "starred": is_task_starred(task_dir),
                 "description": params.get("description", ""),
                 "created_at": params.get("time", ""),

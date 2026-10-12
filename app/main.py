@@ -48,10 +48,14 @@ async def app_lifespan(app: FastAPI):
     app.state.long_http_client = long_http_client
     set_http_clients(http_client, long_http_client)
     cleanup_task = asyncio.create_task(_periodic_task_cleanup())
+    from app.services.shopify_customers import worker
+    customer_sync_task = asyncio.create_task(worker())
     try:
         yield
     finally:
         cleanup_task.cancel()
+        customer_sync_task.cancel()
+        await customer_sync_task
         clear_http_clients()
         await http_client.aclose()
         await long_http_client.aclose()

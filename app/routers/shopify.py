@@ -41,6 +41,8 @@ async def verified_session(request, sdk, redirect=False):
             or not isinstance(claims.get("exp"), int)):
         raise HTTPException(403, "Shop is not authorized")
     await sync_orders(sdk, result)
+    from app.services.shopify_customers import authorize
+    await authorize(sdk, result)
     context = urlencode({"shop": f"{allowed_shop()}.myshopify.com", "embedded": "1",
                          "host": base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
     response = RedirectResponse("/admin/tasks?" + context, status_code=303) if redirect else Response(status_code=204)
@@ -89,8 +91,8 @@ async def webhooks(request: Request, sdk: ShopifyApp = Depends(shopify_dependenc
         return Response(status_code=200)
 
     if request.headers.get("x-shopify-topic") == "app/uninstalled":
-        # No shop sessions/tokens are persisted yet. Add token cleanup here when
-        # implementing storage, before enabling store authorization in production.
+        from app.services.shopify_customers import clear_token
+        clear_token()
         return Response(status_code=200)
     # Never acknowledge unimplemented order/privacy handlers as processed.
     raise HTTPException(status_code=404, detail="Unsupported webhook topic")

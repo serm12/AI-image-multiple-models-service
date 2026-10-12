@@ -417,6 +417,9 @@ async def create_storefront_event(request: Request):
         payload.event_type,
         payload.source,
     )
+    from app.services.shopify_customers import enqueue, wake
+    await asyncio.to_thread(enqueue, payload.task_id, result['event'])
+    wake.set()
     return {"ok": True, "created": result["created"]}
 
 
