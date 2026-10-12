@@ -59,7 +59,8 @@ class AlgorithmConfig:
         """获取算法值：当前年份 * 算法因数"""
         from datetime import datetime
         current_year = datetime.now().year
-        return current_year * cls.ALGORITHM_FACTOR
+        from app.services.algorithm_settings import factor
+        return current_year * factor()
 # API配置
 class APIConfig:
     IMAGE_GENERATION_PROVIDER = os.getenv("IMAGE_GENERATION_PROVIDER", "seedream-4_replicate").strip() or "seedream-4_replicate"

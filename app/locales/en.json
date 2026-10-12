@@ -239,5 +239,13 @@
   "time_add": "Add comparison timezone",
   "time_remove": "Remove",
   "time_help": "Defaults to the store timezone. Add up to 5 comparison timezones for task history and clocks. Backend timestamps are stored in UTC.",
-  "time_shop_default": " (Store default)"
+  "time_shop_default": " (Store default)",
+  "algorithm_title": "Image filename algorithm",
+  "algorithm_factor": "Algorithm factor",
+  "algorithm_help": "Original image filename number = current year × algorithm factor. Changes apply to newly generated filenames; existing images and links are unchanged.",
+  "algorithm_range": "Enter an integer from 1 to 999999999.",
+  "algorithm_save": "Save algorithm settings",
+  "algorithm_saved": "Saved. Subsequent filenames will use this value.",
+  "algorithm_error": "Could not complete the request. Check the number and retry.",
+  "algorithm_preview": "Calculated value"
 }

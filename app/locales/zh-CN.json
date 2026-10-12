@@ -239,5 +239,13 @@
   "time_add": "添加对比时区",
   "time_remove": "移除",
   "time_help": "默认选择店铺时区；最多添加 5 个对比时区，用于任务记录和顶部时钟。后端时间统一按 UTC 标准时间记录。",
-  "time_shop_default": "（店铺默认）"
+  "time_shop_default": "（店铺默认）",
+  "algorithm_title": "图片密码算法",
+  "algorithm_factor": "算法因数",
+  "algorithm_help": "原图文件名中的数字 = 当前年份 × 算法因数。保存后用于新生成的文件名，已有图片和下载链接保持不变。",
+  "algorithm_range": "请输入 1–999999999 的整数。",
+  "algorithm_save": "保存算法设置",
+  "algorithm_saved": "已保存，后续生成文件名将使用此数值。",
+  "algorithm_error": "操作失败，请检查数字后重试。",
+  "algorithm_preview": "计算结果"
 }
