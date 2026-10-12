@@ -9,5 +9,13 @@
     "config:validate": "shopify app config validate --json",
     "deploy": "shopify app deploy",
     "dev:python": "python scripts/shopify_dev.py"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.3",
+    "@shopify/ui-extensions": "2026.7.0",
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }

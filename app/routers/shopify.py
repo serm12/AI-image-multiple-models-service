@@ -2,6 +2,7 @@
 from urllib.parse import urlencode
 import base64
 import json
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -11,6 +12,7 @@ from app.services.shopify_client import get_shopify_app
 from app.services.shopify_http import request_to_shopify, shopify_response
 from app.services.shopify_admin import allowed_shop, set_session
 from app.services.shopify_orders import sync_orders, receive_order_webhook
+from app.services.shopify_order_images import get_order_images
 
 router = APIRouter(prefix="/shopify", tags=["Shopify"])
 
@@ -92,3 +94,19 @@ async def webhooks(request: Request, sdk: ShopifyApp = Depends(shopify_dependenc
         return Response(status_code=200)
     # Never acknowledge unimplemented order/privacy handlers as processed.
     raise HTTPException(status_code=404, detail="Unsupported webhook topic")
+
+
+@router.get('/orders/{order_id}/images', include_in_schema=False)
+async def order_images(order_id: str, request: Request, sdk: ShopifyApp = Depends(shopify_dependency)):
+    if not re.fullmatch(r'[0-9]{1,30}', order_id):
+        raise HTTPException(400, 'Invalid order ID')
+    verified = sdk.verify_admin_ui_ext_req(await request_to_shopify(request))
+    if not verified.ok:
+        return shopify_response(verified.response)
+    claims = verified.id_token.claims
+    if (verified.shop != allowed_shop() or not verified.user_id
+            or claims.get('dest') != f'https://{allowed_shop()}.myshopify.com'
+            or not isinstance(claims.get('exp'), int)):
+        raise HTTPException(403, 'Shop is not authorized')
+    from fastapi.responses import JSONResponse
+    return JSONResponse(await get_order_images(sdk, verified, order_id), headers={'Cache-Control': 'no-store'})

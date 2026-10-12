@@ -136,6 +136,15 @@ class ShopifyIntegrationTests(unittest.TestCase):
         response = self.client.get('/shopify/patch-id-token', params={'shop':'ai-generate-image.myshopify.com', 'shopify-reload':'https://evil.example'})
         self.assertEqual(response.status_code, 400)
 
+    def test_order_originals_require_verified_staff_and_shop(self):
+        with patch('app.routers.shopify.get_order_images', new_callable=AsyncMock, return_value={'items': []}) as images:
+            self.assertEqual(self.client.get('/shopify/orders/123/images').status_code, 401)
+            self.assertEqual(self.client.get('/shopify/orders/123/images', headers={'Authorization': 'Bearer ' + self.token(dest='https://other.myshopify.com')}).status_code, 403)
+            images.assert_not_called()
+            response = self.client.get('/shopify/orders/123/images', headers={'Authorization': 'Bearer ' + self.token()})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['cache-control'], 'no-store')
+
 
 if __name__ == '__main__':
     unittest.main()

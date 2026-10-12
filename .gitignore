@@ -24,3 +24,5 @@ __pycache__/
 # Shopify CLI local state and Node dependencies
 .shopify/
 node_modules/
+extensions/*/dist/
+tmp/shopify-staging/
