@@ -14,12 +14,15 @@ function OrderOriginals() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil((result?.items.length || 0) / 2));
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
     setLoading(true);
     setError('');
     setResult(null);
+    setPage(0);
     (async () => {
       try {
         const orderId = selected.split('/').pop();
@@ -48,18 +51,25 @@ function OrderOriginals() {
       {loading && <s-text>正在读取订单对应的原图…</s-text>}
       {error && <s-banner tone="critical">{error}</s-banner>}
       {!loading && !error && result?.items.length === 0 && <s-text>此订单尚未关联 AI 生成图片。</s-text>}
-      {result?.items.map(item => <s-box key={`${item.line_item_id}-${item.task_id}`} padding="base" borderWidth="base" borderRadius="base">
-        <s-stack direction="block" gap="base">
+      {result && <s-text>订单 {result.order_name} · 共 {result.items.length} 张原图</s-text>}
+      {pageCount > 1 && <s-stack direction="inline" gap="base">
+        <s-button disabled={page === 0} onClick={() => setPage(value => value - 1)}>上一页</s-button>
+        <s-text>{page + 1} / {pageCount}</s-text>
+        <s-button disabled={page + 1 >= pageCount} onClick={() => setPage(value => value + 1)}>下一页</s-button>
+      </s-stack>}
+      {result?.items.slice(page * 2, page * 2 + 2).map(item => <s-box key={`${item.line_item_id}-${item.task_id}`} padding="small" borderWidth="base" borderRadius="base">
+        <s-grid gridTemplateColumns="80px minmax(0, 1fr)" gap="base" alignItems="center">
+          <s-box>{item.image && <s-image src={item.image.url} alt={`${item.title} 无水印原图`} inlineSize="fill" aspectRatio="1/1" objectFit="contain" />}</s-box>
+        <s-stack direction="block" gap="small">
           <s-text type="strong">{item.title}</s-text>
-          <s-text>订单 {result.order_name} · 任务 {item.task_id}</s-text>
           {item.image ? <>
-            <s-box maxInlineSize="280px"><s-image src={item.image.url} alt={`${item.title} 无水印原图`} inlineSize="fill" /></s-box>
             <s-stack direction="inline" gap="base">
               <s-link href={item.image.url} target="_blank">打开无水印原图</s-link>
               <s-link href={item.image.url} download={item.image.filename} target="_blank">下载原图</s-link>
             </s-stack>
           </> : <s-text>此任务的无水印原图暂不可用。</s-text>}
         </s-stack>
+        </s-grid>
       </s-box>)}
     </s-stack>
   </s-admin-block>;
