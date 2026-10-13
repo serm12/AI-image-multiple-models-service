@@ -12,7 +12,7 @@ from datetime import datetime
 from PIL import Image
 import io
 import replicate
-from app.core.config import APIConfig, ArtStyleEnum
+from app.core.config import APIConfig
 
 class GeminiReplicateClient:
     """Gemini Replicate API客户端"""
@@ -28,22 +28,6 @@ class GeminiReplicateClient:
         # 注意：需要确认正确的Replicate模型名称
         # 可能的模型名称：google/imagen-3.0, google/imagen, 或其他Gemini相关模型
         self.model_name = "google/nano-banana"  # 请确认这是正确的模型名称
-    
-    def _get_gemini_replicate_style_prompt(self, art_style):
-        """获取Gemini Replicate风格提示词"""
-        # 直接使用 Gemini Google 的风格提示词
-        style_mapping = {
-            "oil_painting": ArtStyleEnum.gemini_oil_painting,
-            "flux_oil_painting": ArtStyleEnum.gemini_oil_painting,
-            "illustration": ArtStyleEnum.gemini_illustration,
-            "watercolor": ArtStyleEnum.gemini_watercolor,
-            "flux_watercolor": ArtStyleEnum.gemini_watercolor,
-            "acrylic": ArtStyleEnum.gemini_acrylic,
-            "flux_acrylic": ArtStyleEnum.gemini_acrylic,
-        }
-        
-        mapped_style = style_mapping.get(art_style, ArtStyleEnum.gemini_oil_painting)
-        return mapped_style.value
     
     def _compress_image_for_gemini_replicate(self, image_path, target_width=512):
         """压缩图片用于Gemini Replicate上传"""
@@ -125,20 +109,9 @@ class GeminiReplicateClient:
             dict: 生成结果
         """
         try:
-            # 处理艺术风格
-            if art_style is None:
-                art_style = "gemini_replicate_oil_painting"
-            
-            style_value = art_style if isinstance(art_style, str) else art_style.value
-            style_prompt = self._get_gemini_replicate_style_prompt(style_value)
-            
-            # 完整提示词
-            full_prompt = prompt + style_prompt
-            
-            print(f"🎨 Gemini Replicate生成图像")
-            print(f"📝 提示词: {prompt}")
-            print(f"🎨 风格: {style_prompt}")
-            
+            # API 层已组合通用风格提示词，避免重复追加。
+            full_prompt = prompt
+
             # 处理seed
             actual_seed = seed if seed is not None else 12345
             print(f"🎯 使用种子: {actual_seed}")
@@ -286,7 +259,7 @@ if __name__ == "__main__":
         gemini_replicate_client = GeminiReplicateClient()
         result = await gemini_replicate_client.generate_image(
             prompt="A beautiful landscape",
-            art_style="gemini_replicate_oil_painting",
+            art_style="oil_painting",
             seed=12345
         )
         print(result)

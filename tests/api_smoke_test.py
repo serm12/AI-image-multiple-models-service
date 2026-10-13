@@ -70,7 +70,7 @@ def main() -> int:
                 "prompt": "smoke test",
                 "aspect_ratio": "3:4",
                 "output_format": "png",
-                "art_style": "flux_realistic",
+                "art_style": "realistic",
             },
         )
         checks.append(
@@ -95,7 +95,7 @@ def main() -> int:
                 "prompt": "smoke test default provider",
                 "aspect_ratio": "3:4",
                 "output_format": "png",
-                "art_style": "flux_realistic",
+                "art_style": "realistic",
             },
         )
         checks.append(

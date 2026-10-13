@@ -532,141 +532,115 @@ class OutputFormatEnum(str, Enum):
     png = "png"
     jpg = "jpg"
 
-# 绘画风格选项
+# 通用绘画风格：所有模型共用同一组标识与提示词。
 class ArtStyleEnum(str, Enum):
-    # Flux 风格（原有风格加flux前缀）
-    flux_realistic = "flux_realistic"
-    flux_oil_painting = "flux_oil_painting"
-    flux_heavy_oil_painting = "flux_heavy_oil_painting"
-    flux_watercolor = "flux_watercolor"
-    flux_anime = "flux_anime"
-    flux_japanese_anime = "flux_japanese_anime"
-    flux_detailed_anime = "flux_detailed_anime"
-    flux_sketch = "flux_sketch"
-    flux_cartoon = "flux_cartoon"
-    flux_pixar = "flux_pixar"
-    flux_cyberpunk = "flux_cyberpunk"
-    flux_fantasy = "flux_fantasy"
-    flux_steampunk = "flux_steampunk"
-    flux_abstract = "flux_abstract"
-    flux_watercolor_1 = "flux_watercolor_1"
-    flux_acrylic = "flux_acrylic"
-    flux_tattoo = "flux_tattoo"
-    
-    # Gemini Google 风格
-    gemini_realistic = "gemini_realistic"
-    gemini_oil_painting = "gemini_oil_painting"
-    gemini_illustration = "gemini_illustration"
-    gemini_thick_paint_illustration = "gemini_thick_paint_illustration"
-    gemini_thick_paint_glossy = "gemini_thick_paint_glossy"
-    gemini_thick_paint_portrait = "gemini_thick_paint_portrait"
-    gemini_digital_paint_illustration = "gemini_digital_paint_illustration"
-    gemini_digital_paint_glossy = "gemini_digital_paint_glossy"
-    gemini_acrylic = "gemini_acrylic"
-    gemini_watercolor = "gemini_watercolor"
-    chatgpt_bright_cartoon_adventure = "chatgpt_bright_cartoon_adventure"
+    pixel_art = 'pixel_art'
+    realistic = 'realistic'
+    oil_painting = 'oil_painting'
+    heavy_oil_painting = 'heavy_oil_painting'
+    watercolor = 'watercolor'
+    anime = 'anime'
+    japanese_anime = 'japanese_anime'
+    detailed_anime = 'detailed_anime'
+    sketch = 'sketch'
+    cartoon = 'cartoon'
+    pixar = 'pixar'
+    cyberpunk = 'cyberpunk'
+    fantasy = 'fantasy'
+    steampunk = 'steampunk'
+    abstract = 'abstract'
+    acrylic = 'acrylic'
+    tattoo = 'tattoo'
+    illustration = 'illustration'
+    thick_paint_illustration = 'thick_paint_illustration'
+    thick_paint_glossy = 'thick_paint_glossy'
+    thick_paint_portrait = 'thick_paint_portrait'
+    digital_paint_illustration = 'digital_paint_illustration'
+    digital_paint_glossy = 'digital_paint_glossy'
+    bright_cartoon_adventure = 'bright_cartoon_adventure'
+    style_3d_cartoon_doll = '3d_cartoon_doll'
 
-    # Seedream-4 Replicate 风格
-    seedream_4_realistic = "seedream-4_realistic"
-
-    # Seedream-4 Fal.ai 风格
-    seedream_4_fal_realistic = "seedream-4_fal_realistic"
-
-    # 通用风格
-    style_3d_cartoon_doll = "3d_cartoon_doll"
+    @classmethod
+    def _missing_(cls, value):
+        # 旧请求和历史任务仍可读取；对外只返回不带模型前缀的名称。
+        canonical = STYLE_ALIASES.get(value) if isinstance(value, str) else None
+        return cls(canonical) if canonical else None
 
 
-# 风格提示词映射
+STYLE_ALIASES = {
+    'flux_pixel_art': 'pixel_art',
+    'flux_pixel_art_16': 'pixel_art',
+    'flux_cartoon_pixel_art': 'pixel_art',
+    'flux_realistic': 'realistic',
+    'flux_oil_painting': 'oil_painting',
+    'flux_heavy_oil_painting': 'heavy_oil_painting',
+    'flux_watercolor': 'watercolor',
+    'flux_anime': 'anime',
+    'flux_japanese_anime': 'japanese_anime',
+    'flux_detailed_anime': 'detailed_anime',
+    'flux_sketch': 'sketch',
+    'flux_cartoon': 'cartoon',
+    'flux_pixar': 'pixar',
+    'flux_cyberpunk': 'cyberpunk',
+    'flux_fantasy': 'fantasy',
+    'flux_steampunk': 'steampunk',
+    'flux_abstract': 'abstract',
+    'flux_watercolor_1': 'watercolor',
+    'flux_acrylic': 'acrylic',
+    'flux_tattoo': 'tattoo',
+    'gemini_realistic': 'realistic',
+    'gemini_oil_painting': 'oil_painting',
+    'gemini_illustration': 'illustration',
+    'gemini_thick_paint_illustration': 'thick_paint_illustration',
+    'gemini_thick_paint_glossy': 'thick_paint_glossy',
+    'gemini_thick_paint_portrait': 'thick_paint_portrait',
+    'gemini_digital_paint_illustration': 'digital_paint_illustration',
+    'gemini_digital_paint_glossy': 'digital_paint_glossy',
+    'gemini_acrylic': 'acrylic',
+    'gemini_watercolor': 'watercolor',
+    'chatgpt_bright_cartoon_adventure': 'bright_cartoon_adventure',
+    'seedream-4_realistic': 'realistic',
+    'seedream-4_fal_realistic': 'realistic',
+    'gemini_replicate_oil_painting': 'oil_painting',
+}
+
+# 每种风格只维护一份描述和提示词。
+STYLE_PRESETS = {
+    'pixel_art': ('像素画 - 复古游戏像素、清晰色块和有限调色板', 'retro pixel art, crisp pixel edges, limited color palette, sprite-like shapes, no smoothing'),
+    'realistic': ('写实 - 保持原始提示词，不额外添加风格', ''),
+    'oil_painting': ('油画 - 丰富油彩、可见笔触和画布质感', 'oil painting, rich colors, visible brushstrokes, canvas texture'),
+    'heavy_oil_painting': ('厚重油画 - 浮雕般的厚涂和强烈笔触', 'heavy impasto oil painting, thick paint layers, bold expressive brushstrokes, tactile canvas texture'),
+    'watercolor': ('水彩 - 透明叠色、柔和晕染和纸张质感', 'watercolor painting, translucent washes, soft color blending, delicate brushwork, watercolor paper texture'),
+    'anime': ('动漫 - 日式动画、赛璐璐上色和鲜明色彩', 'Japanese anime style, cel shading, expressive characters, vibrant colors'),
+    'japanese_anime': ('手绘动漫 - 柔和光线、粉彩色调和细腻手绘', 'hand-drawn Japanese animation, soft lighting, pastel colors, expressive characters, detailed painted backgrounds'),
+    'detailed_anime': ('精致动漫 - 精细人物、服饰和装饰细节', 'detailed anime illustration, intricate character design, elaborate clothing, fine accessories, precise linework'),
+    'sketch': ('素描 - 单色铅笔和炭笔笔触', 'pencil and charcoal sketch, monochrome, hand-drawn lines, textured shading'),
+    'cartoon': ('卡通 - 简洁轮廓、鲜明色彩和漫画表现', 'cartoon illustration, bold outlines, vibrant colors, expressive stylized shapes'),
+    'pixar': ('3D动画 - 皮克斯式动画电影质感', 'Pixar-style 3D animation, expressive characters, smooth materials, cinematic lighting'),
+    'cyberpunk': ('赛博朋克 - 霓虹灯光和未来科技', 'cyberpunk art, neon lighting, futuristic technology, dystopian city atmosphere'),
+    'fantasy': ('奇幻 - 魔法氛围和梦幻光影', 'fantasy illustration, magical atmosphere, ethereal lighting, enchanted details'),
+    'steampunk': ('蒸汽朋克 - 维多利亚机械和黄铜质感', 'steampunk art, Victorian design, brass and copper machinery, retro-futuristic industrial details'),
+    'abstract': ('抽象 - 非具象形态和色彩构成', 'abstract painting, expressive shapes, bold color composition, nonrepresentational forms'),
+    'acrylic': ('丙烯 - 鲜艳色彩、柔和肤色和干净画面', 'acrylic painting, vibrant colors, subtle brushwork, clean matte finish. For faces, preserve likeness and natural proportions, use softly blended warm skin tones and gentle highlights; avoid grainy, mottled or plastic-looking skin'),
+    'tattoo': ('纹身艺术 - 黑色轮廓、纯色填充和白色背景', 'traditional tattoo flash art, bold black outlines, solid color fills, ink shading, minimal white background'),
+    'illustration': ('插画 - 干净线条和现代平面表现', 'modern digital illustration, clean linework, simplified shapes, balanced colors, graphic composition'),
+    'thick_paint_illustration': ('厚涂插画 - 层叠笔触和立体明暗', 'impasto digital illustration, layered visible brushstrokes, volumetric shading, rich colors, preserve character likeness'),
+    'thick_paint_glossy': ('厚涂高光 - 厚重笔触和强烈反光', 'impasto digital painting, thick visible brushstrokes, strong specular highlights, saturated colors, dramatic light and shadow'),
+    'thick_paint_portrait': ('厚涂肖像 - 保留五官特征的厚涂人像', 'impasto portrait painting, layered brushstrokes, accurate facial features and likeness, warm skin tones, sculptural lighting'),
+    'digital_paint_illustration': ('数字绘画 - 光滑渐变和鲜明高光', 'digital painting, smooth color gradients, vivid colors, glossy highlights, dimensional shading, clean finish'),
+    'digital_paint_glossy': ('数字肖像 - 精准五官和光滑数字笔触', 'digital portrait painting, accurate facial features and likeness, smooth brushwork, rich skin tones, polished highlights, dimensional lighting'),
+    'bright_cartoon_adventure': ('亮丽卡通冒险 - 明快色彩和欢乐电影氛围', 'colorful 3D animated adventure, cheerful atmosphere, bright tropical palette, cinematic lighting, natural body and facial proportions, expressive characters; avoid oversized heads and chibi proportions'),
+    '3d_cartoon_doll': ('3D卡通娃娃 - 圆润比例和收藏玩具质感', '3D cartoon doll, collectible vinyl toy, rounded features, glossy eyes, smooth plastic texture, playful stylized proportions'),
+}
+
 STYLE_PROMPTS = {
-    # Flux 风格提示词（原有的）
-    ArtStyleEnum.flux_realistic: "",
-    ArtStyleEnum.flux_oil_painting: "oil painting, artistic style, painterly, canvas texture, heavy brush strokes, impasto technique, thick paint layers, visible brushwork, traditional art, masterpiece, textured surface, bold strokes, ",
-    ArtStyleEnum.flux_heavy_oil_painting: "oil painting, heavy impasto technique, extremely thick paint layers, dramatic brush strokes, textured canvas, bold visible brushwork, traditional oil painting, masterpiece, rough texture, expressive strokes, paint texture, ",
-    ArtStyleEnum.flux_watercolor: "watercolor painting, soft colors, flowing brushwork, artistic illustration, hand-drawn style, ",
-    ArtStyleEnum.flux_anime: "anime style, Japanese animation, cel-shaded, manga art, stylized character, vibrant colors, detailed eyes, flowing hair, anime character design, ",
-    ArtStyleEnum.flux_japanese_anime: "Japanese anime style, Studio Ghibli inspired, detailed character design, expressive eyes, flowing hair, soft lighting, pastel colors, anime aesthetic, manga influence, intricate details, elaborate costume design, ",
-    ArtStyleEnum.flux_detailed_anime: "detailed anime style, intricate character design, elaborate costume with fine details, ornate accessories, complex patterns, high-quality rendering, detailed facial features, sophisticated clothing design, premium anime art, ultra-detailed, masterpiece quality, ",
-    ArtStyleEnum.flux_sketch: "pencil sketch, charcoal drawing, artistic sketch, hand-drawn, monochrome art, ",
-    ArtStyleEnum.flux_cartoon: "cartoon style, comic book art, vibrant colors, stylized illustration, ",
-    ArtStyleEnum.flux_pixar: "Pixar style, 3D animation, computer-generated imagery, smooth textures, expressive characters, high-quality rendering, digital art, animated movie style, detailed character design, ",
-    ArtStyleEnum.flux_cyberpunk: "cyberpunk style, neon lights, futuristic technology, digital art, sci-fi aesthetic, glowing effects, high-tech elements, dystopian atmosphere, ",
-    ArtStyleEnum.flux_fantasy: "fantasy art style, magical atmosphere, ethereal lighting, mystical elements, enchanted world, fantasy character design, magical effects, ",
-    ArtStyleEnum.flux_steampunk: "steampunk style, Victorian era, mechanical elements, brass and copper, vintage technology, industrial aesthetic, retro-futuristic, ",
-    ArtStyleEnum.flux_abstract: "abstract art, modern painting, artistic interpretation, creative style, ",
-    ArtStyleEnum.flux_watercolor_1: "Watercolor-A watercolor-based style, characterized by transparent, blended colors and blurred edges with watermarks. ",
-    ArtStyleEnum.flux_acrylic: "Acrylic-Acrylic painting with saturated, vibrant colors and a texture between oil and watercolor. For people and faces, use a clean, polished acrylic-painted finish with softly blended warm skin-tone gradients, gentle painted highlights, and only faint, sparse brushstroke suggestion. Avoid granular, scratchy, mottled, dirty, overly textured, plastic, photo-realistic, or airbrushed facial skin. Preserve recognizable facial identity and natural proportions. ",
-    ArtStyleEnum.flux_tattoo: "Tattoo Art – Traditional tattoo design style with bold black outlines, solid color fills, White background, minimal background elements, classic tattoo flash art, body art aesthetic, ink-style shading, focus on tattoo design, Sketch Color. ",
-    
-    # Gemini 风格提示词
-    ArtStyleEnum.gemini_realistic: "",
-    ArtStyleEnum.gemini_oil_painting: "oil painting style, thick brushstrokes, textured canvas, rich oil colors, classical painting technique, impasto technique, vibrant paint layers, artistic brush marks, traditional oil medium, painterly style, fine art painting, masterpiece quality, museum-worthy artwork, renaissance painting style, impressionist brushwork, expressive painting, artistic interpretation, hand-painted masterpiece, textured paint surface, visible brush strokes, traditional canvas texture, ",
-    ArtStyleEnum.gemini_illustration: "digital illustration style, clean vector art, modern illustration design, cartoon illustration, stylized artwork, digital art style, contemporary illustration, graphic design art, minimalist illustration, character design, concept art style, digital painting, artistic illustration, professional illustration, creative artwork, digital concept art, illustrated poster style, graphic novel art, animation style, commercial illustration, ",
-    ArtStyleEnum.gemini_thick_paint_illustration: "thick paint illustration style, heavy impasto digital painting, maintaining character likeness, rich volumetric lighting, detailed shading and highlights, semi-realistic anime style, thick paint texture with visible brush strokes, layered paint application, dimensional character art, tactile surface quality, sculptural paint work, saturated color palette, dramatic lighting effects, painterly finish with depth, textured digital artwork, thick acrylic paint style, cel-shading with volume, rendered illustration with weight, heavy paint medium digital art, chunky paint texture illustration, dimensional anime artwork, thick paint character design, ",
-    ArtStyleEnum.gemini_digital_paint_illustration: "digital illustration style, smooth digital painting, strong digital highlights, glossy digital skin texture, dramatic digital lighting, high saturation digital colors, smooth digital volumetric effects, clean digital surface reflections, metallic digital rendering, sharp digital highlight details, deep digital shadow contrast, lustrous digital hair highlights, skin shine and gloss, fabric texture with digital light reflection, intense digital color saturation, smooth digital brushwork, clean digital character art with depth, smooth digital surface quality, rich digital color gradients, dramatic digital chiaroscuro lighting, reflective digital surface materials, high contrast digital shading, vibrant digital highlight effects, clean digital finish, digital art medium, ",
-    ArtStyleEnum.gemini_thick_paint_glossy: "thick paint illustration style, heavy impasto digital painting, strong specular highlights, glossy skin texture, dramatic light and shadow contrast, high saturation colors, volumetric lighting effects, detailed surface reflections, metallic and wet material rendering, sharp highlight details, deep shadow contrast, lustrous hair highlights, skin shine and gloss, fabric texture with light reflection, intense color saturation, painterly thick brush strokes, dimensional character art with depth, tactile surface quality, sculptural paint application, rich color gradients, dramatic chiaroscuro lighting, reflective surface materials, high contrast shading, vibrant highlight effects, thick paint texture with visible impasto, layered paint application, rendered illustration with material depth, ",
-    ArtStyleEnum.gemini_digital_paint_glossy: "digital portrait style, smooth digital painting technique, precise facial feature preservation, accurate character likeness, detailed digital facial anatomy, smooth digital texture while maintaining facial accuracy, clean digital painting application with careful attention to facial details, portrait-focused digital painting work, dimensional digital character portraiture, facial feature emphasis, authentic character representation, smooth digital work on facial features, rich digital color depth in skin tones, dramatic digital lighting that enhances facial structure, smooth digital portrait technique, digital painting medium optimized for character accuracy, detailed digital facial rendering with smooth texture, portrait-quality digital painting illustration, character-focused dimensional digital artwork, clean digital finish, digital art medium, ",
-    ArtStyleEnum.gemini_thick_paint_portrait: "thick paint portrait style, heavy impasto technique, precise facial feature preservation, accurate character likeness, detailed facial anatomy, thick paint texture while maintaining facial accuracy, layered paint application with careful attention to facial details, portrait-focused thick paint work, dimensional character portraiture, facial feature emphasis, authentic character representation, sculptural paint work on facial features, rich color depth in skin tones, dramatic lighting that enhances facial structure, painterly portrait technique, thick paint medium optimized for character accuracy, detailed facial rendering with impasto texture, portrait-quality thick paint illustration, character-focused dimensional artwork, ",
-    ArtStyleEnum.gemini_acrylic: "acrylic painting style, vibrant acrylic colors, bold brushstrokes, matte finish, contemporary acrylic art, bright pigments, modern acrylic technique, plastic paint medium, quick-drying paint, colorful acrylic artwork, abstract acrylic style, expressive acrylic brushwork, contemporary art style, acrylic on canvas, vivid color palette, modern painting technique, artistic acrylic expression, bold color application, acrylic paint texture, contemporary acrylic masterpiece, ",
-    ArtStyleEnum.gemini_watercolor: "watercolor painting style, soft watercolor washes, translucent layers, paper texture, watercolor bloom effects, delicate brush strokes, flowing watercolor technique, transparent pigments, aquarelle style, wet-on-wet technique, watercolor gradients, soft color transitions, artistic watercolor expression, traditional watercolor method, gentle color blending, watercolor paper texture, ethereal watercolor effects, fluid paint application, watercolor transparency, dreamy watercolor atmosphere, ",
-    ArtStyleEnum.chatgpt_bright_cartoon_adventure: "bright colorful 3D animated movie style, vibrant family-friendly adventure look, polished character render, natural human head size, realistic child body proportions, preserve normal facial proportions, expressive eyes without oversized head, glossy cinematic lighting, tropical fantasy colors, turquoise ocean, sunny blue sky, magical golden sparkles, cheerful adventure atmosphere, clean high-detail animation concept art, charming storybook fantasy, smooth detailed 3D character design, lively dynamic pose, joyful warm expression, glossy water splashes, premium animated film aesthetic, avoid chibi proportions, avoid doll-like oversized head, avoid bobblehead, ",
-    
-    # Seedream-4 风格提示词
-    ArtStyleEnum.seedream_4_realistic: "",
-
-    # Seedream-4 Fal.ai 风格提示词
-    ArtStyleEnum.seedream_4_fal_realistic: "",
-
-    # 通用风格提示词
-    ArtStyleEnum.style_3d_cartoon_doll: "3D cartoon doll style, cute collectible toy figure, soft vinyl doll look, rounded facial features, glossy eyes, smooth plastic texture, charming stylized proportions, playful product render, clean detailed 3D character design, ",
-    
-
+    ArtStyleEnum(value): f"{prompt}. " if prompt else ""
+    for value, (_, prompt) in STYLE_PRESETS.items()
 }
-
-# 风格描述
 STYLE_DESCRIPTIONS = {
-    # Flux 风格描述
-    "flux_realistic": "写实风格 - 保持真实感，不添加艺术效果",
-    "flux_oil_painting": "油画风格 - 模拟传统油画笔触和质感",
-    "flux_heavy_oil_painting": "强烈油画风格 - 厚重的笔触和强烈的质感",
-    "flux_watercolor": "水彩风格 - 柔和的色彩和流动的笔触",
-    "flux_anime": "动漫风格 - 日式动漫和漫画风格",
-    "flux_japanese_anime": "日本动漫风格 - 吉卜力工作室风格",
-    "flux_detailed_anime": "精致动漫风格 - 高细节和精致服装设计",
-    "flux_sketch": "素描风格 - 铅笔或炭笔素描效果",
-    "flux_cartoon": "卡通风格 - 美式卡通和漫画风格",
-    "flux_pixar": "皮克斯风格 - 3D动画电影风格",
-    "flux_cyberpunk": "赛博朋克风格 - 未来科技风格",
-    "flux_fantasy": "奇幻风格 - 魔法世界风格",
-    "flux_steampunk": "蒸汽朋克风格 - 维多利亚机械风格",
-    "flux_abstract": "抽象风格 - 现代抽象艺术风格",
-    "flux_watercolor_1": "水彩画 - 水彩画风格，透明、混合颜色和模糊边缘",
-    "flux_acrylic": "丙烯画 - 丙烯画风格，饱和、鲜艳的颜色和介于油和之间的纹理",
-    "flux_tattoo": "纹身艺术 - 传统纹身设计风格，采用大胆的黑色轮廓、纯色填充、白色背景、极简背景元素、经典纹身闪光艺术、人体艺术美学、水墨风格阴影、专注于纹身设计、素描色彩",
-    
-    # Gemini 风格描述
-    "gemini_realistic": "写实风格 - 保持真实感，不添加艺术效果",
-    "gemini_oil_painting": "Gemini油画风格 - 丰富的油画质感，厚重笔触，传统绘画技法",
-    "gemini_illustration": "Gemini插画风格 - 现代数字插画，清洁的矢量艺术风格",
-    "gemini_thick_paint_illustration": "Gemini厚涂插画风格 - 重厚涂数字绘画，保持角色特征",
-    "gemini_thick_paint_glossy": "Gemini厚涂高光风格 - 厚涂技法配合强烈的光影对比",
-    "gemini_thick_paint_portrait": "Gemini厚涂肖像风格 - 专注面部特征的厚涂人像技法",
-    "gemini_digital_paint_illustration": "Gemini数字绘画插画风格 - 光滑数字绘画，强烈高光效果",
-    "gemini_digital_paint_glossy": "Gemini数字绘画高光风格 - 光滑数字绘画技法，专注面部特征",
-    "gemini_acrylic": "Gemini丙烯画风格 - 鲜艳的丙烯颜色，现代绘画技法",
-    "gemini_watercolor": "Gemini水彩风格 - 柔和水彩洗染效果，透明层次",
-    "chatgpt_bright_cartoon_adventure": "ChatGPT亮丽卡通冒险风格 - 明亮热带色彩，3D动画电影质感，魔法闪光和欢乐冒险氛围",
-    
-    # Seedream-4 风格描述
-    "seedream-4_realistic": "Seedream4写实风格 - 保持真实感，不添加艺术效果",
-
-    # Seedream-4 Fal.ai 风格描述
-    "seedream-4_fal_realistic": "Seedream4 (Fal.ai) 写实风格 - 保持真实感，不添加艺术效果",
-
-    # 通用风格描述
-    "3d_cartoon_doll": "3D卡通娃娃风格 - 可爱收藏玩具质感，圆润五官和3D卡通比例",
-    
+    value: description for value, (description, _) in STYLE_PRESETS.items()
 }
-    
+
 # 初始化配置
 def initialize_config():
     """初始化配置，确保必要的目录存在"""

@@ -215,8 +215,6 @@ class UnifiedAPIClient:
         """使用Gemini API生成图像"""
         try:
             gemini_client = self._get_gemini_client()
-            if not art_style:
-                art_style = "gemini_oil_painting"
             result = await gemini_client.generate_image(
                 prompt=prompt,
                 input_image_paths=input_image_paths,
@@ -232,8 +230,6 @@ class UnifiedAPIClient:
         """使用Gemini Replicate API生成图像"""
         try:
             gemini_replicate_client = self._get_gemini_replicate_client()
-            if not art_style:
-                art_style = "gemini_replicate_oil_painting"
             result = await gemini_replicate_client.generate_image(
                 prompt=prompt,
                 input_image_paths=input_image_paths,
@@ -249,8 +245,6 @@ class UnifiedAPIClient:
         """使用OpenRouter API生成图像"""
         try:
             openrouter_client = self._get_gemini_openrouter_client()
-            if not art_style:
-                art_style = "gemini_realistic"
             reference_images = []
             if input_image_paths:
                 reference_images.extend(input_image_paths)
@@ -274,8 +268,6 @@ class UnifiedAPIClient:
         """使用Seedream4 Replicate API生成图像"""
         try:
             client = self._get_seedream_4_replicate_client()
-            if not art_style:
-                art_style = "seedream-4_realistic"
             result = await client.generate_image(
                 prompt=prompt,
                 input_image_paths=input_image_paths,
@@ -295,8 +287,6 @@ class UnifiedAPIClient:
         """使用Seedream4 Fal.ai API生成图像"""
         try:
             client = self._get_seedream_4_fal_client()
-            if not art_style:
-                art_style = "seedream-4_fal_realistic"
             result = await client.generate_image(
                 prompt=prompt,
                 input_image_paths=input_image_paths,

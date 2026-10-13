@@ -79,7 +79,7 @@ async def submit_task(session: aiohttp.ClientSession, provider: str, worker_id: 
     data = aiohttp.FormData()
     data.add_field("prompt", f"E2E测试 #{worker_id} provider={provider or 'default'} @ {datetime.now().strftime('%H:%M:%S')}")
     data.add_field("aspect_ratio", "3:4")
-    data.add_field("art_style", "flux_realistic")
+    data.add_field("art_style", "realistic")
     data.add_field("auto_upscale", "false")
     if provider:
         data.add_field("provider", provider)

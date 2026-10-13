@@ -1,5 +1,5 @@
-APP_VERSION = "2.1.38"
-APP_RELEASE_DATE = "2026-10-01"
+APP_VERSION = "2.1.39"
+APP_RELEASE_DATE = "2026-10-13"
 
 
 def get_version_info() -> dict:

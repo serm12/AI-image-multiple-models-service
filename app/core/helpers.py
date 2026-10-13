@@ -5,11 +5,15 @@
 包含项目的核心类和共享功能
 """
 
-from app.core.config import STYLE_DESCRIPTIONS
+from app.core.config import STYLE_DESCRIPTIONS, ArtStyleEnum
 from app.utils.time_utils import now_utc
 
 def get_style_description(style_value: str) -> str:
     """获取风格描述"""
+    try:
+        style_value = ArtStyleEnum(style_value).value
+    except ValueError:
+        return "未知风格"
     return STYLE_DESCRIPTIONS.get(style_value, "未知风格")
 
 def create_response_record(prediction_id=None, output_url="", status="succeeded", **kwargs):

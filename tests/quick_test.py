@@ -35,7 +35,7 @@ async def submit_generate(session: aiohttp.ClientSession, base_url: str, image_p
     data = aiohttp.FormData()
     data.add_field("prompt", f"测试 {label} @ {datetime.now().strftime('%H:%M:%S')}")
     data.add_field("aspect_ratio", "3:4")
-    data.add_field("art_style", "flux_realistic")
+    data.add_field("art_style", "realistic")
     data.add_field("auto_upscale", "false")
     with open(image_path, "rb") as f:
         data.add_field("files", f, filename="test_input.jpg", content_type="image/jpeg")

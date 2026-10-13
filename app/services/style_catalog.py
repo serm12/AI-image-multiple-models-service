@@ -24,15 +24,4 @@ def build_art_styles_response() -> dict:
             }
         )
 
-    def sort_key(style):
-        value = style["value"]
-        if value.startswith("flux_"):
-            return (0, value)
-        if value.startswith("gemini_"):
-            return (1, value)
-        if value.startswith("seedream-4_"):
-            return (2, value)
-        return (3, value)
-
-    styles.sort(key=sort_key)
     return {"styles": styles}

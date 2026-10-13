@@ -22,7 +22,7 @@ def submit_task(image_path: Path, index: int) -> str:
         ),
         "aspect_ratio": "1:1",
         "output_format": "png",
-        "art_style": "flux_realistic",
+        "art_style": "realistic",
         "auto_upscale": "false",
         "size": "1K",
     }

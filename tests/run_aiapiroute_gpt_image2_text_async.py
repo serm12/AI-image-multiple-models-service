@@ -18,7 +18,7 @@ def submit_task(prompt: str, index: int) -> str:
         "prompt": f"Async text-to-image test #{index}. {prompt}",
         "aspect_ratio": "1:1",
         "output_format": "png",
-        "art_style": "flux_realistic",
+        "art_style": "realistic",
         "auto_upscale": "false",
         "size": "1K",
     }

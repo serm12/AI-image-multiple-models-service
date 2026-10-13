@@ -15,7 +15,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 import io
-from app.core.config import APIConfig, STYLE_PROMPTS, ArtStyleEnum
+from app.core.config import APIConfig
 
 class GeminiClient:
     """Gemini API客户端"""
@@ -29,26 +29,6 @@ class GeminiClient:
         # 配置客户端
         self.client = genai.Client(api_key=self.api_key)
         self.model_name = "gemini-2.5-flash-image-preview"
-    
-    def _get_gemini_style_prompt(self, art_style):
-        """获取Gemini风格提示词"""
-        # 如果是Gemini风格，直接使用
-        if hasattr(ArtStyleEnum, art_style) and art_style.startswith('gemini_'):
-            return STYLE_PROMPTS.get(getattr(ArtStyleEnum, art_style), "")
-        
-        # 如果是传统风格名称，映射到对应的Gemini风格
-        style_mapping = {
-            "oil_painting": ArtStyleEnum.gemini_oil_painting,
-            "flux_oil_painting": ArtStyleEnum.gemini_oil_painting,
-            "illustration": ArtStyleEnum.gemini_illustration,
-            "watercolor": ArtStyleEnum.gemini_watercolor,
-            "flux_watercolor": ArtStyleEnum.gemini_watercolor,
-            "acrylic": ArtStyleEnum.gemini_acrylic,
-            "flux_acrylic": ArtStyleEnum.gemini_acrylic,
-        }
-        
-        mapped_style = style_mapping.get(art_style, ArtStyleEnum.gemini_oil_painting)
-        return STYLE_PROMPTS.get(mapped_style, "")
     
     def _compress_image_for_gemini(self, image_path, target_width=256):
         """
@@ -205,19 +185,9 @@ class GeminiClient:
         """
         
         try:
-            # 获取风格提示词
-            style_prompt = ""
-            if art_style:
-                # 如果是枚举类型，获取其值
-                if hasattr(art_style, 'value'):
-                    style_value = art_style.value
-                else:
-                    style_value = str(art_style)
-                style_prompt = self._get_gemini_style_prompt(style_value)
-            
-            # 组合完整提示词
-            full_prompt = prompt + style_prompt
-            
+            # API 层已组合通用风格提示词，避免重复追加。
+            full_prompt = prompt
+
             print(f"🎨 Gemini生成图像")
             print(f"📝 完整提示词: {full_prompt}")
             
