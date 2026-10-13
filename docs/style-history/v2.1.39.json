@@ -1,0 +1,167 @@
+{
+  "version": "2.1.39",
+  "revision": "72db0c62e17276d7d195b55c36375f9dca2f3176",
+  "presets": {
+    "pixel_art": {
+      "description": "像素画 - 复古游戏像素、清晰色块和有限调色板",
+      "prompt": "retro pixel art, crisp pixel edges, limited color palette, sprite-like shapes, no smoothing",
+      "injected_prompt": "retro pixel art, crisp pixel edges, limited color palette, sprite-like shapes, no smoothing. "
+    },
+    "realistic": {
+      "description": "写实 - 保持原始提示词，不额外添加风格",
+      "prompt": "",
+      "injected_prompt": ""
+    },
+    "oil_painting": {
+      "description": "油画 - 丰富油彩、可见笔触和画布质感",
+      "prompt": "oil painting, rich colors, visible brushstrokes, canvas texture",
+      "injected_prompt": "oil painting, rich colors, visible brushstrokes, canvas texture. "
+    },
+    "heavy_oil_painting": {
+      "description": "厚重油画 - 浮雕般的厚涂和强烈笔触",
+      "prompt": "heavy impasto oil painting, thick paint layers, bold expressive brushstrokes, tactile canvas texture",
+      "injected_prompt": "heavy impasto oil painting, thick paint layers, bold expressive brushstrokes, tactile canvas texture. "
+    },
+    "watercolor": {
+      "description": "水彩 - 透明叠色、柔和晕染和纸张质感",
+      "prompt": "watercolor painting, translucent washes, soft color blending, delicate brushwork, watercolor paper texture",
+      "injected_prompt": "watercolor painting, translucent washes, soft color blending, delicate brushwork, watercolor paper texture. "
+    },
+    "anime": {
+      "description": "动漫 - 日式动画、赛璐璐上色和鲜明色彩",
+      "prompt": "Japanese anime style, cel shading, expressive characters, vibrant colors",
+      "injected_prompt": "Japanese anime style, cel shading, expressive characters, vibrant colors. "
+    },
+    "japanese_anime": {
+      "description": "手绘动漫 - 柔和光线、粉彩色调和细腻手绘",
+      "prompt": "hand-drawn Japanese animation, soft lighting, pastel colors, expressive characters, detailed painted backgrounds",
+      "injected_prompt": "hand-drawn Japanese animation, soft lighting, pastel colors, expressive characters, detailed painted backgrounds. "
+    },
+    "detailed_anime": {
+      "description": "精致动漫 - 精细人物、服饰和装饰细节",
+      "prompt": "detailed anime illustration, intricate character design, elaborate clothing, fine accessories, precise linework",
+      "injected_prompt": "detailed anime illustration, intricate character design, elaborate clothing, fine accessories, precise linework. "
+    },
+    "sketch": {
+      "description": "素描 - 单色铅笔和炭笔笔触",
+      "prompt": "pencil and charcoal sketch, monochrome, hand-drawn lines, textured shading",
+      "injected_prompt": "pencil and charcoal sketch, monochrome, hand-drawn lines, textured shading. "
+    },
+    "cartoon": {
+      "description": "卡通 - 简洁轮廓、鲜明色彩和漫画表现",
+      "prompt": "cartoon illustration, bold outlines, vibrant colors, expressive stylized shapes",
+      "injected_prompt": "cartoon illustration, bold outlines, vibrant colors, expressive stylized shapes. "
+    },
+    "pixar": {
+      "description": "3D动画 - 皮克斯式动画电影质感",
+      "prompt": "Pixar-style 3D animation, expressive characters, smooth materials, cinematic lighting",
+      "injected_prompt": "Pixar-style 3D animation, expressive characters, smooth materials, cinematic lighting. "
+    },
+    "cyberpunk": {
+      "description": "赛博朋克 - 霓虹灯光和未来科技",
+      "prompt": "cyberpunk art, neon lighting, futuristic technology, dystopian city atmosphere",
+      "injected_prompt": "cyberpunk art, neon lighting, futuristic technology, dystopian city atmosphere. "
+    },
+    "fantasy": {
+      "description": "奇幻 - 魔法氛围和梦幻光影",
+      "prompt": "fantasy illustration, magical atmosphere, ethereal lighting, enchanted details",
+      "injected_prompt": "fantasy illustration, magical atmosphere, ethereal lighting, enchanted details. "
+    },
+    "steampunk": {
+      "description": "蒸汽朋克 - 维多利亚机械和黄铜质感",
+      "prompt": "steampunk art, Victorian design, brass and copper machinery, retro-futuristic industrial details",
+      "injected_prompt": "steampunk art, Victorian design, brass and copper machinery, retro-futuristic industrial details. "
+    },
+    "abstract": {
+      "description": "抽象 - 非具象形态和色彩构成",
+      "prompt": "abstract painting, expressive shapes, bold color composition, nonrepresentational forms",
+      "injected_prompt": "abstract painting, expressive shapes, bold color composition, nonrepresentational forms. "
+    },
+    "acrylic": {
+      "description": "丙烯 - 鲜艳色彩、柔和肤色和干净画面",
+      "prompt": "acrylic painting, vibrant colors, subtle brushwork, clean matte finish. For faces, preserve likeness and natural proportions, use softly blended warm skin tones and gentle highlights; avoid grainy, mottled or plastic-looking skin",
+      "injected_prompt": "acrylic painting, vibrant colors, subtle brushwork, clean matte finish. For faces, preserve likeness and natural proportions, use softly blended warm skin tones and gentle highlights; avoid grainy, mottled or plastic-looking skin. "
+    },
+    "tattoo": {
+      "description": "纹身艺术 - 黑色轮廓、纯色填充和白色背景",
+      "prompt": "traditional tattoo flash art, bold black outlines, solid color fills, ink shading, minimal white background",
+      "injected_prompt": "traditional tattoo flash art, bold black outlines, solid color fills, ink shading, minimal white background. "
+    },
+    "illustration": {
+      "description": "插画 - 干净线条和现代平面表现",
+      "prompt": "modern digital illustration, clean linework, simplified shapes, balanced colors, graphic composition",
+      "injected_prompt": "modern digital illustration, clean linework, simplified shapes, balanced colors, graphic composition. "
+    },
+    "thick_paint_illustration": {
+      "description": "厚涂插画 - 层叠笔触和立体明暗",
+      "prompt": "impasto digital illustration, layered visible brushstrokes, volumetric shading, rich colors, preserve character likeness",
+      "injected_prompt": "impasto digital illustration, layered visible brushstrokes, volumetric shading, rich colors, preserve character likeness. "
+    },
+    "thick_paint_glossy": {
+      "description": "厚涂高光 - 厚重笔触和强烈反光",
+      "prompt": "impasto digital painting, thick visible brushstrokes, strong specular highlights, saturated colors, dramatic light and shadow",
+      "injected_prompt": "impasto digital painting, thick visible brushstrokes, strong specular highlights, saturated colors, dramatic light and shadow. "
+    },
+    "thick_paint_portrait": {
+      "description": "厚涂肖像 - 保留五官特征的厚涂人像",
+      "prompt": "impasto portrait painting, layered brushstrokes, accurate facial features and likeness, warm skin tones, sculptural lighting",
+      "injected_prompt": "impasto portrait painting, layered brushstrokes, accurate facial features and likeness, warm skin tones, sculptural lighting. "
+    },
+    "digital_paint_illustration": {
+      "description": "数字绘画 - 光滑渐变和鲜明高光",
+      "prompt": "digital painting, smooth color gradients, vivid colors, glossy highlights, dimensional shading, clean finish",
+      "injected_prompt": "digital painting, smooth color gradients, vivid colors, glossy highlights, dimensional shading, clean finish. "
+    },
+    "digital_paint_glossy": {
+      "description": "数字肖像 - 精准五官和光滑数字笔触",
+      "prompt": "digital portrait painting, accurate facial features and likeness, smooth brushwork, rich skin tones, polished highlights, dimensional lighting",
+      "injected_prompt": "digital portrait painting, accurate facial features and likeness, smooth brushwork, rich skin tones, polished highlights, dimensional lighting. "
+    },
+    "bright_cartoon_adventure": {
+      "description": "亮丽卡通冒险 - 明快色彩和欢乐电影氛围",
+      "prompt": "colorful 3D animated adventure, cheerful atmosphere, bright tropical palette, cinematic lighting, natural body and facial proportions, expressive characters; avoid oversized heads and chibi proportions",
+      "injected_prompt": "colorful 3D animated adventure, cheerful atmosphere, bright tropical palette, cinematic lighting, natural body and facial proportions, expressive characters; avoid oversized heads and chibi proportions. "
+    },
+    "3d_cartoon_doll": {
+      "description": "3D卡通娃娃 - 圆润比例和收藏玩具质感",
+      "prompt": "3D cartoon doll, collectible vinyl toy, rounded features, glossy eyes, smooth plastic texture, playful stylized proportions",
+      "injected_prompt": "3D cartoon doll, collectible vinyl toy, rounded features, glossy eyes, smooth plastic texture, playful stylized proportions. "
+    }
+  },
+  "aliases": {
+    "flux_pixel_art": "pixel_art",
+    "flux_pixel_art_16": "pixel_art",
+    "flux_cartoon_pixel_art": "pixel_art",
+    "flux_realistic": "realistic",
+    "flux_oil_painting": "oil_painting",
+    "flux_heavy_oil_painting": "heavy_oil_painting",
+    "flux_watercolor": "watercolor",
+    "flux_anime": "anime",
+    "flux_japanese_anime": "japanese_anime",
+    "flux_detailed_anime": "detailed_anime",
+    "flux_sketch": "sketch",
+    "flux_cartoon": "cartoon",
+    "flux_pixar": "pixar",
+    "flux_cyberpunk": "cyberpunk",
+    "flux_fantasy": "fantasy",
+    "flux_steampunk": "steampunk",
+    "flux_abstract": "abstract",
+    "flux_watercolor_1": "watercolor",
+    "flux_acrylic": "acrylic",
+    "flux_tattoo": "tattoo",
+    "gemini_realistic": "realistic",
+    "gemini_oil_painting": "oil_painting",
+    "gemini_illustration": "illustration",
+    "gemini_thick_paint_illustration": "thick_paint_illustration",
+    "gemini_thick_paint_glossy": "thick_paint_glossy",
+    "gemini_thick_paint_portrait": "thick_paint_portrait",
+    "gemini_digital_paint_illustration": "digital_paint_illustration",
+    "gemini_digital_paint_glossy": "digital_paint_glossy",
+    "gemini_acrylic": "acrylic",
+    "gemini_watercolor": "watercolor",
+    "chatgpt_bright_cartoon_adventure": "bright_cartoon_adventure",
+    "seedream-4_realistic": "realistic",
+    "seedream-4_fal_realistic": "realistic",
+    "gemini_replicate_oil_painting": "oil_painting"
+  }
+}
