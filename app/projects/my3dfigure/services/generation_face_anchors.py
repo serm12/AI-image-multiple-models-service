@@ -10,7 +10,8 @@ import cv2
 import numpy as np
 
 
-_FACE_ANCHOR_MARGIN = 0.45
+# Crop only the supplied usable face box, without surrounding padding.
+_FACE_ANCHOR_MARGIN = 0.0
 
 
 def _read_source_image(source_path: str):
@@ -27,11 +28,11 @@ def create_face_identity_anchors(
     face_boxes: Iterable[tuple[float, float, float, float]],
     output_dir: str,
 ) -> list[str]:
-    """Write padded face crops beside a task's source image.
+    """Write unpadded face-box crops beside a task's source image.
 
     The original upload is untouched and remains the first reference image.
-    Each crop contains only the accepted face plus enough surrounding hair and
-    head context to stabilize identity; it is never used as clothing evidence.
+    Each crop uses the supplied accepted face box, rounded to pixel boundaries
+    and clipped to the source canvas; it is never used as clothing evidence.
     """
     # OpenCV imread is not reliable with Unicode Windows paths. Read bytes
     # first so Chinese customer filenames use the same safe path as detection.

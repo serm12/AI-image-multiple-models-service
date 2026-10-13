@@ -48,6 +48,7 @@ class UnifiedAPIClient:
         """
         provider_chain = APIConfig.resolve_provider_chain(provider)
         errors = []
+        last_error = None
         for index, effective_provider in enumerate(provider_chain):
             try:
                 result = await self._generate_image_with_provider(
@@ -61,6 +62,7 @@ class UnifiedAPIClient:
                 ]
                 return result
             except Exception as exc:
+                last_error = exc
                 error_message = str(exc)
                 errors.append((effective_provider, error_message))
                 print(f"My3dFigure provider {effective_provider} generation failed: {error_message}")
@@ -68,7 +70,7 @@ class UnifiedAPIClient:
                     print(f"My3dFigure switching fallback provider: {provider_chain[index + 1]}")
 
         summary = "; ".join(f"{item}: {error}" for item, error in errors)
-        raise ValueError(f"所有 My3dFigure 兜底 provider 均失败: {summary}")
+        raise ValueError(f"所有 My3dFigure 兜底 provider 均失败: {summary}") from last_error
 
     async def _generate_image_with_provider(self, effective_provider, prompt, input_image_paths=None,
                                             input_image_url=None, aspect_ratio=None, size=None,

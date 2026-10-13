@@ -58,14 +58,19 @@ class AlgorithmConfig:
         return current_year * cls.ALGORITHM_FACTOR
 # API配置
 class APIConfig:
+    # Fal 开关：只切换下面 True 行的注释；取消注释开启，加回注释关闭。
+    FAL_GPT_IMAGE2_ENABLED = False
+    # FAL_GPT_IMAGE2_ENABLED = True
     IMAGE_GENERATION_PROVIDER = project_getenv("IMAGE_GENERATION_PROVIDER", "gpt-image-2_aiapiroute").strip() or "gpt-image-2_aiapiroute"
-    if IMAGE_GENERATION_PROVIDER not in {"gpt-image-2_aiapiroute", "gpt-image-2_fal"}:
+    if IMAGE_GENERATION_PROVIDER not in {"gpt-image-2_aiapiroute", "gpt-image-2_fal"} or (
+        IMAGE_GENERATION_PROVIDER == "gpt-image-2_fal" and not FAL_GPT_IMAGE2_ENABLED
+    ):
         IMAGE_GENERATION_PROVIDER = "gpt-image-2_aiapiroute"
 
     # Replicate remains configured for the independent upscale utility.
     REPLICATE_API_TOKEN = project_getenv("REPLICATE_API_TOKEN")
 
-    # Fal.ai supplies the GPT Image 2 fallback and remains configured for the independent image client.
+    # Keep Fal credentials and model settings for the retained, disabled client.
     FAL_API_KEY = project_getenv("FAL_API_KEY")
     FAL_GPT_IMAGE2_MODEL_ID = project_getenv("FAL_GPT_IMAGE2_MODEL_ID", "openai/gpt-image-2/edit")
     FAL_GPT_IMAGE2_QUALITY = project_getenv("FAL_GPT_IMAGE2_QUALITY", "medium")
@@ -94,6 +99,7 @@ class APIConfig:
 
     PROVIDERS = {
         "gpt-image-2_fal": {
+            "enabled": FAL_GPT_IMAGE2_ENABLED,
             "label": "fal.ai API (GPT Image 2)",
             "key": "FAL_API_KEY",
             "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
@@ -108,7 +114,9 @@ class APIConfig:
         },
     }
 
-    ALL_PROVIDERS = list(PROVIDERS.keys())
+    ALL_PROVIDERS = [
+        provider for provider, config in PROVIDERS.items() if config.get("enabled", True)
+    ]
     DEFAULT_PROVIDER_FALLBACK_GROUPS = {
         "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
     }
@@ -125,6 +133,8 @@ class APIConfig:
     @classmethod
     def validate_provider(cls, provider: str):
         """运行时校验指定服务商是否已配置 API Key，未配置时抛出 ValueError"""
+        if provider == "gpt-image-2_fal" and not cls.FAL_GPT_IMAGE2_ENABLED:
+            raise ValueError("My3dFigure Fal GPT Image 2 generation is disabled.")
         if provider not in cls.ALL_PROVIDERS:
             raise ValueError(f"不支持的服务提供商: {provider}，可选: {cls.ALL_PROVIDERS}")
         key_name = cls.PROVIDERS[provider].get("key")
@@ -194,6 +204,7 @@ class APIConfig:
                 **({"model": config["model"]} if "model" in config else {}),
             }
             for provider, config in cls.PROVIDERS.items()
+            if config.get("enabled", True)
         }
 
     @classmethod
@@ -201,6 +212,8 @@ class APIConfig:
         """返回所有已配置 API Key 的服务提供商列表"""
         result = []
         for p, config in cls.PROVIDERS.items():
+            if not config.get("enabled", True):
+                continue
             key_name = config.get("key")
             configured = bool(getattr(cls, key_name, None)) if key_name else True
             result.append({

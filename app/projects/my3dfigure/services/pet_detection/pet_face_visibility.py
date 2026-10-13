@@ -14,7 +14,7 @@ from PIL import Image, ImageOps
 from app.projects.my3dfigure.core.config import project_getenv
 
 MODEL_DIRECTORY = Path(project_getenv(
-    "PET_FACE_MODEL_DIR", Path(__file__).resolve().parents[4] / "models/my3dfigure/pet_face"
+    "PET_FACE_MODEL_DIR", Path(__file__).resolve().parents[5] / "models/my3dfigure/pet_face"
 ))
 TEXT_FEATURE_DIRECTORY = MODEL_DIRECTORY / 'clip'
 _local = threading.local()

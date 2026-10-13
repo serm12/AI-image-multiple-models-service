@@ -44,9 +44,11 @@ from app.projects.my3dfigure.services.generation_face_anchors import (
     create_face_identity_anchors,
     create_pet_face_identity_anchor,
 )
+from app.projects.my3dfigure.services.checked_source_rotation import prepare_checked_source_rotation
 from app.projects.my3dfigure.services.pet_detection import contains_single_pet
 from app.projects.my3dfigure.services.direct_character_prompt_service import (
     build_my3d_connected_pair_prompt,
+    choose_my3d_pair_contact_preference,
     build_my3d_direct_prompt,
     append_my3d_human_prompt_audits,
     build_my3d_pet_prompt,
@@ -101,7 +103,7 @@ router = APIRouter(
 )
 
 
-def _resolve_checked_upload(upload_id: str) -> tuple[str, str]:
+def _resolve_checked_upload(upload_id: str, *, generation_source: bool = True) -> tuple[str, str]:
     """Return the one validated source image saved by the private check route."""
     params_path = resolve_task_file_path(upload_id, "params.json")
     if not params_path or not os.path.isfile(params_path):
@@ -116,7 +118,8 @@ def _resolve_checked_upload(upload_id: str) -> tuple[str, str]:
     filenames = params.get("input_images") or []
     if len(filenames) != 1:
         raise ValueError("checked upload has no unique source image")
-    filename = safe_upload_filename(filenames[0])
+    rotation = params.get("source_rotation") or {}
+    filename = safe_upload_filename(rotation.get("output_filename") if generation_source and rotation.get("applied") else filenames[0])
     image_path = resolve_task_file_path(upload_id, filename)
     if not image_path or not os.path.isfile(image_path):
         raise ValueError("checked upload image was not found")
@@ -147,7 +150,8 @@ def _get_checked_upload_face_boxes(upload_id: str, expected_face_count: int) -> 
     except (OSError, json.JSONDecodeError):
         return []
     expected = 2 if expected_face_count == 2 else 1
-    boxes = params.get("usable_face_boxes")
+    rotation = params.get("source_rotation") or {}
+    boxes = rotation.get("rotated_face_boxes") if rotation.get("applied") else params.get("usable_face_boxes")
     if not isinstance(boxes, list) or len(boxes) != expected:
         return []
     normalized = []
@@ -162,6 +166,14 @@ def _get_checked_upload_face_boxes(upload_id: str, expected_face_count: int) -> 
             return []
         normalized.append((x, y, width, height))
     return normalized
+
+
+def _get_checked_upload_rotation(upload_id: str) -> dict:
+    params_path = resolve_task_file_path(upload_id, "params.json")
+    if not params_path:
+        return {}
+    with open(params_path, "r", encoding="utf-8") as file:
+        return json.load(file).get("source_rotation") or {}
 
 
 def _get_checked_upload_pet_face_anchor(upload_id: str) -> tuple[tuple[float, float, float, float], str] | None:
@@ -308,6 +320,10 @@ async def generate_image_async(
         if enable_human_check and input_image_paths:
             checked_expected_face_count = 2 if expected_face_count == 2 else 1
             for img_path in input_image_paths:
+                if upload_id:
+                    # Optional repeated validation still observes original pixels,
+                    # never a rotated derivative that could change face quality.
+                    img_path, _ = _resolve_checked_upload(upload_id, generation_source=False)
                 face_result = await asyncio.to_thread(
                     contains_human,
                     img_path,
@@ -443,7 +459,7 @@ async def generate_image_async(
         })
 
     except Exception as e:
-        task_manager.set_task_failed(task_id, str(e))
+        task_manager.set_task_failed(task_id, e)
         return JSONResponse({
             "code": "GENERATION_CREATE_FAILED",
             "message": get_message("GENERATION_CREATE_FAILED", locale),
@@ -473,7 +489,7 @@ async def process_generation_background(
         )
     except Exception as e:
         print(f"❌ 后台任务 {task_id} 失败: {e}")
-        task_manager.set_task_failed(task_id, str(e))
+        task_manager.set_task_failed(task_id, e)
     finally:
         completed_at = time.time()
         started_at = params.get("started_at_epoch", completed_at)
@@ -511,8 +527,7 @@ async def _do_generation_work(
     # 允许 URL 作为输入
     input_image_url = params.get("input_image_url")
 
-    # 创建预测
-    task_manager.update_task(task_id, status=TaskStatus.GENERATING, progress=30)
+    # Remain PROCESSING while rotating the validated source and preparing anchors.
 
     try:
         effective_prompt = prompt
@@ -523,9 +538,8 @@ async def _do_generation_work(
             if len(input_image_paths or []) != 1:
                 raise ValueError("my3d_character prompt profile requires one uploaded reference image")
 
-            # The browser upload is the single source of truth for both validation
-            # and generation. Do not rotate, crop, resize, re-encode or select a
-            # sub-panel before sending it to the project client.
+            # Keep validation evidence in original coordinates. Human generation
+            # uses a separate post-validation rigid rotation, never a source overwrite.
             source_context = "general"
             identity_anchor_paths = []
             anchor_instructions = ""
@@ -550,9 +564,9 @@ async def _do_generation_work(
                 request_images = [*input_image_paths, pet_anchor_path]
                 anchor_instructions = (
                     "\nPET IDENTITY ANCHOR — ABSOLUTE: Image 1 is the complete validated upload and remains the "
-                    "only source for pose, body, coat, markings, accessories and scene. Image 2 is the face of the "
+                    "source for pet identity, body, coat, markings and accessories. Source pose is subordinate to the upright-pet rule; source rotation, tilt, inversion and scenery must not transfer to the output. Image 2 is the face of the "
                     f"one validated {pet_species} extracted from Image 1. Render exactly that one pet. Use Image 2 "
-                    "only to lock its facial identity, eye area, muzzle, ears and face markings; never render any "
+                    "only to lock its facial identity, eye area, muzzle, ears and face markings, never its tilt or rotation. The final pet body and head must be right-side up, naturally supported under normal gravity, on a fully opaque pure-white (#FFFFFF) seamless background, never a transparent cutout. Never render any "
                     "other animal, person, reflection or background subject visible only in Image 1."
                 )
             else:
@@ -563,6 +577,7 @@ async def _do_generation_work(
                 checked_upload_id = str(params.get("checked_upload_id") or "").strip()
                 if checked_upload_id:
                     anchor_source_path, _ = _resolve_checked_upload(checked_upload_id)
+                    params["source_rotation"] = _get_checked_upload_rotation(checked_upload_id)
                     face_boxes = _get_checked_upload_face_boxes(checked_upload_id, expected_face_count)
                     if not face_boxes:
                         face_boxes = await asyncio.to_thread(
@@ -577,6 +592,22 @@ async def _do_generation_work(
                         anchor_source_path,
                         expected_face_count,
                     )
+                if not params.get("source_rotation"):
+                    # Reference-box retrieval evaluates the target count first;
+                    # an empty/failed result never starts orientation inference.
+                    if len(face_boxes) != expected_face_count:
+                        raise ValueError("Human source has not passed face validation")
+                    rotated_path, face_boxes, rotation = await asyncio.to_thread(
+                        prepare_checked_source_rotation,
+                        anchor_source_path,
+                        {"valid": True, "usable_face_count": expected_face_count,
+                         "usable_face_boxes": face_boxes},
+                        task_dir,
+                    )
+                    params["source_rotation"] = rotation
+                    anchor_source_path = rotated_path
+                    if rotation.get("applied"):
+                        input_image_paths = [rotated_path]
                 identity_anchor_paths = await asyncio.to_thread(
                     create_face_identity_anchors,
                     anchor_source_path,
@@ -622,12 +653,14 @@ async def _do_generation_work(
                 params["prompt_branch"] = "pet"
                 params["prompt_version"] = MY3D_PET_PROMPT_VERSION
             elif params.get("figure_composition") == "connected_pair":
+                params["pair_contact_preference"] = choose_my3d_pair_contact_preference()
                 effective_prompt = build_my3d_connected_pair_prompt(
                     params.get("wardrobe_profile"),
                     params.get("wardrobe_palette"),
                     upper_garment_profile=params.get("upper_garment_profile"),
                     footwear_profile=params.get("footwear_profile"),
                     source_context=source_context,
+                    contact_preference=params["pair_contact_preference"],
                 )
                 params["prompt_branch"] = "connected_pair"
                 params["prompt_version"] = MY3D_PAIR_PROMPT_VERSION
@@ -656,7 +689,10 @@ async def _do_generation_work(
             params["generation_mode"] = "direct_gpt_image_2"
             params.setdefault("prompt_version", MY3D_PROMPT_VERSION)
             params["effective_prompt"] = effective_prompt
-            params["reference_transport"] = "uploaded_master_direct"
+            params["reference_transport"] = (
+                "validated_source_rigid_rotation" if (params.get("source_rotation") or {}).get("applied")
+                else "uploaded_master_direct"
+            )
             params["identity_anchor_count"] = len(identity_anchor_paths)
             params["identity_anchor_files"] = [os.path.basename(path) for path in identity_anchor_paths]
             params["identity_anchor_source"] = "validated_upload" if params.get("checked_upload_id") else "task_upload"
@@ -667,6 +703,7 @@ async def _do_generation_work(
 
         # 使用统一API客户端生成图像
         # 注意：api_client.generate_image 需要适配多图路径
+        task_manager.update_task(task_id, status=TaskStatus.GENERATING, progress=30)
         result = await api_client.generate_image(
             prompt=effective_prompt,
             input_image_paths=request_images if request_images else None,
@@ -742,7 +779,7 @@ async def _do_generation_work(
 
 
     except Exception as e:
-        task_manager.set_task_failed(task_id, f"API调用失败: {e}")
+        task_manager.set_task_failed(task_id, e, error_prefix="API调用失败: ")
         return
 
     if result["status"] == "succeeded":
@@ -938,7 +975,7 @@ async def get_task_status_async(task_id: str, locale: str = ""):
     }
     if task_info["status"] in {TaskStatus.FAILED, TaskStatus.CANCELLED}:
         response_data["code"] = "GENERATION_FAILED"
-        response_data["message"] = get_message("GENERATION_FAILED", task_info.get("locale"))
+        response_data["message"] = task_info.get("failure_message") or get_message("GENERATION_FAILED", task_info.get("locale"))
     # 检查是否有文件
     # 任务已完成时直接用内存缓存，避免每次轮询都 os.listdir
     cached_files = (task_info.get("result") or {}).get("output_files")

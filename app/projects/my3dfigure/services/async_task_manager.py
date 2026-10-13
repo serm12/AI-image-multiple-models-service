@@ -12,6 +12,7 @@ from datetime import datetime
 from enum import Enum
 from app.projects.my3dfigure.core.config import AppConfig
 from app.utils.memory_utils import release_process_memory
+from app.projects.my3dfigure.services.generation_errors import get_upstream_message
 
 class TaskStatus(str, Enum):
     """任务状态枚举"""
@@ -62,9 +63,13 @@ class AsyncTaskManager:
         """获取任务信息"""
         return self.tasks.get(task_id)
 
-    def set_task_failed(self, task_id: str, error: str):
-        """设置任务失败"""
-        self.update_task(task_id, status=TaskStatus.FAILED, error=error)
+    def set_task_failed(self, task_id: str, error, error_prefix: str = ""):
+        """Keep diagnostics and the upstream display message independently."""
+        self.update_task(
+            task_id, status=TaskStatus.FAILED,
+            error=f"{error_prefix}{error}",
+            failure_message=get_upstream_message(error),
+        )
 
     def set_task_completed(self, task_id: str, result: Any = None):
         """设置任务完成（同时记录完成时间戳用于快速清理）"""
@@ -86,7 +91,7 @@ class AsyncTaskManager:
                 self.update_task(task_id, status=TaskStatus.CANCELLED)
                 raise
             except Exception as e:
-                self.set_task_failed(task_id, str(e))
+                self.set_task_failed(task_id, e)
                 raise
             finally:
                 # 清理活跃任务记录

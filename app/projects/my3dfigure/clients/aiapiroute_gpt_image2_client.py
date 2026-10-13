@@ -17,6 +17,7 @@ from typing import Any, Optional
 import httpx
 
 from app.projects.my3dfigure.core.config import APIConfig
+from app.projects.my3dfigure.services.generation_errors import UpstreamGenerationError
 AIAPIROUTE_IMAGE_MAX_RATIO = 3
 
 
@@ -70,14 +71,7 @@ class AIApiRouteGPTImageClient:
             response_data, raw_text = await self._post_json(endpoint, payload, stream=should_stream)
         b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
 
-        if not b64_image and reference_images and endpoint == "/v1/images/edits":
-            response_payload = self._build_responses_payload(
-                full_prompt, request_reference_images, request_options, quality
-            )
-            response_data, raw_text = await self._post_json("/v1/responses", response_payload, stream=False)
-            b64_image = self._find_base64(response_data) or self._find_base64(raw_text)
-            endpoint = "/v1/responses"
-
+        # One generation submission per request; empty output fails without another endpoint.
         if not b64_image:
             preview = raw_text[:1000] if raw_text else str(response_data)[:1000]
             raise ValueError(f"aiapiroute GPT-image 未返回可识别的 base64 图片。响应预览: {preview}")
@@ -127,7 +121,7 @@ class AIApiRouteGPTImageClient:
             text = response.text
 
         if response.status_code >= 400:
-            raise ValueError(f"aiapiroute HTTP {response.status_code}: {text[:1000]}")
+            raise UpstreamGenerationError(response.status_code, text)
 
         if stream or "text/event-stream" in response.headers.get("content-type", ""):
             events = self._parse_sse_events(text)
@@ -169,7 +163,7 @@ class AIApiRouteGPTImageClient:
             )
             text = response.text
             if response.status_code >= 400:
-                raise ValueError(f"aiapiroute HTTP {response.status_code}: {text[:1000]}")
+                raise UpstreamGenerationError(response.status_code, text)
 
         if stream or "text/event-stream" in response.headers.get("content-type", ""):
             return {"events": self._parse_sse_events(text)}, text

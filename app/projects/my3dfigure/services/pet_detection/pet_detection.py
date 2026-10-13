@@ -28,7 +28,7 @@ except ImportError:  # pragma: no cover - runtime dependency guard
 PET_DETECTOR_MODEL_PATH = Path(
     project_getenv(
         "PET_DETECTION_YOLOX_MODEL",
-        Path(__file__).resolve().parents[4]
+        Path(__file__).resolve().parents[5]
         / "models"
         / "my3dfigure"
         / "object_detection_yolox"

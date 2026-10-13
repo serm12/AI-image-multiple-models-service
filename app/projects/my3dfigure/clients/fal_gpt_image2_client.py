@@ -15,6 +15,8 @@ class FalGPTImage2Client:
     """Submit the validated My3dFigure upload to Fal GPT Image 2 without reprocessing it."""
 
     def __init__(self, api_key: str | None = None):
+        if not APIConfig.FAL_GPT_IMAGE2_ENABLED:
+            raise ValueError("My3dFigure Fal GPT Image 2 generation is disabled.")
         self.api_key = api_key or APIConfig.FAL_API_KEY
         if not self.api_key:
             raise ValueError("FAL_API_KEY not found in environment variables")
@@ -62,6 +64,8 @@ class FalGPTImage2Client:
 
     async def generate_image(self, prompt: str, input_image_paths=None, input_image_url=None,
                              seed=None, aspect_ratio=None, size=None, **kwargs) -> dict:
+        if not APIConfig.FAL_GPT_IMAGE2_ENABLED:
+            raise ValueError("My3dFigure Fal GPT Image 2 generation is disabled.")
         prompt_length = len(prompt or '')
         if prompt_length > 32000:
             raise ValueError(f'Fal GPT Image 2 prompt exceeds the 32000-character limit ({prompt_length} characters).')
