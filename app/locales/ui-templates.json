@@ -1280,6 +1280,11 @@
       "key": "ui_c542f21d8c",
       "context": "html"
     },
+    "</s-link><s-link href=\"/admin/styles\">",
+    {
+      "key": "ui_b15b137a49",
+      "context": "html"
+    },
     "</s-link><s-link href=\"/admin/config\">",
     {
       "key": "ui_df3d58c7d8",
