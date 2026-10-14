@@ -45,9 +45,9 @@ export function Settings() {
         }
         onValueChange={(value) => history.replaceState(null, "", "#" + value)}
       >
-        <TabsList className="mb-6 h-auto max-w-full justify-start overflow-x-auto">
+        <TabsList className="mb-6 h-auto! max-w-full flex-wrap justify-start gap-1">
           {items.map(([key, label, Icon]) => (
-            <TabsTrigger className="gap-2 px-4 py-2" key={key} value={key}>
+            <TabsTrigger className="h-auto flex-none gap-2 px-4 py-1.5" key={key} value={key}>
               <Icon className="size-4" />
               {label}
             </TabsTrigger>
