@@ -217,7 +217,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             className={
               task[stage]
                 ? stageColors[i]
-                : "text-muted-foreground/65"
+                : "border-border/60 text-muted-foreground"
             }
             title={task.storefront_event_times?.[stage] || ""}
           >
@@ -430,9 +430,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       ) : (
         result.data && (
           <>
-            <div className="overflow-hidden rounded-lg border bg-white">
-              <Table>
-                <TableHeader>
+            <div className="task-table-shell overflow-hidden rounded-xl border bg-card">
+              <Table className="min-w-[1360px] table-fixed [&_td]:py-3 [&_td]:px-3">
+                <colgroup>
+                  {[3, 17, 10, 28, 8, 20, 14].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+                </colgroup>
+                <TableHeader className="sticky top-0 z-10 bg-neutral-50 shadow-[0_1px_0_var(--border)] [&_th]:px-3 [&_th]:text-xs [&_th]:text-muted-foreground">
                   <TableRow>
                     <TableHead className="w-10">
                       <span className="sr-only">{t("收藏", "Star")}</span>
@@ -451,7 +454,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                 </TableHeader>
                 <TableBody>
                   {result.data.tasks.map((task) => (
-                    <TableRow key={task.task_id}>
+                    <TableRow key={task.task_id} className="hover:bg-muted/40">
                       <TableCell className="align-top">
                         <Button
                           variant="ghost"
@@ -476,7 +479,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           />
                         </Button>
                       </TableCell>
-                      <TableCell className="min-w-64 max-w-80 align-top">
+                      <TableCell className="align-top">
                         <div className="flex gap-1.5 overflow-x-auto pb-2">
                           {task.images.length ? (
                             task.images.map((image, index) => (
@@ -513,7 +516,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         </div>
                         <div className="flex items-center gap-1">
                           <button
-                            className="max-w-64 truncate text-left text-xs font-medium text-foreground hover:underline"
+                            className="min-w-0 truncate text-left text-xs text-muted-foreground hover:text-foreground hover:underline"
                             onClick={() => setDetail(task)}
                             title={task.task_id}
                           >
@@ -537,15 +540,16 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                       </TableCell>
                       <TableCell className="align-top">
                         <TaskStatusBadge status={task.status} />
-                        <p className="mt-2 max-w-36 break-words whitespace-normal text-xs">
+                        <p className="mt-2 break-words whitespace-normal text-xs leading-relaxed text-muted-foreground">
                           {task.api_provider || "—"}
                         </p>
                       </TableCell>
-                      <TableCell className="min-w-64 max-w-80 align-top whitespace-normal">
-                        <div className="flex items-center gap-1 whitespace-nowrap text-xs">
+                      <TableCell className="align-top whitespace-normal">
+                        <div className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[13px]">
                           {customer(task) ? (
                             <a
-                              className="text-foreground hover:underline"
+                              className="min-w-0 max-w-[52%] truncate font-medium text-foreground hover:underline"
+                              title={task.customer_email || task.customer_id}
                               target="_blank"
                               rel="noreferrer"
                               href={customer(task)}
@@ -553,7 +557,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                               {task.customer_email || task.customer_id}
                             </a>
                           ) : (
-                            <span>
+                            <span className="min-w-0 max-w-[52%] truncate font-medium" title={task.customer_email || task.customer_id || task.storefront_visitor_id}>
                               {task.customer_email ||
                                 task.customer_id ||
                                 task.storefront_visitor_id ||
@@ -563,7 +567,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           {task.customer_email && (
                             <CopyButton value={task.customer_email} />
                           )}
-                          <span className="ml-1 text-muted-foreground">
+                          <span className="ml-1 text-xs text-muted-foreground">
                           {task.customer_logged_in
                             ? t("已登录客户", "Signed-in customer")
                             : t("访客", "Visitor")}{" "}
@@ -574,8 +578,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           ] || t("订阅未记录", "Subscription not recorded")}
                           </span>
                         </div>
-                        <div className="mt-3">{funnel(task)}</div>
-                        <div className="mt-3 flex items-center gap-2 whitespace-nowrap">
+                        <div className="mt-2.5">{funnel(task)}</div>
+                        <div className="mt-2.5 flex items-center gap-2 whitespace-nowrap">
                             <div className="flex shrink-0 items-center gap-1.5 text-xs">
                               <CountryFlag country={task.client_country} />
                               <span title={task.client_ip || undefined}>
@@ -599,7 +603,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             </div>
                         </div>
                       </TableCell>
-                      <TableCell className="min-w-36 align-top">
+                      <TableCell className="align-top">
                         {task.shopify_orders.length ? (
                           <div className="space-y-3">
                             {task.shopify_orders.map((order) => (
@@ -625,19 +629,19 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           </div>
                         ) : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
-                      <TableCell className="w-80 min-w-64 max-w-80 align-top whitespace-normal">
+                      <TableCell className="align-top whitespace-normal">
                         <SourceInfo task={task} />
                       </TableCell>
-                      <TableCell className="min-w-40 align-top">
+                      <TableCell className="align-top">
                         {Object.entries(task.display_times).map(
                           ([zone, time]) => (
-                            <div key={zone} className="mb-2">
-                              <p className="text-[10px] text-muted-foreground">
-                                {zone}
-                              </p>
-                              <p className="text-xs tabular-nums">
-                                {time || "—"}
-                              </p>
+                            <div key={zone} className="mb-1.5 grid grid-cols-[3.5rem_1fr] items-baseline gap-2 text-xs" title={`${zone}: ${time || "—"}`}>
+                              <span className="truncate text-muted-foreground">
+                                {({ "Asia/Shanghai": t("上海", "Shanghai"), "America/New_York": t("纽约", "New York"), "America/Los_Angeles": t("洛杉矶", "LA") } as Record<string, string>)[zone] || zone.split("/").pop()?.replaceAll("_", " ")}
+                              </span>
+                              <time className="tabular-nums">
+                                {time ? time.replace(/^\d{4}-/, "") : "—"}
+                              </time>
                             </div>
                           ),
                         )}

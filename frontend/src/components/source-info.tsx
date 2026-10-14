@@ -41,22 +41,22 @@ export function SourceInfo({ task }: { task: Source }) {
   const paid = /(^|[\s_:-])(paid|cpc|ppc|cpv|cpm|display|ads|adwords)([\s_:-]|$)/i.test(`${task.utm_medium || ""} ${source}`);
   const title = task.source_product_title || task.source_page_title || page?.hostname || "—";
   function link(url: URL, label: string, icon = false) {
-    return <a href={url.href} target="_blank" rel="noreferrer" title={url.href} className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-foreground hover:underline">
+    return <a href={url.href} target="_blank" rel="noreferrer" title={`${label} — ${url.href}`} className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-foreground hover:underline">
       {icon && <SiteIcon key={url.hostname} host={url.hostname} />}<span className="truncate">{label}</span>
     </a>;
   }
   return <div className="space-y-1 text-xs">
-    <div className="font-medium">{page ? link(page, title) : title}</div>
+    <div className="mb-2 text-[13px] font-medium">{page ? link(page, title) : title}</div>
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-muted-foreground">{t("流量", "Traffic")}</span>
+      <span className="w-12 shrink-0 text-muted-foreground">{t("流量", "Traffic")}</span>
       {(channel || referrer) && <SiteIcon key={channel?.[2] || referrer?.hostname} host={channel?.[2] || referrer!.hostname} />}
       <span title={source}>{channel?.[1] || source || t("直接访问", "Direct")}</span>
       {paid && <Badge variant="secondary">{t("付费", "Paid")}</Badge>}
     </div>
-    {referrer && <div className="flex min-w-0 items-center gap-1.5"><span className="shrink-0 text-muted-foreground">{t("引荐", "Referrer")}</span>{link(referrer, referrer.host + (referrer.pathname === "/" ? "" : referrer.pathname), true)}</div>}
+    {referrer && <div className="flex min-w-0 items-center gap-1.5"><span className="w-12 shrink-0 text-muted-foreground">{t("引荐", "Referrer")}</span>{link(referrer, referrer.host + (referrer.pathname === "/" ? "" : referrer.pathname), true)}</div>}
     {[ ["source", task.utm_source], ["medium", task.utm_medium], ["campaign", task.utm_campaign] ].some(([, value]) => value) &&
       <p className="break-words text-muted-foreground">{[["source", task.utm_source], ["medium", task.utm_medium], ["campaign", task.utm_campaign]].filter(([, value]) => value).map(([key, value]) => `${key}=${value}`).join(" · ")}</p>}
-    <div className="flex min-w-0 items-center gap-1.5"><span className="shrink-0 text-muted-foreground">{t("来源", "Page")}</span>{page ? link(page, page.host + page.pathname, true) : "—"}</div>
-    <div className="flex min-w-0 items-center gap-1.5"><span className="shrink-0 text-muted-foreground">{t("请求", "Request")}</span>{request ? link(request, request.pathname) : "—"}</div>
+    <div className="flex min-w-0 items-center gap-1.5"><span className="w-12 shrink-0 text-muted-foreground">{t("来源", "Page")}</span>{page ? link(page, page.host + page.pathname, true) : "—"}</div>
+    <div className="flex min-w-0 items-center gap-1.5"><span className="w-12 shrink-0 text-muted-foreground">{t("请求", "Request")}</span>{request ? link(request, request.pathname) : "—"}</div>
   </div>;
 }

@@ -118,3 +118,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Keep headers visible within long task lists and retain horizontal access on small screens. */
+.task-table-shell [data-slot="table-container"] {
+  max-height: max(24rem, calc(100svh - 12rem));
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
