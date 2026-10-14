@@ -24,15 +24,6 @@ export function Styles() {
   );
   return (
     <>
-      <div className="mb-7">
-        <h1 className="page-heading">{t("风格目录", "Style library")}</h1>
-        <p className="page-description">
-          {t(
-            "查看服务端风格及其生成提示词。",
-            "Browse server-side styles and their generation prompts.",
-          )}
-        </p>
-      </div>
       <div className="mb-6 flex max-w-xl items-center gap-3">
         <Search className="size-4 text-muted-foreground" />
         <Input

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
   Star,
@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/sheet";
 import {
   useT,
+  api,
   useData,
   post,
   Pick,
@@ -126,6 +127,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   const t = useT();
   const [query, setQuery] = useState(() => taskQuery(location.search));
   const result = useData<Result>("/admin/api/tasks" + query);
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const [detail, setDetail] = useState<Task>();
   const [gallery, setGallery] = useState<{ images: Image[]; index: number }>();
   const [filters, setFilters] = useState(false);
@@ -168,14 +171,31 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     update(params);
   }
   async function star(task: Task) {
+    const original = task.starred;
+    const startedQuery = query;
+    const patch = (starred: boolean) => result.setData((current) => current ? {
+      ...current,
+      tasks: current.tasks.map((item) => item.task_id === task.task_id ? { ...item, starred } : item),
+    } : current);
     setBusy((v) => [...v, task.task_id]);
+    patch(!original);
     try {
-      await post(
+      const saved = await post<{ starred: boolean }>(
         "/admin/api/tasks/" + encodeURIComponent(task.task_id) + "/star",
-        { starred: !task.starred },
+        { starred: !original },
       );
-      result.reload();
+      patch(saved.starred);
+      if (new URLSearchParams(startedQuery).get("starred") === "true") {
+        // Refresh filtered pagination in the background without unmounting the table.
+        try {
+          const refreshed = await api<Result>("/admin/api/tasks" + startedQuery);
+          if (queryRef.current === startedQuery) result.setData(refreshed);
+        } catch {
+          toast.error(t("收藏已保存，列表更新失败，请点击刷新。", "Saved. Could not update the list; please refresh."));
+        }
+      }
     } catch (e) {
+      patch(original);
       toast.error((e as Error).message);
     } finally {
       setBusy((v) => v.filter((id) => id !== task.task_id));
@@ -233,16 +253,13 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   };
   return (
     <>
-      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="page-heading">{t("任务记录", "Image tasks")}</h1>
-          <p className="page-description">
-            {t(
-              "查看生成结果、客户来源与订单转化。",
-              "Review generated images, customer sources and order conversions.",
-            )}
-          </p>
-        </div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {result.data
+            ? `${result.data.total.toLocaleString()} ${t("条任务", "tasks")}`
+            : t("正在查询", "Loading tasks")}
+        </span>
+        <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           onClick={result.reload}
@@ -253,14 +270,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           />
           {t("刷新", "Refresh")}
         </Button>
-      </div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">
-          {result.data
-            ? `${result.data.total.toLocaleString()} ${t("条任务", "tasks")}`
-            : t("正在查询", "Loading tasks")}
-        </span>
-        <div className="flex gap-2">
+
           <Button
             variant={params.get("starred") === "true" ? "default" : "outline"}
             onClick={() =>

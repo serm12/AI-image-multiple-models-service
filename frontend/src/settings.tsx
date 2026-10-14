@@ -32,13 +32,6 @@ export function Settings() {
   const initial = location.hash.slice(1);
   return (
     <>
-      <h1 className="page-heading">{t("系统设置", "Settings")}</h1>
-      <p className="page-description mb-7">
-        {t(
-          "管理生成图片的显示效果与后台偏好。",
-          "Manage image presentation and workspace preferences.",
-        )}
-      </p>
       <Tabs
         defaultValue={
           items.some(([key]) => key === initial) ? initial : "watermark"
