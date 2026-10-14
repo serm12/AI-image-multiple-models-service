@@ -9,6 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
+  ShoppingCart,
+  MousePointerClick,
+  CreditCard,
+  CircleCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,6 +112,7 @@ const stages = [
   "checkout_started",
   "checkout_completed",
 ] as const;
+const stageIcons = [ShoppingCart, MousePointerClick, CreditCard, CircleCheck] as const;
 export function Tasks({ timezones }: { timezones: string[] }) {
   const t = useT();
   const [query, setQuery] = useState(() => taskQuery(location.search));
@@ -174,7 +179,9 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   function funnel(task: Task) {
     return (
       <div className="flex flex-wrap gap-1">
-        {stages.map((stage, i) => (
+        {stages.map((stage, i) => {
+          const Icon = stageIcons[i];
+          return (
           <Badge
             key={stage}
             variant={task[stage] ? "secondary" : "outline"}
@@ -185,10 +192,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             }
             title={task.storefront_event_times?.[stage] || ""}
           >
-            {task[stage] ? "✓ " : ""}
+            <Icon aria-hidden="true" />
             {labels[i]}
+            {task[stage] ? " ✓" : ""}
           </Badge>
-        ))}
+          );
+        })}
       </div>
     );
   }
