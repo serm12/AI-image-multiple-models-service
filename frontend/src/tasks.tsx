@@ -299,9 +299,9 @@ export function Tasks({ timezones }: { timezones: string[] }) {
         hidden={!filters}
         key={query}
         onSubmit={search}
-        className="mb-5 rounded-lg border bg-white p-4"
+        className="mb-5 space-y-5 rounded-xl border bg-card p-5"
       >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <div className="field">
             <Label htmlFor="task-search">{t("任务 ID", "Task ID")}</Label>
             <Input
@@ -329,25 +329,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             <Label>{t("时间范围", "Time range")}</Label>
             <TimeRange value={params.get("time_range") || ""} />
           </div>
-          <div className="flex items-end gap-2">
-            <Button type="submit">
-              <Search className="size-4" />
-              {t("查询", "Search")}
-            </Button>
-            {active.length > 0 && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => update(new URLSearchParams())}
-              >
-                {t("清除", "Clear")}
-              </Button>
-            )}
-          </div>
-        </div>
-        <div
-          className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2"
-        >
           <div className="field">
             <Label htmlFor="ip-search">IP</Label>
             <Input
@@ -366,7 +347,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
               defaultValue={params.get("provider") || ""}
             />
           </div>
-          <div className="flex flex-wrap gap-4 sm:col-span-2">
+        </div>
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium">{t("转化状态", "Conversion status")}</legend>
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
             {stages.map((stage, i) => (
               <div key={stage} className="flex items-center gap-2">
                 <Checkbox
@@ -381,7 +365,23 @@ export function Tasks({ timezones }: { timezones: string[] }) {
               </div>
             ))}
           </div>
-        </div>
+        </fieldset>
+          <div className="flex items-center justify-end gap-2">
+            <Button type="submit">
+              <Search className="size-4" />
+              {t("查询", "Search")}
+            </Button>
+            {active.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => update(new URLSearchParams())}
+              >
+                {t("清除", "Clear")}
+              </Button>
+            )}
+          </div>
+
         {params.get("starred") === "true" && (
           <input type="hidden" name="starred" value="true" />
         )}
