@@ -565,14 +565,13 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           </span>
                         </div>
                         <div className="mt-3">{funnel(task)}</div>
-                        <div className="mt-3 flex flex-wrap items-start gap-4">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 text-xs">
+                        <div className="mt-3 flex items-center gap-2 whitespace-nowrap">
+                            <div className="flex shrink-0 items-center gap-1.5 text-xs">
                               <CountryFlag country={task.client_country} />
-                              <span className="break-all">{task.client_ip || "—"}</span>
+                              <span>{task.client_ip || "—"}</span>
                               {task.client_ip && <CopyButton value={task.client_ip} />}
                             </div>
-                            <div className="mt-1 flex flex-wrap gap-1">
+                            <div className="flex shrink-0 items-center gap-1">
                               {task.ip_task_sequence > 0 && (
                                 <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300" title={t("该 IP 的第几条生成任务", "Generation task number for this IP")}>
                                   #{task.ip_task_sequence}
@@ -584,7 +583,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                                 </Badge>
                               )}
                             </div>
-                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="min-w-36 align-top">
