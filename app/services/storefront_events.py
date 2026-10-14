@@ -91,8 +91,18 @@ def record_storefront_event(task_id: str, tracking_token: str, event: dict) -> d
         events = _read_json(events_path, [])
         if not isinstance(events, list):
             events = []
+        pixel_sources = {"shopify_web_pixel", "shopify_app_pixel"}
+        def same_checkout(item):
+            # Custom and app pixels may receive different Shopify event IDs.
+            # One stage per task/checkout is sufficient for the funnel.
+            return (normalized["source"] in pixel_sources
+                    and item.get("source") in pixel_sources
+                    and event_type in {"checkout_started", "checkout_completed"}
+                    and bool(normalized["checkout_token"])
+                    and item.get("checkout_token") == normalized["checkout_token"]
+                    and item.get("event_type") == event_type)
         existing = next(
-            (item for item in events if item.get("event_id") == event_id), None
+            (item for item in events if item.get("event_id") == event_id or same_checkout(item)), None
         )
         if existing:
             return {"event": existing, "created": False}

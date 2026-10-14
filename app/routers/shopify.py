@@ -13,6 +13,7 @@ from app.services.shopify_http import request_to_shopify, shopify_response
 from app.services.shopify_admin import allowed_shop, set_session
 from app.services.shopify_orders import sync_orders, receive_order_webhook
 from app.services.shopify_order_images import get_order_images
+from app.services.shopify_pixels import ensure_pixel
 
 router = APIRouter(prefix="/shopify", tags=["Shopify"])
 
@@ -43,6 +44,7 @@ async def verified_session(request, sdk, redirect=False):
     await sync_orders(sdk, result)
     from app.services.shopify_customers import authorize
     await authorize(sdk, result)
+    await ensure_pixel(sdk, result)
     context = urlencode({"shop": f"{allowed_shop()}.myshopify.com", "embedded": "1",
                          "host": base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
     response = RedirectResponse("/admin/tasks?" + context, status_code=303) if redirect else Response(status_code=204)

@@ -88,6 +88,19 @@ class StorefrontEventsTests(unittest.TestCase):
         self.assertNotEqual(events[0]["cart_token_hash"], "secret-cart-token")
         self.assertNotIn("tracking_token", events[0])
 
+    def test_custom_and_app_pixels_deduplicate_per_checkout_and_stage(self):
+        client = TestClient(app)
+        old = {**self.payload(), "event_type": "checkout_started", "source": "shopify_web_pixel",
+               "checkout_token": "checkout-a", "event_id": "legacy-event"}
+        new = {**old, "source": "shopify_app_pixel", "event_id": "app-event"}
+        self.assertTrue(client.post("/storefront-events", json=old).json()["created"])
+        self.assertFalse(client.post("/storefront-events", json=new).json()["created"])
+        complete = {**new, "event_type": "checkout_completed", "event_id": "completed"}
+        self.assertTrue(client.post("/storefront-events", json=complete).json()["created"])
+        self.assertTrue(client.post("/storefront-events", json={**new, "checkout_token": "checkout-b",
+                                                               "event_id": "another"}).json()["created"])
+        self.assertEqual(client.post("/storefront-events", json={**new, "tracking_token": "invalid-token-long-enough"}).status_code, 403)
+
     def test_rejects_invalid_tracking_token_and_event_type(self):
         client = TestClient(app)
         invalid_token = self.payload()

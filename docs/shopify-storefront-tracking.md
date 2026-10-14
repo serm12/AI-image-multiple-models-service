@@ -1,11 +1,62 @@
-# Shopify storefront tracking
+# Paintingify conversion tracking
 
-The theme records generated-image identity, the logged-in customer's email, successful cart additions, and checkout intent automatically. Guest tasks continue to use the anonymous storefront visitor ID until Shopify supplies an email during checkout.
+The app now includes `extensions/paintingify-conversions`, a Shopify Web Pixel
+Extension running in the strict sandbox. It subscribes only to `checkout_started`
+and `checkout_completed`; theme tracking still owns `added_to_cart`,
+`checkout_intent`, and newsletter submission. Order webhooks remain the source of
+linked orders and payment status. A completed browser checkout is not proof of payment.
 
-`added_to_cart` and `checkout_intent` are theme events. `checkout_started` and `checkout_completed` are Shopify checkout events and will remain inactive until the custom pixel is connected.
+## Deployment and activation
 
-To record confirmed Shopify checkout events, open **Shopify admin → Settings → Customer events**, add a custom pixel, paste the contents of `docs/shopify-custom-pixel.js`, connect it, and verify that the pixel is allowed by the store's customer privacy settings. The pixel reads line-item properties and customer email when Shopify exposes them to the event; both fields can be absent for some checkout contexts.
+1. Deploy the backend (including cross-pixel deduplication).
+2. Run `shopify app deploy --allow-updates` to release the pixel and the added
+   `write_pixels,read_customer_events` scopes on the existing app.
+3. Open Paintingify AI Backend in the installed shop and accept Shopify's new
+   permissions if prompted. A verified app session reconciles the app's pixel
+   via `webPixelCreate`/`webPixelUpdate`. It retries at most once every four minutes;
+   activation errors never prevent the task dashboard from opening.
+4. In Settings > Customer events, check the app pixel is connected. Test an AI
+   product checkout with analytics consent. Confirm the matching task shows the
+   checkout stage. A real payment is unnecessary to test `checkout_started`.
+5. Disconnect only the old Paintingify custom pixel after confirming the app pixel.
+   Leave unrelated Meta/Google pixels alone. Keeping the old pixel temporarily is
+   supported: event ID and per-task checkout/stage deduplication prevent duplicates.
 
-The pixel reads the private `_AI Task ID` and `_AI Tracking Token` line-item properties and, when Shopify makes it available, the checkout email. It does not send customer name, address, phone, or payment information. The API stores only a hash of the cart token and never persists the raw tracking token.
+The extension settings contain only the installed `shopDomain`. The collection
+endpoint is fixed to `https://image-api.shopupup.com/storefront-events`; no API key,
+Admin token, or client secret is embedded. Requests use `text/plain`, omit cookies,
+and authenticate each task with its existing `_AI Tracking Token`. The server
+persists only the tracking-token hash, not the raw tracking credential.
 
-The pixel posts JSON as `text/plain` so the Shopify pixel sandbox can make a CORS simple request. It deduplicates repeated checkout lines for the same task and reports safe diagnostics in the browser console (task ID, HTTP status, and event type; never the tracking token or customer data). The API container logs whether an event was recorded, deduplicated, or rejected. Use those two locations to diagnose a missing checkout event.
+## Event behavior and privacy
+
+- Task association uses `_AI Task ID` and `_AI Tracking Token` line properties.
+  Duplicate checkout lines for a task generate a single delivery.
+- Missing/redacted line properties skip that item; missing checkout email is
+  supported. Only fields exposed by Shopify are sent. Names, addresses, phone
+  numbers, payment details, and whole checkout objects are never collected.
+- Analytics consent is required; marketing/preferences are not requested and data
+  sale is disabled. Shopify controls execution and consent replay. No DOM scraping,
+  cookies, storage identifiers, or production console logging are added.
+- Network errors, 429 and 5xx retry up to three attempts with the same event ID;
+  permanent 4xx do not retry. At most three tasks send concurrently. Replay within
+  a pixel instance is also deduplicated. Delivery remains best-effort on page close
+  or blocking; server order webhooks remain independent of the browser pixel.
+- Existing theme collection is unchanged by this migration; its behavior is not
+  replaced by the extension's consent declaration.
+
+## Rollback and diagnostics
+
+The old custom pixel source remains in `docs/shopify-custom-pixel.js`. Reconnect
+that pixel if needed and deactivate the app pixel in Shopify's Customer events
+settings. Existing task events and order links are not deleted.
+
+The backend logs `Shopify app pixel: active` or `authorization_required` on verified
+sessions. It logs only exception types on activation failure, never credentials.
+The existing `/storefront-events` logs indicate recorded/deduplicated/rejected
+requests. Never log the tracking token or checkout payload while troubleshooting.
+
+References:
+- https://shopify.dev/docs/apps/build/marketing/build-web-pixels
+- https://shopify.dev/docs/api/web-pixels-api/standard-events/checkout_started
+- https://shopify.dev/docs/api/admin-graphql/2026-10/mutations/webPixelCreate

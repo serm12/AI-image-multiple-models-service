@@ -26,6 +26,8 @@ class ShopifyIntegrationTests(unittest.TestCase):
         self.env.start()
         self.order_sync = patch('app.routers.shopify.sync_orders', new_callable=AsyncMock)
         self.order_sync.start()
+        self.pixel_sync = patch("app.routers.shopify.ensure_pixel", new_callable=AsyncMock)
+        self.pixel_sync.start()
         app = FastAPI()
         app.add_middleware(ShopifyAdminMiddleware)
         @app.api_route('/admin/tasks', methods=['GET', 'POST'])
@@ -43,6 +45,7 @@ class ShopifyIntegrationTests(unittest.TestCase):
         self.client.close()
         self.env.stop()
         self.order_sync.stop()
+        self.pixel_sync.stop()
 
     def headers(self, body, topic="app/uninstalled"):
         signature = base64.b64encode(

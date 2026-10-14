@@ -10,7 +10,7 @@ automatically_update_urls_on_dev = false
 
 [access_scopes]
 # Keep synchronized with SHOPIFY_SCOPES in .env and env.example.
-scopes = "read_orders,read_customers,write_customers,read_files,write_files"
+scopes = "read_orders,read_customers,write_customers,read_files,write_files,write_pixels,read_customer_events"
 use_legacy_install_flow = false
 
 [auth]

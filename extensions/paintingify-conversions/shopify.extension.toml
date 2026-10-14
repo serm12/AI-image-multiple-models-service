@@ -1,0 +1,20 @@
+name = "paintingify-conversions"
+type = "web_pixel_extension"
+uid = "52727a6a-71c2-a5d0-ce09-dc2e157e8c5d7c317d5f"
+
+runtime_context = "strict"
+
+[customer_privacy]
+analytics = true
+marketing = false
+preferences = false
+sale_of_data = "disabled"
+
+[settings]
+type = "object"
+
+[settings.fields.shopDomain]
+name = "Shop domain"
+description = "Installed myshopify.com shop domain"
+type = "single_line_text_field"
+validations = [{ name = "min", value = "1" }]
