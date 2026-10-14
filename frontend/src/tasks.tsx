@@ -630,14 +630,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             {task.edit_instructions}
                           </p>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="-ml-3 h-7 text-xs text-muted-foreground"
-                          onClick={() => setDetail(task)}
-                        >
-                          {t("查看详情与提示词", "Details & prompt")}
-                        </Button>
                       </TableCell>
                       <TableCell className="align-top">
                         <TaskStatusBadge status={task.status} />
