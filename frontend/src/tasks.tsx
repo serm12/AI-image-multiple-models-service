@@ -578,7 +578,11 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         <div className="mt-3 flex items-center gap-2 whitespace-nowrap">
                             <div className="flex shrink-0 items-center gap-1.5 text-xs">
                               <CountryFlag country={task.client_country} />
-                              <span>{task.client_ip || "—"}</span>
+                              <span title={task.client_ip || undefined}>
+                                {task.client_ip?.includes(":") && task.client_ip.length > 20
+                                  ? `${task.client_ip.slice(0, 9)}…${task.client_ip.slice(-9)}`
+                                  : task.client_ip || "—"}
+                              </span>
                               {task.client_ip && <CopyButton value={task.client_ip} />}
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
