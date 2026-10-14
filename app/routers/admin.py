@@ -88,11 +88,8 @@ def _admin_next(value: str | None) -> str:
 
 
 def _login_page(next_url: str, error: bool = False) -> HTMLResponse:
-    message = (
-        _i18n('template_6b1313f1949c')
-        if error else ""
-    )
-    return HTMLResponse(f'{_i18n('template_dbf75f2ff239')}{message}\n<form method="post" action="/admin/login"><input type="hidden" name="next" value="{_text(next_url)}{_i18n('template_dd51954c7f8a')}', status_code=401 if error else 200)
+    from app.routers.admin_frontend import shell
+    return shell(status_code=401 if error else 200)
 
 
 @router.get("/admin/login", response_class=HTMLResponse)

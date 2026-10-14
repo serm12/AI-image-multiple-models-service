@@ -45,3 +45,7 @@ README_CLEANUP.md
 render.yaml
 scripts/start_wsl.bat
 scripts/start_wsl.sh
+
+frontend/node_modules/
+app/static/admin/
+frontend/*.tsbuildinfo

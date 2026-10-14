@@ -1,3 +1,10 @@
+FROM node:22-slim AS admin-builder
+WORKDIR /build/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 # ========== 构建阶段 ==========
 FROM python:3.12-slim AS builder
 
@@ -40,6 +47,7 @@ WORKDIR /app
 
 # 复制项目文件
 COPY app/ ./app/
+COPY --from=admin-builder /build/app/static/admin ./app/static/admin
 COPY models/ ./models/
 COPY VERSION ./VERSION
 # Bump this value whenever watermark artwork changes so the Docker layer is rebuilt.

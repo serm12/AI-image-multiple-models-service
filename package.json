@@ -8,7 +8,9 @@
     "dev": "shopify app dev",
     "config:validate": "shopify app config validate --json",
     "deploy": "shopify app deploy",
-    "dev:python": "python scripts/shopify_dev.py"
+    "dev:python": "python scripts/shopify_dev.py",
+    "admin:dev": "npm --prefix frontend run dev",
+    "admin:build": "npm --prefix frontend run build"
   },
   "dependencies": {
     "@preact/signals": "^2.11.3",

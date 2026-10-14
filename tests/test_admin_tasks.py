@@ -119,102 +119,32 @@ class AdminTasksTests(unittest.TestCase):
         )
 
         client = TestClient(app)
-        unauthenticated = client.get("/admin/tasks", follow_redirects=False)
+        unauthenticated = client.get("/admin/api/tasks", follow_redirects=False)
         self.assertEqual(unauthenticated.status_code, 303)
         self.assertTrue(unauthenticated.headers["location"].startswith("/admin/login"))
         token = base64.b64encode(b"admin:secret").decode("ascii")
         response = client.get(
-            "/admin/tasks", headers={"Authorization": f"Basic {token}"}
+            "/admin/api/tasks", headers={"Authorization": f"Basic {token}"}
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("203.0.113.5", response.text)
-        self.assertIn("US", response.text)
-        self.assertIn("页面信息", response.text)
-        self.assertIn('aria-label="筛选访客 IP"', response.text)
-        self.assertIn('aria-label="筛选用户"', response.text)
-        self.assertIn('id="ip-search"', response.text)
-        self.assertIn('id="user-search"', response.text)
-        self.assertIn('placeholder="输入 IP 筛选"', response.text)
-        self.assertIn('placeholder="邮箱、客户或访客 ID"', response.text)
-        self.assertNotIn("<th>转化状态</th>", response.text)
-        self.assertNotIn("<th>Title</th>", response.text)
-        self.assertNotIn("<th>请求 URL</th>", response.text)
-        self.assertIn("Custom Portrait", response.text)
-        self.assertIn('class="source-cell"', response.text)
-        self.assertIn("utm:google", response.text)
-        self.assertIn('class="traffic-icon"', response.text)
-        self.assertIn('src="https://cdn.simpleicons.org/google/4285F4"', response.text)
-        self.assertIn('class="paid-traffic-badge"', response.text)
-        self.assertIn('title="付费投放流量">付费</span>', response.text)
-        self.assertIn("source=google · medium=cpc · campaign=fall-portraits", response.text)
-        self.assertIn('<span>来源</span>', response.text)
-        self.assertIn('<span>请求</span>', response.text)
-        self.assertIn("th:nth-child(9){width:340px}", response.text)
-        self.assertIn("th:nth-child(11){width:auto}", response.text)
-        self.assertIn('<td class="identity-cell">', response.text)
-        self.assertIn('<div class="funnel">', response.text)
-        self.assertIn("shop.example/products/custom-portrait", response.text)
-        self.assertIn("12.3 秒", response.text)
-        self.assertIn("buyer@example.com", response.text)
-        self.assertIn("https://admin.shopify.com/store/paintingify/customers/123456", response.text)
-        self.assertIn("✓</span> 加购", response.text)
-        self.assertIn("○</span> 结账意图", response.text)
-        self.assertIn("✓</span> 开始结账", response.text)
-        self.assertIn("加购：已触发 · 2026-09-18T00:10:00Z", response.text)
-
-        self.assertIn("<th>时间</th>", response.text)
-        self.assertNotIn("时间（美国东部）", response.text)
-        self.assertIn("<span>Shanghai</span>08-28 18:00:00", response.text)
-        self.assertIn("<span>New York</span>08-28 06:00:00", response.text)
-        self.assertIn("<span>Los Angeles</span>08-28 03:00:00", response.text)
-        self.assertIn('data-clock-zone="Asia/Shanghai"', response.text)
-        self.assertIn('data-clock-zone="America/New_York"', response.text)
-        self.assertIn('data-clock-zone="America/Los_Angeles"', response.text)
-        self.assertIn('class="admin-header"', response.text)
-        self.assertIn('overflow-x:auto', response.text)
-        self.assertIn('scroll-snap-type:x proximity', response.text)
-        self.assertIn("Asia/Shanghai", response.text)
-        self.assertIn("America/New_York", response.text)
-        self.assertIn("America/Los_Angeles", response.text)
-        self.assertIn('aria-label="任务分页"', response.text)
-        self.assertIn('id="page-size-select"', response.text)
-        self.assertIn('第 1 / 1 页', response.text)
-        self.assertIn(f"v{APP_VERSION} · {APP_RELEASE_DATE}", response.text)
-        self.assertIn(
-            "/admin/tasks/task-1/thumbnail/output_reference.png", response.text
-        )
-        self.assertIn('data-image-strip', response.text)
-        self.assertIn('class="image-scroll image-scroll-prev"', response.text)
-        self.assertIn('class="image-scroll image-scroll-next"', response.text)
-        self.assertIn('class="images" tabindex="0"', response.text)
-        self.assertIn('class="image-item glightbox"', response.text)
-        self.assertIn('data-gallery="task-task-1"', response.text)
-        self.assertIn('glightbox@3.3.1/dist/css/glightbox.min.css', response.text)
-        self.assertIn('glightbox@3.3.1/dist/js/glightbox.min.js', response.text)
-        self.assertIn("selector:'.glightbox'", response.text)
-        self.assertIn("touchNavigation:true", response.text)
-        self.assertIn("zoomable:true", response.text)
-        self.assertIn("updateLightboxCounter", response.text)
-        self.assertNotIn('id="image-viewer"', response.text)
-        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", response.text)
-        self.assertNotIn("<script>alert(1)</script>", response.text)
-
-        ip_filtered = client.get(
-            "/admin/tasks?client_ip=203.0.113",
-            headers={"Authorization": f"Basic {token}"},
-        )
-        self.assertEqual(ip_filtered.status_code, 200)
-        self.assertIn("203.0.113.5", ip_filtered.text)
-        self.assertIn('name="client_ip" type="search" value="203.0.113"', ip_filtered.text)
-
-        user_filtered = client.get(
-            "/admin/tasks?user=buyer%40example.com",
-            headers={"Authorization": f"Basic {token}"},
-        )
-        self.assertEqual(user_filtered.status_code, 200)
-        self.assertIn("buyer@example.com", user_filtered.text)
-        self.assertIn('name="user" type="search" value="buyer@example.com"', user_filtered.text)
+        item = response.json()['tasks'][0]
+        self.assertEqual(item['client_ip'], '203.0.113.5')
+        self.assertEqual(item['client_country'], 'US')
+        self.assertEqual(item['customer_email'], 'buyer@example.com')
+        self.assertEqual(item['source_product_title'], 'Custom Portrait')
+        self.assertEqual(item['utm_campaign'], 'fall-portraits')
+        self.assertEqual(item['generation_duration_seconds'], 12.34)
+        self.assertTrue(item['added_to_cart'])
+        self.assertTrue(item['checkout_started'])
+        self.assertFalse(item['checkout_intent'])
+        self.assertEqual(item['prompt'], '<script>alert(1)</script>')
+        self.assertEqual(item['display_times']['Asia/Shanghai'], '2026-08-28 18:00:00')
+        self.assertEqual(item['display_times']['America/New_York'], '2026-08-28 06:00:00')
+        for query in ['client_ip=203.0.113', 'user=buyer%40example.com']:
+            filtered = client.get('/admin/api/tasks?' + query, headers={'Authorization': f'Basic {token}'})
+            self.assertEqual(filtered.status_code, 200)
+            self.assertEqual(filtered.json()['total'], 1)
 
         thumbnail = client.get(
             "/admin/tasks/task-1/thumbnail/output_reference.png",
@@ -230,8 +160,7 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app, base_url="https://testserver")
         login_page = client.get("/admin/login")
         self.assertEqual(login_page.status_code, 200)
-        self.assertIn('autocomplete="current-password"', login_page.text)
-        self.assertIn("记住我（30 天）", login_page.text)
+        self.assertIn('id="root"', login_page.text)
 
         response = client.post(
             "/admin/login",
@@ -281,19 +210,15 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         response = client.get(
-            "/admin/tasks", headers={"Authorization": f"Basic {token}"}
+            "/admin/api/tasks", headers={"Authorization": f"Basic {token}"}
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("客户修改要求", response.text)
-        self.assertIn("Make the dress blue &amp; keep the face &lt;recognizable&gt;.", response.text)
-        self.assertIn("完整提示词", response.text)
-        self.assertIn("编辑参考图", response.text)
-        self.assertIn('<span class="image-item__badge">参考</span>', response.text)
-        self.assertIn(
-            f"/admin/tasks/{source_task_id}/thumbnail/{source_filename}",
-            response.text,
-        )
+        edited = next(task for task in response.json()['tasks'] if task['source_task_id'])
+        self.assertEqual(edited['edit_instructions'], 'Make the dress blue & keep the face <recognizable>.')
+        reference = next(image for image in edited['images'] if image['reference'])
+        self.assertEqual(reference['thumbnail'], f'/admin/tasks/{source_task_id}/thumbnail/{source_filename}')
+
 
     def test_admin_tasks_uses_server_side_pagination(self):
         for index in range(30):
@@ -317,26 +242,23 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         headers = {"Authorization": f"Basic {token}"}
-        first_page = client.get("/admin/tasks", headers=headers)
-        second_page = client.get("/admin/tasks?page=2&page_size=25", headers=headers)
+        first_page = client.get("/admin/api/tasks", headers=headers)
+        second_page = client.get("/admin/api/tasks?page=2&page_size=25", headers=headers)
 
         self.assertEqual(first_page.status_code, 200)
-        self.assertEqual(first_page.text.count("<tr>"), 26)
-        self.assertIn("prompt-29", first_page.text)
-        self.assertNotIn("prompt-0</div>", first_page.text)
-        self.assertIn("第 1 / 2 页", first_page.text)
-        self.assertIn('class="pagination__jump"', first_page.text)
-        self.assertIn('name="page" type="number" min="1" max="2" value="1"', first_page.text)
-        self.assertIn("跳至", first_page.text)
-        self.assertIn("共 30 条任务", first_page.text)
-        self.assertIn("/admin/tasks?page=2&amp;page_size=25", first_page.text)
+        first, second = first_page.json(), second_page.json()
+        self.assertEqual(first['total'], 30)
+        self.assertEqual(first['total_pages'], 2)
+        self.assertEqual(len(first['tasks']), 25)
+        self.assertEqual(len(second['tasks']), 5)
+        self.assertTrue(first['has_next'])
+        self.assertTrue(second['has_previous'])
+        self.assertEqual(second['page'], 2)
+        self.assertIn('prompt-29', [task['prompt'] for task in first['tasks']])
+        self.assertNotIn('prompt-0', [task['prompt'] for task in first['tasks']])
+        self.assertIn('prompt-0', [task['prompt'] for task in second['tasks']])
         self.assertNotIn(empty_intermediate_dir, first_page.text)
 
-        self.assertEqual(second_page.status_code, 200)
-        self.assertEqual(second_page.text.count("<tr>"), 6)
-        self.assertIn("prompt-0", second_page.text)
-        self.assertNotIn("prompt-29", second_page.text)
-        self.assertIn("第 2 / 2 页", second_page.text)
 
     def test_admin_tasks_filters_by_task_id_and_provider(self):
         task_specs = (
@@ -361,36 +283,11 @@ class AdminTasksTests(unittest.TestCase):
         token = base64.b64encode(b"admin:secret").decode("ascii")
         headers = {"Authorization": f"Basic {token}"}
 
-        task_id_filtered = client.get(
-            "/admin/tasks?task_id=120100", headers=headers
-        )
-        self.assertEqual(task_id_filtered.status_code, 200)
-        self.assertIn("prompt-20260915_120100_aura", task_id_filtered.text)
-        self.assertNotIn("prompt-20260915_120000_recraft", task_id_filtered.text)
-        self.assertIn('aria-label="筛选任务 ID"', task_id_filtered.text)
-        self.assertIn(
-            'name="task_id" type="search" value="120100"',
-            task_id_filtered.text,
-        )
+        for query in ['task_id=120100', 'provider=aura-sr', 'task_id=120100&provider=fal-ai']:
+            response = client.get('/admin/api/tasks?' + query, headers=headers)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual([task['task_id'] for task in response.json()['tasks']], ['20260915_120100_aura'])
 
-        provider_filtered = client.get(
-            "/admin/tasks?provider=aura-sr", headers=headers
-        )
-        self.assertEqual(provider_filtered.status_code, 200)
-        self.assertIn("prompt-20260915_120100_aura", provider_filtered.text)
-        self.assertNotIn("prompt-20260915_120000_recraft", provider_filtered.text)
-        self.assertIn('aria-label="筛选 Provider"', provider_filtered.text)
-        self.assertIn(
-            'name="provider" type="search" value="aura-sr"',
-            provider_filtered.text,
-        )
-
-        combined_filtered = client.get(
-            "/admin/tasks?task_id=120100&provider=fal-ai", headers=headers
-        )
-        self.assertEqual(combined_filtered.status_code, 200)
-        self.assertIn("prompt-20260915_120100_aura", combined_filtered.text)
-        self.assertNotIn("prompt-20260915_120000_recraft", combined_filtered.text)
 
     def test_admin_can_star_tasks_and_filter_to_starred(self):
         task_ids = ("20260915_120000_first", "20260915_120100_second")
@@ -418,13 +315,11 @@ class AdminTasksTests(unittest.TestCase):
         ) as file:
             self.assertTrue(json.load(file)["starred"])
 
-        starred = client.get("/admin/tasks?starred=true", headers=headers)
+        starred = client.get('/admin/api/tasks?starred=true', headers=headers)
         self.assertEqual(starred.status_code, 200)
-        self.assertIn(task_ids[0], starred.text)
-        self.assertNotIn(task_ids[1], starred.text)
-        self.assertIn("★ 只看收藏", client.get("/admin/tasks", headers=headers).text)
-        self.assertIn("全部任务", starred.text)
-        self.assertIn('aria-pressed="true"', starred.text)
+        self.assertEqual([task['task_id'] for task in starred.json()['tasks']], [task_ids[0]])
+        self.assertTrue(starred.json()['tasks'][0]['starred'])
+
 
     def test_admin_tasks_filters_by_multiple_conversion_statuses(self):
         task_specs = (
@@ -452,26 +347,14 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         response = client.get(
-            "/admin/tasks?conversion_status=added_to_cart"
+            "/admin/api/tasks?conversion_status=added_to_cart"
             "&conversion_status=checkout_completed",
             headers={"Authorization": f"Basic {token}"},
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("prompt-cart", response.text)
-        self.assertIn("prompt-paid", response.text)
-        self.assertNotIn("prompt-none", response.text)
-        self.assertIn('>转化状态</legend>', response.text)
-        self.assertIn(
-            'name="conversion_status" value="added_to_cart" checked',
-            response.text,
-        )
-        self.assertIn(
-            'name="conversion_status" value="checkout_completed" checked',
-            response.text,
-        )
-        self.assertIn("selectedConversionStatuses", response.text)
-        self.assertIn("if(form.id==='conversion-search')return", response.text)
+        self.assertEqual({task['prompt'] for task in response.json()['tasks']}, {'prompt-cart', 'prompt-paid'})
+
 
     def test_admin_tasks_filters_by_time_range(self):
         now = now_china()
@@ -498,22 +381,13 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         response = client.get(
-            "/admin/tasks?time_range=today",
+            "/admin/api/tasks?time_range=today",
             headers={"Authorization": f"Basic {token}"},
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("prompt-today", response.text)
-        self.assertNotIn("prompt-yesterday", response.text)
-        self.assertNotIn("prompt-old", response.text)
-        self.assertIn("筛选时间", response.text)
-        self.assertIn('<option value="today" selected>今天</option>', response.text)
-        self.assertIn('aria-label="已选筛选条件"', response.text)
-        self.assertIn("时间：今天", response.text)
-        self.assertIn('aria-label="清除时间筛选：今天"', response.text)
-        self.assertIn(
-            'href="/admin/tasks?page=1&amp;page_size=25"', response.text
-        )
+        self.assertEqual([task['prompt'] for task in response.json()['tasks']], ['prompt-today'])
+
 
     def test_same_ip_has_chronological_sequence_across_pages(self):
         for index in range(12):
@@ -536,30 +410,16 @@ class AdminTasksTests(unittest.TestCase):
         client = TestClient(app)
         token = base64.b64encode(b"admin:secret").decode("ascii")
         headers = {"Authorization": f"Basic {token}"}
-        first_page = client.get("/admin/tasks?page=1&page_size=10", headers=headers)
-        second_page = client.get("/admin/tasks?page=2&page_size=10", headers=headers)
+        first_page = client.get("/admin/api/tasks?page=1&page_size=10", headers=headers)
+        second_page = client.get("/admin/api/tasks?page=2&page_size=10", headers=headers)
 
         self.assertEqual(first_page.status_code, 200)
-        self.assertIn(
-            '<span class="client-ip__address">203.0.113.20</span> '
-            '<span class="ip-task-sequence"',
-            first_page.text,
-        )
-        self.assertIn(
-            '<span class="client-ip__address">2603:6011:e600:46:4999:2:fbba:a378</span>',
-            first_page.text,
-        )
-        self.assertIn(".client-ip__address{overflow-wrap:anywhere;word-break:break-all}", first_page.text)
-        self.assertIn("#11</span>", first_page.text)
-        self.assertIn("#6</span>", first_page.text)
-        self.assertIn("#3</span>", first_page.text)
-        self.assertIn("#2</span>", second_page.text)
-        self.assertIn("#1</span>", second_page.text)
-        self.assertEqual(first_page.text.count("共 11 次</span>"), 9)
-        self.assertEqual(second_page.text.count("共 11 次</span>"), 2)
-        self.assertIn('class="ip-task-total"', first_page.text)
-        self.assertIn("该 IP 发起的第 11 个任务", first_page.text)
-        self.assertIn("该 IP 累计发起 11 个任务", first_page.text)
+        first = [task for task in first_page.json()['tasks'] if task['client_ip'] == '203.0.113.20']
+        second = second_page.json()['tasks']
+        self.assertEqual([task['ip_task_sequence'] for task in first], list(range(11, 2, -1)))
+        self.assertEqual([task['ip_task_sequence'] for task in second], [2, 1])
+        self.assertTrue(all(task['ip_task_total'] == 11 for task in first + second))
+
 
     def test_forwarded_ip_is_only_trusted_from_local_proxy(self):
         trusted_request = Request(
