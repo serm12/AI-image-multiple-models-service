@@ -354,7 +354,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
               <span>{label}</span><Icon className="size-4" aria-hidden="true" />
             </div>
             <div className="mt-5 flex items-end justify-between gap-3">
-              <span className="text-3xl font-semibold tracking-tight tabular-nums">{value == null ? "—" : value.toLocaleString()}</span>
+              <span className="text-2xl font-semibold tracking-tight tabular-nums">{value == null ? "—" : value.toLocaleString()}</span>
               <div className="text-right text-xs text-muted-foreground">
                 {key !== "total" && value != null && <div className="mb-1 font-medium tabular-nums text-foreground">{percentage.toFixed(1)}%</div>}
                 {key === "total" ? t("当前筛选 · 全部分页", "All matching tasks") : t("占匹配任务比例", "Share of matching tasks")}
