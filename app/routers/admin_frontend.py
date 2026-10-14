@@ -37,8 +37,8 @@ def page(_username: str = Depends(require_admin_login)):
     return shell()
 
 @router.get('/admin/api/session')
-def session(_username: str = Depends(require_admin_login)):
-    return JSONResponse({'username': _username, 'locale': selected_locale(), 'version': APP_VERSION,
+def session(request: Request, _username: str = Depends(require_admin_login)):
+    return JSONResponse({'username': _username, 'shopify_embedded': bool(getattr(request.state, 'shopify_admin', False)), 'locale': selected_locale(), 'version': APP_VERSION,
         'release_date': APP_RELEASE_DATE, 'timezones': display_timezones()}, headers={'Cache-Control': 'no-store'})
 
 @router.get('/admin/api/tasks')
@@ -84,4 +84,3 @@ def styles(_username: str = Depends(require_admin_login)):
     from app.core.helpers import get_style_description
     return JSONResponse([{'id': style.value, 'description': get_style_description(style.value),
         'prompt': STYLE_PROMPTS.get(style, '')} for style in ArtStyleEnum], headers={'Cache-Control': 'no-store'})
-

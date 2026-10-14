@@ -28,6 +28,7 @@ import { Styles } from "./styles";
 import "./index.css";
 type Session = {
   username: string;
+  shopify_embedded: boolean;
   locale: string;
   version: string;
   release_date: string;
@@ -179,6 +180,7 @@ function Shell({
   setMenu: (v: boolean) => void;
 }) {
   const t = useT();
+  const embedded = session.shopify_embedded && window.self !== window.top;
   const nav = [
     {
       path: "/admin/tasks",
@@ -216,8 +218,8 @@ function Shell({
             className={
               "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors " +
               (active.path === item.path
-                ? "bg-primary text-white"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent")
             }
           >
             <item.icon className="size-4" />
@@ -244,38 +246,54 @@ function Shell({
     </>
   );
   return (
-    <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r bg-white px-4 lg:flex">
-        {navigation}
-      </aside>
-      <div className="lg:pl-56">
-        <header className="flex h-16 items-center justify-between gap-4 border-b bg-white px-5 sm:px-8">
+    <div
+      className={
+        embedded
+          ? "min-h-svh bg-background"
+          : "min-h-svh bg-sidebar lg:flow-root"
+      }
+    >
+      {!embedded && (
+        <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col bg-sidebar px-4 lg:flex">
+          {navigation}
+        </aside>
+      )}
+      <div
+        className={
+          embedded
+            ? "min-h-svh bg-background"
+            : "min-h-svh bg-background lg:ml-56 lg:mr-2 lg:my-2 lg:min-h-[calc(100svh-1rem)] lg:rounded-xl lg:border lg:shadow-sm"
+        }
+      >
+        <header className="flex h-12 items-center justify-between gap-4 border-b px-4 lg:px-6">
           <div className="flex items-center gap-3">
-            <Sheet open={menu} onOpenChange={setMenu}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  aria-label={t("打开导航", "Open navigation")}
-                >
-                  <Menu />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-64 px-4">
-                <SheetTitle className="sr-only">
-                  {t("导航", "Navigation")}
-                </SheetTitle>
-                {navigation}
-              </SheetContent>
-            </Sheet>
+            {!embedded && (
+              <Sheet open={menu} onOpenChange={setMenu}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden"
+                    aria-label={t("打开导航", "Open navigation")}
+                  >
+                    <Menu />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 px-4">
+                  <SheetTitle className="sr-only">
+                    {t("导航", "Navigation")}
+                  </SheetTitle>
+                  {navigation}
+                </SheetContent>
+              </Sheet>
+            )}
             <span className="text-sm">{active.name}</span>
           </div>
           <span className="text-xs text-muted-foreground">
             {t("管理后台", "Admin workspace")}
           </span>
         </header>
-        <main className="mx-auto max-w-[1800px] p-5 sm:p-8">
+        <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
           {active.path === "/admin/config" ? (
             <Settings />
           ) : active.path === "/admin/styles" ? (

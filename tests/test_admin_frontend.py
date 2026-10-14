@@ -101,6 +101,25 @@ class AdminFrontendTests(unittest.TestCase):
         self.assertEqual(self.client.get('/admin/api/tasks?starred=true').json()['total'],0)
         self.assertEqual(self.client.post('/admin/api/tasks/missing/star',json={'starred':True},headers=self.origin).status_code,404)
 
+    def test_session_reports_only_verified_shopify_context(self):
+        import os
+        import time
+        import jwt
+        from app.services.shopify_admin import COOKIE
+        self.assertFalse(self.client.get('/admin/api/session?embedded=1&shop=ai-generate-image.myshopify.com').json()['shopify_embedded'])
+        secret = 'test-embedded-session-only-not-a-real-secret'
+        with patch.dict(os.environ, {'SHOPIFY_CLIENT_SECRET': secret, 'SHOPIFY_API_SECRET': '', 'SHOPIFY_SHOP': 'ai-generate-image'}):
+            token = jwt.encode({'aud': 'paintingify-admin', 'shop': 'ai-generate-image', 'sub': '123', 'exp': int(time.time()) + 60}, secret, algorithm='HS256')
+            self.client.cookies.set(COOKIE, token)
+            self.assertTrue(self.client.get('/admin/api/session', auth=None).json()['shopify_embedded'])
+            for path in ['/admin/tasks', '/admin/styles', '/admin/config']:
+                response = self.client.get(path, auth=None)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('app-bridge.js', response.text)
+                self.assertIn('admin.shopify.com', response.headers['content-security-policy'])
+            self.client.cookies.set(COOKIE, 'forged')
+            self.assertFalse(self.client.get('/admin/api/session').json()['shopify_embedded'])
+
     def test_styles_and_language_session(self):
         styles=self.client.get('/admin/api/styles').json()
         self.assertGreater(len(styles),0)

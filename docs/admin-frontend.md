@@ -41,7 +41,7 @@ npm run admin:dev
 
 Dockerfile 已增加独立 Node.js 构建阶段；最终 Python 镜像只接收静态产物。使用现有 Docker 构建流程即可。非 Docker 部署需要先执行 `npm --prefix frontend ci` 和 `npm run admin:build`，再重启后端。
 
-本次迁移没有执行线上部署或提交仓库已有改动。
+界面采用 shadcn 默认 Neutral 主题。在 Shopify 已验证会话的 iframe 中隐藏应用自身的侧边栏和手机导航按钮，使用 Shopify 原生导航；独立访问保留应用导航。
 
 ## 验证
 
