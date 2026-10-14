@@ -47,6 +47,8 @@ import {
   CopyButton,
   safeUrl,
 } from "@/lib/admin";
+import { taskQuery } from "@/lib/task-query";
+import { TaskStatusBadge } from "@/components/task-status-badge";
 type Image = {
   url: string;
   thumbnail: string;
@@ -108,7 +110,7 @@ const stages = [
 ] as const;
 export function Tasks({ timezones }: { timezones: string[] }) {
   const t = useT();
-  const [query, setQuery] = useState(location.search);
+  const [query, setQuery] = useState(() => taskQuery(location.search));
   const result = useData<Result>("/admin/api/tasks" + query);
   const [detail, setDetail] = useState<Task>();
   const [gallery, setGallery] = useState<{ images: Image[]; index: number }>();
@@ -121,12 +123,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     t("完成结账", "Checkout completed"),
   ];
   useEffect(() => {
-    const pop = () => setQuery(location.search);
+    const pop = () => setQuery(taskQuery(location.search));
     addEventListener("popstate", pop);
     return () => removeEventListener("popstate", pop);
   }, []);
   function update(params: URLSearchParams) {
-    const next = "?" + params.toString();
+    const next = taskQuery(params.toString());
     history.pushState(null, "", "/admin/tasks" + next);
     setQuery(next);
   }
@@ -256,6 +258,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             variant="outline"
             onClick={() => setFilters(!filters)}
             aria-expanded={filters}
+            aria-controls="task-filters"
           >
             <SlidersHorizontal className="size-4" />
             {t("筛选", "Filters")}
@@ -266,6 +269,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
         </div>
       </div>
       <form
+        id="task-filters"
+        hidden={!filters}
         key={query}
         onSubmit={search}
         className="mb-5 rounded-lg border bg-white p-4"
@@ -315,9 +320,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           </div>
         </div>
         <div
-          className={
-            filters ? "mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2" : "hidden"
-          }
+          className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-2"
         >
           <div className="field">
             <Label htmlFor="ip-search">IP</Label>
@@ -506,7 +509,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         </Button>
                       </TableCell>
                       <TableCell className="align-top">
-                        <Badge variant="outline">{task.status}</Badge>
+                        <TaskStatusBadge status={task.status} />
                         <p className="mt-2 max-w-36 break-words whitespace-normal text-xs">
                           {task.api_provider || "—"}
                         </p>
