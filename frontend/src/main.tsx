@@ -67,7 +67,7 @@ function Login() {
     <div className="grid min-h-svh place-items-center px-5">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex items-center gap-3 text-xl font-semibold">
-          <div className="rounded-xl bg-primary p-3 text-white">
+          <div className="rounded-xl bg-foreground p-3 text-background">
             <Images />
           </div>
           Paintingify
@@ -198,7 +198,7 @@ function Shell({
   const navigation = (
     <>
       <div className="flex items-center gap-2.5 px-3 py-7 text-lg font-semibold">
-        <Images className="size-6 text-primary" />
+        <Images className="size-6 text-foreground" />
         Paintingify
       </div>
       <div className="mb-4 px-3 text-xs text-muted-foreground">
