@@ -265,6 +265,7 @@ function Shell({
             : "min-h-svh bg-background lg:ml-56 lg:mr-2 lg:my-2 lg:min-h-[calc(100svh-1rem)] lg:rounded-xl lg:border lg:shadow-sm"
         }
       >
+        {!embedded && (
         <header className="flex h-12 items-center justify-between gap-4 border-b px-4 lg:px-6">
           <div className="flex items-center gap-3">
             {!embedded && (
@@ -293,6 +294,7 @@ function Shell({
             {t("管理后台", "Admin workspace")}
           </span>
         </header>
+        )}
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
           {active.path === "/admin/config" ? (
             <Settings />
