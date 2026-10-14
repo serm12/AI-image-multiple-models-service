@@ -1,8 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   Save,
-  Eye,
   Upload,
   Plus,
   X,
@@ -128,6 +127,8 @@ function Watermark() {
   const [files, setFiles] = useState<{ watermark?: File; brand?: File }>({});
   const [preview, setPreview] = useState("");
   const [previewBusy, setPreviewBusy] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
   const saving = useSave();
   useEffect(() => {
     if (result.data) setValue(result.data);
@@ -148,10 +149,11 @@ function Watermark() {
       if (file) form.set(key, file);
     return form;
   }
-  async function request(path: string) {
+  async function request(path: string, signal?: AbortSignal) {
     const response = await fetch("/admin/watermark/" + path, {
       method: "POST",
       body: payload(),
+      signal,
     });
     if (response.redirected) {
       location.assign("/admin/login");
@@ -172,17 +174,32 @@ function Watermark() {
     }
     return response;
   }
-  async function renderPreview() {
-    setPreviewBusy(true);
-    try {
-      const response = await request("preview");
-      setPreview(URL.createObjectURL(await response.blob()));
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
+  useEffect(() => {
+    if (!value) return;
+    const controller = new AbortController();
+    setPreviewError("");
+    if (!formRef.current?.checkValidity()) {
       setPreviewBusy(false);
+      setPreviewError(t("请填写有效参数，预览将自动更新。", "Enter valid settings to update the preview."));
+      return;
     }
-  }
+    setPreviewBusy(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await request("preview", controller.signal);
+        const blob = await response.blob();
+        if (!controller.signal.aborted) setPreview(URL.createObjectURL(blob));
+      } catch (error) {
+        if (!controller.signal.aborted) setPreviewError((error as Error).message);
+      } finally {
+        if (!controller.signal.aborted) setPreviewBusy(false);
+      }
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [value, files]);
   if (result.error)
     return <ErrorBox message={result.error} retry={result.reload} />;
   if (!value) return <Loading />;
@@ -195,6 +212,7 @@ function Watermark() {
   ];
   return (
     <form
+      ref={formRef}
       onSubmit={(e) => {
         e.preventDefault();
         void saving.save(async () => {
@@ -328,21 +346,11 @@ function Watermark() {
       <section className="panel xl:sticky xl:top-6">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="font-semibold">{t("效果预览", "Preview")}</h2>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={previewBusy}
-            onClick={(e) => {
-              if (e.currentTarget.form?.reportValidity()) void renderPreview();
-            }}
-          >
-            <Eye className="size-4" />
-            {previewBusy
-              ? t("生成中…", "Rendering…")
-              : t("更新预览", "Update preview")}
-          </Button>
+          <span role="status" className="text-xs text-muted-foreground">
+            {previewBusy ? t("更新中…", "Updating…") : previewError ? t("预览未更新", "Preview not updated") : t("自动更新", "Auto update")}
+          </span>
         </div>
+        {previewError && <p role="alert" className="mb-3 text-sm text-destructive">{previewError}</p>}
         {preview ? (
           <img
             src={preview}
@@ -354,8 +362,8 @@ function Watermark() {
             <Stamp className="mx-auto mb-4 size-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {t(
-                "调整参数后点击“更新预览”查看效果。",
-                "Adjust your settings, then select Update preview.",
+                "调整参数后，预览会自动更新。",
+                "The preview updates automatically when you change settings.",
               )}
             </p>
           </div>
