@@ -513,7 +513,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         {task.edit_instructions && (
                           <p className="table-detail max-w-60 truncate">
                             {task.edit_instructions}
-                          </p>
+                            </span>
+                        </div>
                         )}
                         <Button
                           variant="ghost"
@@ -531,10 +532,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         </p>
                       </TableCell>
                       <TableCell className="min-w-64 max-w-80 align-top whitespace-normal">
-                        <div className="flex items-center gap-1 text-xs">
+                        <div className="flex items-center gap-1 whitespace-nowrap text-xs">
                           {customer(task) ? (
                             <a
-                              className="break-all text-primary hover:underline"
+                              className="text-primary hover:underline"
                               target="_blank"
                               rel="noreferrer"
                               href={customer(task)}
@@ -542,7 +543,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                               {task.customer_email || task.customer_id}
                             </a>
                           ) : (
-                            <span className="break-all">
+                            <span>
                               {task.customer_email ||
                                 task.customer_id ||
                                 task.storefront_visitor_id ||
@@ -552,8 +553,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           {task.customer_email && (
                             <CopyButton value={task.customer_email} />
                           )}
-                        </div>
-                        <p className="table-detail">
+                          <span className="ml-1 text-muted-foreground">
                           {task.customer_logged_in
                             ? t("已登录客户", "Signed-in customer")
                             : t("访客", "Visitor")}{" "}
