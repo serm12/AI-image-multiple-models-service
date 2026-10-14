@@ -335,7 +335,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           const value = stats?.[key];
           const percentage = stats && stats.total > 0 && value != null ? value / stats.total * 100 : 0;
           const selected = params.getAll("conversion_status").includes(key);
-          return <div key={key} className={"relative rounded-2xl border bg-card px-5 py-5 transition-colors sm:px-6 " + (selected ? "border-neutral-900 ring-1 ring-neutral-900" : "")}>
+          return <div key={key} className="relative rounded-2xl border bg-card px-5 py-5 transition-colors sm:px-6">
             {key !== "total" && <button
               type="button"
               aria-label={label}
