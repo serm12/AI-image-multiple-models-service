@@ -293,7 +293,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           >
             <Icon aria-hidden="true" />
             {labels[i]}
-            {task[stage] ? " ✓" : ""}
           </Badge>
           );
         })}
