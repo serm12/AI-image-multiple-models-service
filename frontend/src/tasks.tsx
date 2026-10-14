@@ -334,7 +334,22 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           const stats = result.loading || result.error ? undefined : result.data?.statistics;
           const value = stats?.[key];
           const percentage = stats && stats.total > 0 && value != null ? value / stats.total * 100 : 0;
-          return <div key={key} className="rounded-2xl border bg-card px-5 py-5 sm:px-6">
+          const selected = params.getAll("conversion_status").includes(key);
+          return <div key={key} className={"relative rounded-2xl border bg-card px-5 py-5 transition-colors sm:px-6 " + (selected ? "border-neutral-900 ring-1 ring-neutral-900" : "")}>
+            {key !== "total" && <button
+              type="button"
+              aria-label={label}
+              aria-pressed={selected}
+              disabled={deleting}
+              className="absolute inset-0 z-10 cursor-pointer rounded-2xl outline-none hover:bg-muted/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed"
+              onClick={() => {
+                const next = new URLSearchParams(query);
+                if (selected) next.delete("conversion_status", key);
+                else next.append("conversion_status", key);
+                next.set("page", "1");
+                update(next);
+              }}
+            />}
             <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
               <span>{label}</span><Icon className="size-4" aria-hidden="true" />
             </div>
