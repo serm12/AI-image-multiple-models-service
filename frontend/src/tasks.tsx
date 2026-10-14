@@ -577,7 +577,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         ))}
                         <div className="mt-3 flex flex-wrap items-start gap-4">
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1 text-xs">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <CountryFlag country={task.client_country} />
                               <span className="break-all">{task.client_ip || "—"}</span>
                               {task.client_ip && <CopyButton value={task.client_ip} />}
                             </div>
@@ -594,7 +595,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                               )}
                             </div>
                           </div>
-                          <CountryBadge country={task.client_country} />
                         </div>
                       </TableCell>
                       <TableCell className="w-80 min-w-64 max-w-80 align-top whitespace-normal">
@@ -892,13 +892,8 @@ function WorkspaceStatus({ timezones }: { timezones: string[] }) {
   );
 }
 
-function CountryBadge({ country }: { country: string }) {
+function CountryFlag({ country }: { country: string }) {
   const code = (country || "").trim().toUpperCase();
-  const flag = /^[A-Z]{2}$/.test(code) && !["XX", "T1"].includes(code);
-  return (
-    <Badge variant="secondary" className="gap-1.5" title={code || undefined}>
-      {flag && <img key={code} src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} width={20} height={15} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-[15px] w-5 shrink-0 rounded-[2px] object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />}
-      {code || "—"}
-    </Badge>
-  );
+  if (!/^[A-Z]{2}$/.test(code) || ["XX", "T1"].includes(code)) return null;
+  return <img key={code} src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} width={20} height={15} alt={code} title={code} loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-[15px] w-5 shrink-0 rounded-[2px] object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />;
 }
