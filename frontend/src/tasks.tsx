@@ -13,6 +13,7 @@ import {
   MousePointerClick,
   CreditCard,
   CircleCheck,
+  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -612,11 +613,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             </div>
                           ),
                         )}
-                        <p className="table-detail">
+                        <Badge variant="secondary" className="mt-1 gap-1" title={t("生成耗时", "Generation duration")}>
+                          <Timer aria-hidden="true" />
                           {task.generation_duration_seconds != null
                             ? `${Number(task.generation_duration_seconds).toFixed(1)} s`
                             : "—"}
-                        </p>
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
