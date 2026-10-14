@@ -42,6 +42,11 @@ def set_session(response, user_id):
 
 class ShopifyAdminMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
+        pixel_events = request.url.path == '/storefront-events'
+        if pixel_events and request.method == 'OPTIONS':
+            return Response(status_code=204, headers={
+                'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '600'})
         extension_images = request.url.path.startswith(('/shopify/orders/', '/shopify/customer/orders/')) and request.url.path.endswith('/images')
         if extension_images and request.method == 'OPTIONS':
             # Shopify extensions run in sandboxed origins. This endpoint uses
@@ -56,7 +61,10 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                 return Response("Forbidden", status_code=403)
             request.state.shopify_admin = True
         response = await call_next(request)
-        if extension_images:
+        if extension_images or pixel_events:
+            # Per-task tracking tokens authenticate events. Pixel sandboxes have
+            # opaque origins and send no browser credentials. Scope CORS here,
+            # never to the authenticated admin/API routes.
             response.headers['Access-Control-Allow-Origin'] = '*'
             if 'access-control-allow-credentials' in response.headers:
                 del response.headers['access-control-allow-credentials']

@@ -88,6 +88,22 @@ class StorefrontEventsTests(unittest.TestCase):
         self.assertNotEqual(events[0]["cart_token_hash"], "secret-cart-token")
         self.assertNotIn("tracking_token", events[0])
 
+    def test_opaque_pixel_origin_can_read_success_and_authentication_errors(self):
+        client = TestClient(app)
+        headers = {"Origin": "null", "Content-Type": "text/plain;charset=UTF-8"}
+        response = client.post("/storefront-events", content=json.dumps(self.payload()), headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("access-control-allow-origin"), "*")
+        self.assertNotIn("access-control-allow-credentials", response.headers)
+        response = client.post("/storefront-events", content=json.dumps({**self.payload(),
+            "tracking_token": "invalid-token-with-enough-characters"}), headers=headers)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.headers.get("access-control-allow-origin"), "*")
+        preflight = client.options("/storefront-events", headers={"Origin":"null",
+            "Access-Control-Request-Method":"POST", "Access-Control-Request-Headers":"Content-Type"})
+        self.assertEqual(preflight.status_code, 204)
+        self.assertEqual(preflight.headers["access-control-allow-methods"], "POST, OPTIONS")
+
     def test_custom_and_app_pixels_deduplicate_per_checkout_and_stage(self):
         client = TestClient(app)
         old = {**self.payload(), "event_type": "checkout_started", "source": "shopify_web_pixel",
