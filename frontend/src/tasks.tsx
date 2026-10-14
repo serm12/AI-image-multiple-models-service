@@ -352,7 +352,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <div className="flex items-center gap-3">
           <Button
-            variant="outline"
+            variant={filters ? "default" : "outline"}
+            className={filters ? "bg-neutral-900 text-white hover:bg-neutral-800" : undefined}
             onClick={() => setFilters(!filters)}
             aria-expanded={filters}
             aria-controls="task-filters"
