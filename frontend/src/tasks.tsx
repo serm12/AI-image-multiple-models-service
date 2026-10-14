@@ -431,6 +431,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                       t("图片 / 任务", "Images / task"),
                       t("状态 / 模型", "Status / provider"),
                       t("客户 / 转化", "Customer / conversion"),
+                      t("关联订单", "Linked orders"),
                       t("来源", "Source"),
                       t("时间 / 耗时", "Time / duration"),
                     ].map((label) => (
@@ -564,17 +565,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           </span>
                         </div>
                         <div className="mt-3">{funnel(task)}</div>
-                        {task.shopify_orders.map((order) => (
-                          <a
-                            key={order.url}
-                            className="mt-2 block text-xs text-primary hover:underline"
-                            href={safeUrl(order.url)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {order.name} · {order.financial_status} ↗
-                          </a>
-                        ))}
                         <div className="mt-3 flex flex-wrap items-start gap-4">
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 text-xs">
@@ -596,6 +586,32 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             </div>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell className="min-w-36 align-top">
+                        {task.shopify_orders.length ? (
+                          <div className="space-y-3">
+                            {task.shopify_orders.map((order) => (
+                              <div key={order.url} className="space-y-1.5">
+                                <a className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline" href={safeUrl(order.url)} target="_blank" rel="noreferrer">
+                                  {order.name}<ExternalLink className="size-3" aria-hidden="true" />
+                                </a>
+                                <div>
+                                  <Badge variant="outline" className={order.financial_status === "PAID" ? stageColors[3] : "text-muted-foreground"}>
+                                    {({
+                                      PAID: t("已付款", "Paid"),
+                                      PARTIALLY_PAID: t("部分付款", "Partially paid"),
+                                      PENDING: t("待付款", "Pending"),
+                                      AUTHORIZED: t("已授权", "Authorized"),
+                                      PARTIALLY_REFUNDED: t("部分退款", "Partially refunded"),
+                                      REFUNDED: t("已退款", "Refunded"),
+                                      VOIDED: t("已作废", "Voided"),
+                                    } as Record<string, string>)[order.financial_status] || order.financial_status || t("未知", "Unknown")}
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : <span className="text-xs text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="w-80 min-w-64 max-w-80 align-top whitespace-normal">
                         <SourceInfo task={task} />
