@@ -574,21 +574,27 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             {order.name} · {order.financial_status} ↗
                           </a>
                         ))}
-                        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                          <span>
-                            {task.client_country || "—"} ·{" "}
-                            {task.client_ip || "—"}
-                          </span>
-                          {task.client_ip && (
-                            <CopyButton value={task.client_ip} />
-                          )}
+                        <div className="mt-3 flex flex-wrap items-start gap-4">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1 text-xs">
+                              <span className="break-all">{task.client_ip || "—"}</span>
+                              {task.client_ip && <CopyButton value={task.client_ip} />}
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {task.ip_task_sequence > 0 && (
+                                <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300" title={t("该 IP 的第几条生成任务", "Generation task number for this IP")}>
+                                  #{task.ip_task_sequence}
+                                </Badge>
+                              )}
+                              {task.ip_task_total > 0 && (
+                                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" title={t("该 IP 的生成任务总数", "Total generation tasks for this IP")}>
+                                  {t(`共 ${task.ip_task_total} 次`, `${task.ip_task_total} total`)}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <CountryBadge country={task.client_country} />
                         </div>
-                        {task.ip_task_sequence && (
-                          <p className="table-detail">
-                            {t("该 IP 第", "IP task")} {task.ip_task_sequence} /{" "}
-                            {task.ip_task_total}
-                          </p>
-                        )}
                       </TableCell>
                       <TableCell className="max-w-52 align-top whitespace-normal">
                         <a
@@ -904,5 +910,16 @@ function WorkspaceStatus({ timezones }: { timezones: string[] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+function CountryBadge({ country }: { country: string }) {
+  const code = (country || "").trim().toUpperCase();
+  const flag = /^[A-Z]{2}$/.test(code) && !["XX", "T1"].includes(code);
+  return (
+    <Badge variant="secondary" className="gap-1.5" title={code || undefined}>
+      {flag && <img key={code} src={`https://flagcdn.com/w40/${code.toLowerCase()}.png`} width={20} height={15} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" className="h-[15px] w-5 shrink-0 rounded-[2px] object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />}
+      {code || "—"}
+    </Badge>
   );
 }
