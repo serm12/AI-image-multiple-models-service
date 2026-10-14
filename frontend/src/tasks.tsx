@@ -503,7 +503,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         </div>
                         <div className="flex items-center gap-1">
                           <button
-                            className="max-w-64 truncate text-left text-xs font-medium text-primary hover:underline"
+                            className="max-w-64 truncate text-left text-xs font-medium text-foreground hover:underline"
                             onClick={() => setDetail(task)}
                             title={task.task_id}
                           >
@@ -535,7 +535,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         <div className="flex items-center gap-1 whitespace-nowrap text-xs">
                           {customer(task) ? (
                             <a
-                              className="text-primary hover:underline"
+                              className="text-foreground hover:underline"
                               target="_blank"
                               rel="noreferrer"
                               href={customer(task)}

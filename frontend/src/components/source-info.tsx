@@ -41,7 +41,7 @@ export function SourceInfo({ task }: { task: Source }) {
   const paid = /(^|[\s_:-])(paid|cpc|ppc|cpv|cpm|display|ads|adwords)([\s_:-]|$)/i.test(`${task.utm_medium || ""} ${source}`);
   const title = task.source_product_title || task.source_page_title || page?.hostname || "—";
   function link(url: URL, label: string, icon = false) {
-    return <a href={url.href} target="_blank" rel="noreferrer" title={url.href} className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-primary hover:underline">
+    return <a href={url.href} target="_blank" rel="noreferrer" title={url.href} className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-foreground hover:underline">
       {icon && <SiteIcon key={url.hostname} host={url.hostname} />}<span className="truncate">{label}</span>
     </a>;
   }
