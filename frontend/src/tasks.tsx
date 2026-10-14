@@ -513,8 +513,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         {task.edit_instructions && (
                           <p className="table-detail max-w-60 truncate">
                             {task.edit_instructions}
-                            </span>
-                        </div>
+                          </p>
                         )}
                         <Button
                           variant="ghost"
@@ -562,7 +561,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             task.customer_sync?.state ||
                               task.subscription_status
                           ] || t("订阅未记录", "Subscription not recorded")}
-                        </p>
+                          </span>
+                        </div>
                         <div className="mt-3">{funnel(task)}</div>
                         {task.shopify_orders.map((order) => (
                           <a
