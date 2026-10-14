@@ -66,6 +66,32 @@ class TaskListIndexTests(unittest.TestCase):
         (self.root / '.task-list-index.sqlite3').unlink()
         self.assertEqual(query.list_task_summaries()['total'], 34)
 
+    def test_statistics_cover_all_pages_and_count_tasks_once(self):
+        for n in (0, 15, 30):
+            for event_id in ('first', 'duplicate'):
+                record_storefront_event(f'task-{n:03}', 'token', {'event_id': event_id, 'event_type': 'added_to_cart'})
+        record_storefront_event('task-015', 'token', {'event_id': 'complete', 'event_type': 'checkout_completed'})
+        for args in (dict(page=2, page_size=10), dict(task_id_query='task-015'), dict(user_query='missing')):
+            indexed = query.list_task_summaries(**args)['statistics']
+            self.assertEqual(indexed, query._list_task_summaries_from_files(**args)['statistics'])
+        stats = query.list_task_summaries(page=2, page_size=10)['statistics']
+        self.assertEqual(stats['total'], 35)
+        self.assertEqual(stats['added_to_cart'], 3)
+        self.assertEqual(stats['checkout_completed'], 1)
+        from app.services.task_recycle_bin import change_tasks
+        change_tasks(['task-015'])
+        self.assertEqual(query.list_task_summaries()['statistics']['added_to_cart'], 2)
+        self.assertEqual(query.list_task_summaries(recycle_bin=True)['statistics']['checkout_completed'], 1)
+
+    def test_calendar_ranges_use_configured_timezone(self):
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo
+        with patch.object(query, 'now_china', return_value=datetime(2026, 10, 7, 12, tzinfo=timezone.utc)), patch('app.services.time_settings.effective_timezone', return_value=ZoneInfo('America/New_York')):
+            for period, expected in [('this_week', 9), ('this_month', 21)]:
+                indexed = query.list_task_summaries(time_range=period, page_size=10)
+                self.assertEqual(indexed, query._list_task_summaries_from_files(time_range=period, page_size=10))
+                self.assertEqual(indexed['statistics']['total'], expected)
+
     def test_concurrent_index_updates(self):
         with ThreadPoolExecutor(max_workers=4) as pool:
             list(pool.map(index.refresh_task, [self.root / f'task-{n:03}' for n in range(35)]))

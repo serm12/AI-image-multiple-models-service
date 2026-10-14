@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
+  Images,
   Star,
   RefreshCw,
   Search,
@@ -109,6 +110,7 @@ type Task = {
   checkout_completed: boolean;
 };
 type Result = {
+  statistics?: Record<string, number>;
   tasks: Task[];
   total: number;
   page: number;
@@ -322,6 +324,30 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   };
   return (
     <>
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("任务统计", "Task statistics")} aria-busy={result.loading}>
+        {[
+          { key: "total", label: t("任务总数", "Total tasks"), Icon: Images },
+          { key: "added_to_cart", label: t("已加购任务", "Added to cart"), Icon: ShoppingCart },
+          { key: "checkout_intent", label: t("结账意向任务", "Checkout intent"), Icon: MousePointerClick },
+          { key: "checkout_completed", label: t("已完成结账任务", "Checkout completed"), Icon: CircleCheck },
+        ].map(({ key, label, Icon }) => {
+          const stats = result.loading || result.error ? undefined : result.data?.statistics;
+          const value = stats?.[key];
+          const percentage = stats && stats.total > 0 && value != null ? value / stats.total * 100 : 0;
+          return <div key={key} className="rounded-2xl border bg-card px-5 py-5 sm:px-6">
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>{label}</span><Icon className="size-4" aria-hidden="true" />
+            </div>
+            <div className="mt-5 flex items-end justify-between gap-3">
+              <span className="text-3xl font-semibold tracking-tight tabular-nums">{value == null ? "—" : value.toLocaleString()}</span>
+              <div className="text-right text-xs text-muted-foreground">
+                {key !== "total" && value != null && <div className="mb-1 font-medium tabular-nums text-foreground">{percentage.toFixed(1)}%</div>}
+                {key === "total" ? t("当前筛选 · 全部分页", "All matching tasks") : t("占匹配任务比例", "Share of matching tasks")}
+              </div>
+            </div>
+          </div>;
+        })}
+      </div>
       <section aria-label={t("任务列表", "Task list")} className="min-w-0 overflow-hidden rounded-2xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <div className="flex items-center gap-3">
@@ -377,6 +403,9 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             <Star className="size-4" />
             {t("收藏", "Starred")}
           </Button>
+          <div className="w-36">
+            <TimeRange value={params.get("time_range") || ""} onChange={(value) => change("time_range", value)} />
+          </div>
 
         </div>
       </div>
@@ -493,7 +522,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                 } as Record<string, string>
               )[key] || key}
               :{" "}
-              {stages.includes(value as (typeof stages)[number])
+              {key === "time_range" ? ({ today: t("今天", "Today"), yesterday: t("昨天", "Yesterday"), this_week: t("本周", "This week"), this_month: t("本月", "This month"), last_7_days: t("最近 7 天", "Last 7 days"), last_30_days: t("最近 30 天", "Last 30 days") } as Record<string, string>)[value] || value : stages.includes(value as (typeof stages)[number])
                 ? labels[stages.indexOf(value as (typeof stages)[number])]
                 : value}
               <button
@@ -975,21 +1004,24 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     </>
   );
 }
-function TimeRange({ value }: { value: string }) {
+function TimeRange({ value, onChange }: { value: string; onChange?: (value: string) => void }) {
   const t = useT();
   const [selected, setSelected] = useState(value);
+  useEffect(() => setSelected(value), [value]);
   return (
     <>
       <input type="hidden" name="time_range" value={selected} />
       <Pick
         label={t("时间范围", "Time range")}
         value={selected}
-        onChange={setSelected}
+        onChange={(next) => { setSelected(next); onChange?.(next); }}
         options={[
           ["", t("全部时间", "All time")],
           ["today", t("今天", "Today")],
           ["yesterday", t("昨天", "Yesterday")],
+          ["this_week", t("本周", "This week")],
           ["last_7_days", t("最近 7 天", "Last 7 days")],
+          ["this_month", t("本月", "This month")],
           ["last_30_days", t("最近 30 天", "Last 30 days")],
         ]}
       />

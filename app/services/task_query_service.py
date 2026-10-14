@@ -21,7 +21,7 @@ CONVERSION_EVENT_TYPES = frozenset({
     "checkout_started",
     "checkout_completed",
 })
-TIME_RANGE_VALUES = frozenset({"today", "yesterday", "last_7_days", "last_30_days"})
+TIME_RANGE_VALUES = frozenset({"today", "yesterday", "this_week", "this_month", "last_7_days", "last_30_days"})
 ADMIN_METADATA_FILENAME = "admin_metadata.json"
 
 
@@ -62,6 +62,10 @@ def _matches_time_range(params: dict, time_range: str, display_timezone=None) ->
         return created_at.date() == today
     if time_range == "yesterday":
         return created_at.date() == today - timedelta(days=1)
+    if time_range in ("this_week", "this_month"):
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = start - timedelta(days=now.weekday()) if time_range == "this_week" else start.replace(day=1)
+        return start <= created_at <= now
     if time_range == "last_7_days":
         return created_at >= now - timedelta(days=7)
     if time_range == "last_30_days":
@@ -244,6 +248,11 @@ def _list_task_summaries_from_files(
         task_entries = filtered_entries
 
     total = len(task_entries)
+    statistics = dict(total=total, **{event: 0 for event in CONVERSION_EVENT_TYPES})
+    for entry in task_entries:
+        event_types = {event.get("event_type") for event in read_storefront_events(entry.path)}
+        for event in CONVERSION_EVENT_TYPES:
+            statistics[event] += int(event in event_types)
 
     if page_size is None:
         selected_entries = task_entries
@@ -278,6 +287,7 @@ def _list_task_summaries_from_files(
 
     return {
         "tasks": tasks,
+        "statistics": statistics,
         "total": total,
         "page": current_page,
         "page_size": normalized_page_size,

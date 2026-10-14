@@ -158,12 +158,19 @@ def select_tasks(page=None, page_size=None, client_ip_query=None, user_query=Non
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         if time_range == 'yesterday': start -= timedelta(days=1)
         clauses.append('created >= ? AND created < ?'); values.extend([start.timestamp(), (start + timedelta(days=1)).timestamp()])
+    elif time_range in ('this_week', 'this_month'):
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = start - timedelta(days=now.weekday()) if time_range == 'this_week' else start.replace(day=1)
+        clauses.append('created >= ? AND created <= ?'); values.extend([start.timestamp(), now.timestamp()])
     elif time_range in ('last_7_days', 'last_30_days'):
         clauses.append('created >= ?'); values.append((now - timedelta(days=7 if time_range == 'last_7_days' else 30)).timestamp())
     where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
     with database() as db:
         db.execute('BEGIN')
         total = db.execute('SELECT COUNT(*) FROM tasks' + where, values).fetchone()[0]
+        statistics = dict(db.execute('SELECT COUNT(*) AS total, ' + ', '.join(
+            f'COALESCE(SUM((conversions & {1 << i}) != 0), 0) AS {event}'
+            for i, event in enumerate(EVENTS)) + ' FROM tasks' + where, values).fetchone())
         size = max(10, min(int(page_size), 100)) if page_size is not None else total or 1
         pages = max(1, (total + size - 1) // size)
         current = max(1, min(int(page or 1), pages)) if page_size is not None else 1
@@ -172,7 +179,7 @@ def select_tasks(page=None, page_size=None, client_ip_query=None, user_query=Non
           COUNT(*) OVER (PARTITION BY ip) AS ip_total
           FROM tasks''' + where + ' ORDER BY created DESC, task_id DESC LIMIT ? OFFSET ?',
           [*values, size, (current - 1) * size]).fetchall()
-    return rows, dict(total=total, page=current, page_size=size, total_pages=pages,
+    return rows, dict(statistics=statistics, total=total, page=current, page_size=size, total_pages=pages,
                       has_previous=current > 1, has_next=current < pages)
 
 
