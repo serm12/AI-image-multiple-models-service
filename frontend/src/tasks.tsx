@@ -322,12 +322,27 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   };
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <section aria-label={t("任务列表", "Task list")} className="min-w-0 overflow-hidden rounded-2xl border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setFilters(!filters)}
+            aria-expanded={filters}
+            aria-controls="task-filters"
+          >
+            <SlidersHorizontal className="size-4" />
+            {t("筛选", "Filters")}
+            {active.length > 0 && (
+              <Badge variant="secondary">{active.length}</Badge>
+            )}
+          </Button>
         <span className="text-sm text-muted-foreground">
           {result.data
             ? `${result.data.total.toLocaleString()} ${t("条任务", "tasks")}`
             : t("正在查询", "Loading tasks")}
         </span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {selectedIds.length > 0 && !result.loading && (
             <>
@@ -362,21 +377,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             <Star className="size-4" />
             {t("收藏", "Starred")}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => setFilters(!filters)}
-            aria-expanded={filters}
-            aria-controls="task-filters"
-          >
-            <SlidersHorizontal className="size-4" />
-            {t("筛选", "Filters")}
-            {active.length > 0 && (
-              <Badge variant="secondary">{active.length}</Badge>
-            )}
-          </Button>
+
         </div>
       </div>
-      {inRecycleBin && <div className="mb-4 rounded-lg border bg-card px-4 py-3 text-sm">
+      {inRecycleBin && <div className="mx-4 mb-4 rounded-lg bg-muted/60 px-4 py-3 text-sm sm:mx-5">
         <span className="font-medium">{t("回收站", "Recycle bin")}</span>
         <span className="ml-2 text-muted-foreground">{t("保留 30 天，期间可恢复；到期后自动永久清理任务数据和图片，相关下载将失效。", "Kept for 30 days and restorable during this period. After expiry, task data and images are permanently removed and related downloads become unavailable.")}</span>
       </div>}
@@ -385,7 +389,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
         hidden={!filters}
         key={query}
         onSubmit={search}
-        className="mb-5 space-y-5 rounded-xl border bg-card p-5"
+        className="space-y-5 px-4 pb-5 pt-1 sm:px-5"
       >
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <div className="field">
@@ -474,7 +478,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
         )}
       </form>
       {active.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 px-4 pb-4 sm:px-5">
           {active.map(([key, value]) => (
             <Badge variant="secondary" key={key + value}>
               {(
@@ -517,12 +521,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       ) : (
         result.data && (
           <>
-            <div className="task-table-shell overflow-hidden rounded-xl border bg-card">
+            <div className="task-table-shell overflow-hidden border-t">
               <Table className="min-w-[1360px] table-fixed [&_td]:py-3 [&_td]:px-3">
                 <colgroup>
                   {[3, 3, 17, 10, 26, 8, 19, 14].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
-                <TableHeader className="sticky top-0 z-10 bg-neutral-50 shadow-[0_1px_0_var(--border)] [&_th]:px-3 [&_th]:text-xs [&_th]:text-muted-foreground">
+                <TableHeader className="sticky top-0 z-10 bg-muted shadow-[0_1px_0_var(--border)] [&_th]:px-3 [&_th]:text-xs [&_th]:text-muted-foreground">
                   <TableRow>
                     <TableHead className="w-10 text-center">
                       <Checkbox aria-label={t("全选当前页", "Select current page")}
@@ -764,7 +768,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                 </div>
               )}
             </div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-5">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {t("每页", "Rows per page")}
                 <div className="w-24">
@@ -834,6 +838,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           </>
         )
       )}
+      </section>
       <WorkspaceStatus timezones={timezones} />
       <Sheet
         open={!!detail}
