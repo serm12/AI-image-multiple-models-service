@@ -113,6 +113,12 @@ const stages = [
   "checkout_completed",
 ] as const;
 const stageIcons = [ShoppingCart, MousePointerClick, CreditCard, CircleCheck] as const;
+const stageColors = [
+  "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
+  "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+] as const;
 export function Tasks({ timezones }: { timezones: string[] }) {
   const t = useT();
   const [query, setQuery] = useState(() => taskQuery(location.search));
@@ -184,10 +190,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           return (
           <Badge
             key={stage}
-            variant={task[stage] ? "secondary" : "outline"}
+            variant="outline"
             className={
               task[stage]
-                ? "bg-emerald-50 text-emerald-800"
+                ? stageColors[i]
                 : "text-muted-foreground/65"
             }
             title={task.storefront_event_times?.[stage] || ""}
