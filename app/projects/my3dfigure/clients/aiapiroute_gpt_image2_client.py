@@ -17,7 +17,7 @@ from typing import Any, Optional
 import httpx
 
 from app.projects.my3dfigure.core.config import APIConfig
-from app.projects.my3dfigure.services.generation_errors import UpstreamGenerationError
+from app.projects.my3dfigure.services.generation.generation_errors import UpstreamGenerationError
 AIAPIROUTE_IMAGE_MAX_RATIO = 3
 
 

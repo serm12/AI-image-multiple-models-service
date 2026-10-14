@@ -21,14 +21,14 @@ from app.services.security import (
     get_request_country,
     require_admin_api_key,
 )
-from app.projects.my3dfigure.services.task_files import (
+from app.projects.my3dfigure.services.generation.task_files import (
     resolve_task_file_path,
     safe_upload_filename,
     save_validated_upload,
 )
-from app.projects.my3dfigure.services.task_storage import generate_task_dir, save_params, generate_output_filenames
+from app.projects.my3dfigure.services.generation.task_storage import generate_task_dir, save_params, generate_output_filenames
 from app.utils.time_utils import CHINA_TIMEZONE_NAME
-from app.projects.my3dfigure.services.upscale_service import (
+from app.projects.my3dfigure.services.generation.upscale_service import (
     upscale_image_with_replicate,
     download_upscaled_image,
     generate_upscale_filename,
@@ -40,13 +40,13 @@ from app.projects.my3dfigure.services.face_detection import (
     contains_human,
     get_usable_face_reference_boxes,
 )
-from app.projects.my3dfigure.services.generation_face_anchors import (
+from app.projects.my3dfigure.services.generation.generation_face_anchors import (
     create_face_identity_anchors,
     create_pet_face_identity_anchor,
 )
-from app.projects.my3dfigure.services.checked_source_rotation import prepare_checked_source_rotation
+from app.projects.my3dfigure.services.generation.checked_source_rotation import prepare_checked_source_rotation
 from app.projects.my3dfigure.services.pet_detection import contains_single_pet
-from app.projects.my3dfigure.services.direct_character_prompt_service import (
+from app.projects.my3dfigure.services.generation.direct_character_prompt_service import (
     build_my3d_connected_pair_prompt,
     choose_my3d_pair_contact_preference,
     build_my3d_direct_prompt,
@@ -59,7 +59,7 @@ from app.projects.my3dfigure.services.direct_character_prompt_service import (
 from app.projects.my3dfigure.core.i18n import get_message, normalize_locale
 
 # 异步组件导入
-from app.projects.my3dfigure.services.async_task_manager import task_manager, TaskStatus
+from app.projects.my3dfigure.services.generation.async_task_manager import task_manager, TaskStatus
 
 # 导入统一API客户端
 from app.projects.my3dfigure.clients.unified_api_client import api_client

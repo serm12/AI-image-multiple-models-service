@@ -14,9 +14,12 @@ from PIL import Image, ImageOps
 from app.projects.my3dfigure.core.config import project_getenv
 
 MODEL_DIRECTORY = Path(project_getenv(
-    "PET_FACE_MODEL_DIR", Path(__file__).resolve().parents[5] / "models/my3dfigure/pet_face"
+    "PET_FACE_MODEL_DIR", Path(__file__).resolve().parents[6] / "models/pet_detection/yolox_rtmpose/rtmpose"
 ))
-TEXT_FEATURE_DIRECTORY = MODEL_DIRECTORY / 'clip'
+CLIP_MODEL_DIRECTORY = Path(project_getenv(
+    "PET_CLIP_MODEL_DIR", Path(__file__).resolve().parents[6] / "models/pet_detection/clip"
+))
+TEXT_FEATURE_DIRECTORY = CLIP_MODEL_DIRECTORY
 _local = threading.local()
 _lock = threading.Lock()
 _visual = None
@@ -63,13 +66,14 @@ def _visual_models():
             if _visual is None:
                 import onnxruntime as ort
                 options = ort.SessionOptions()
-                options.intra_op_num_threads = 2
+                # Session-local threads only; never change process-wide thread settings.
+                options.intra_op_num_threads = 4
                 options.inter_op_num_threads = 1
                 features = np.load(TEXT_FEATURE_DIRECTORY / 'text-features-v4.npz', allow_pickle=False)['features']
                 labels = json.loads((TEXT_FEATURE_DIRECTORY / 'prompts-v4.json').read_text(encoding='utf8'))['labels']
                 if features.shape != (len(labels), 512) or not np.all(np.isfinite(features)):
                     raise RuntimeError('Invalid pet visibility text features')
-                session = ort.InferenceSession(str(MODEL_DIRECTORY / 'clip/vision_model_quantized.onnx'), sess_options=options, providers=['CPUExecutionProvider'])
+                session = ort.InferenceSession(str(CLIP_MODEL_DIRECTORY / 'vision_model_quantized.onnx'), sess_options=options, providers=['CPUExecutionProvider'])
                 _features, _labels, _visual = features, labels, session
     return _visual, _features, _labels
 
@@ -85,8 +89,11 @@ def _visual_evidence(crop, species):
     if not np.isfinite(norm) or norm <= 0:
         raise RuntimeError('Invalid pet visibility image embedding')
     similarities = features @ (vector / norm)
-    return {label: float(max(similarities[i] for i, item in enumerate(labels) if item == [species, label]))
-            for label in ('visible', 'occluded', 'back', 'fur', 'blur', 'nonpet', 'cut', 'dark', 'bright', 'motion')}
+    def scores_for(kind):
+        return {label: float(max(similarities[i] for i, item in enumerate(labels) if item == [kind, label]))
+                for label in ('visible', 'occluded', 'back', 'fur', 'blur', 'nonpet', 'cut', 'dark', 'bright', 'motion')}
+    return {kind: scores_for(kind) for kind in ('cat','dog')} if species is None else scores_for(species)
+
 
 
 def _decide(strength, evidence):
@@ -195,7 +202,8 @@ def analyze_pet_face(image, box, species):
         return {'usable': False, 'issues': [], 'nonpet': True, 'visual_similarities': evidence}
     ih, iw = image.shape[:2]
     at_frame = x <= iw*.015 or y <= ih*.015 or x+width >= iw*.985 or y+height >= ih*.985
-    if _facial_features_cut_by_frame(points, scores, box, image.shape):
+    boundary_cut = _facial_features_cut_by_frame(points, scores, box, image.shape)
+    if boundary_cut:
         issues.add('PET_INCOMPLETE')
     elif (x <= iw*.015 or x+width >= iw*.985 or y <= ih*.015) and strength < .75 and evidence['cut'] > evidence['visible'] + .003:
         issues.add('PET_INCOMPLETE')
@@ -212,15 +220,27 @@ def analyze_pet_face(image, box, species):
                 gray = cv2.cvtColor(core,cv2.COLOR_BGR2GRAY)
                 if float(np.mean(gray)) < 35: issues.add('PET_TOO_DARK')
                 elif float(np.mean(gray>245)) > .65: issues.add('PET_OVEREXPOSED')
-    if not issues and evidence['motion'] > max(evidence['visible']+.025,evidence['back']+.015,evidence['fur']+.01):
+    independent_motion = evidence['motion'] > max(evidence['visible']+.03, evidence['blur']+.025)
+    if (not issues or independent_motion) and evidence['motion'] > max(evidence['visible']+.025,evidence['back']+.015,evidence['fur']+.01):
         issues.add('PET_BLURRY')
-    if not issues and strength < 1.0 and evidence['fur'] > max(evidence['visible']+.015,evidence['motion']+.01):
+    if strength < 1.0 and evidence['fur'] > max(evidence['visible']+.015,evidence['motion']+.01):
         issues.add('PET_OCCLUDED')
-    if not issues and evidence['occluded'] >= .28 and evidence['occluded'] > max(evidence['visible']+.015,evidence['back']+.01,evidence['motion']+.01):
+    if evidence['occluded'] >= .28 and evidence['occluded'] > max(evidence['visible']+.015,evidence['back']+.01,evidence['motion']+.01):
         issues.add('PET_OCCLUDED')
+    exposure_recovered = False
+    reliable_face = min(scores) >= 1.0
+    # Dark fur can have low mean luminance while retaining a resolved face.
+    if reliable_face and 'PET_TOO_DARK' in issues:
+        anchor = _pet_face_anchor_box(points, scores, box, image.shape)
+        if anchor:
+            ax,ay,aw,ah = anchor
+            gray = cv2.cvtColor(image[ay:ay+ah,ax:ax+aw], cv2.COLOR_BGR2GRAY)
+            if np.percentile(gray,90) >= 50 and gray.std() >= 15:
+                issues.discard('PET_TOO_DARK')
+                exposure_recovered = True
     if issues:
-        return {'usable':False,'issues':sorted(issues),'landmark_strength':strength,'visual_similarities':evidence}
-    if at_frame:
+        return {'usable':False,'issues':sorted(issues),'independent_issues':sorted(issues - ({'PET_INCOMPLETE'} if not boundary_cut else set())), 'landmark_strength':strength,'visual_similarities':evidence}
+    if at_frame and not reliable_face:
         rejection = _border_visibility_rejection(evidence)
         if rejection is not None:
             return {'usable':False,'issues':[], 'landmark_strength':strength,'visual_similarities':evidence}
@@ -231,6 +251,8 @@ def analyze_pet_face(image, box, species):
             'landmark_strength': strength,
             'visual_similarities': evidence,
             'identity_anchor_box': _pet_face_anchor_box(points, scores, box, image.shape),
+            'reliable_face': reliable_face,
+            'exposure_recovered': exposure_recovered,
         }
     usable = strength >= .75 and evidence['visible'] > max(evidence['back']+.01,evidence['blur'],evidence['occluded'])
     # Rotation rescue requires strong measured facial landmarks and matching

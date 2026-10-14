@@ -38,11 +38,11 @@ MIN_FACE_SHARPNESS = 6.0
 YUNET_MODEL_PATH = Path(
     project_getenv(
         "FACE_DETECTION_YUNET_MODEL",
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[6]
         / "models"
-        / "my3dfigure"
-        / "face_detection_yunet"
-        / "face_detection_yunet_2026may.onnx",
+        / "face_detection"
+        / "yunet"
+        / "yunet_2026may.onnx",
     )
 )
 YUNET_SCORE_THRESHOLD = 0.82
@@ -77,9 +77,8 @@ _yunet_thread_local = threading.local()
 PET_CLASSIFIER_MODEL_PATH = Path(
     project_getenv(
         "FACE_DETECTION_PET_CLASSIFIER_MODEL",
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[6]
         / "models"
-        / "my3dfigure"
         / "image_classification"
         / "mobilenetv2-12.onnx",
     )

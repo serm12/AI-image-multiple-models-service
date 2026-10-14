@@ -1,3 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
 *.onnx binary
+models/pet_detection/keypoint-rcnn/keypoint-rcnn-v1.3.pt filter=lfs diff=lfs merge=lfs -text

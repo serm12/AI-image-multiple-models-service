@@ -15,7 +15,7 @@ import numpy as np
 from . import pipeline, localization
 _LOGGER = logging.getLogger(__name__)
 from app.projects.my3dfigure.core.i18n import get_double_face_error_message, get_message, get_single_face_error_message
-MODEL_PATH = Path(__file__).resolve().parents[5] / 'models' / 'my3dfigure' / 'blazeface_full_range' / 'blaze_face_full_range.tflite'
+MODEL_PATH = Path(__file__).resolve().parents[6] / 'models' / 'face_detection' / 'blazeface_full_range' / 'blaze_face_full_range.tflite'
 MODEL_SHA256 = '3698b18f063835bc609069ef052228fbe86d9c9a6dc8dcb7c7c2d69aed2b181b'
 _THREAD_LOCAL = threading.local()
 _TECHNICAL_CODES = frozenset({'IMAGE_READ_ERROR', 'FACE_DETECTION_FAILED'})

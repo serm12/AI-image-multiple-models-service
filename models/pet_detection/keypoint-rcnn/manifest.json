@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/MarQuisCheshire/Pets-Face-Recognition",
+  "commit": "0b88fe945968dea39a10084dfba22f8685bc9e9d",
+  "weights_version": "1.3",
+  "weights_record": "https://zenodo.org/records/6761880",
+  "weights_license": "CC-BY-4.0",
+  "source_license": "Apache-2.0",
+  "checkpoint_member": "to_reproduce/keypoint/epoch=14.ckpt",
+  "checkpoint_sha256": "44d38a5fd87da35d36f65e15803a6f2daa8b9ea2363fc2d12beb01acd53d8e81",
+  "state_dict_sha256": "951bb296929b040ea0d767bf0ebb8fbd645e9e9cb33466b046a0000db23ee132",
+  "torch": "2.14.1+cpu",
+  "torchvision": "0.29.1",
+  "architecture": "KeypointRCNN ResNet50 FPN FrozenBatchNorm2d; foreground pet head; 3 eye/nose keypoints",
+  "original_box_detections_per_img": 1,
+  "box_detections_per_img": "sys.maxsize (no final per-image truncation; RPN proposal limits preserved)",
+  "preprocess": "RGB float 0..1; official min_size tuple 320..400, max_size 640; inference short side 400"
+}

@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import Enum
 from app.projects.my3dfigure.core.config import AppConfig
 from app.utils.memory_utils import release_process_memory
-from app.projects.my3dfigure.services.generation_errors import get_upstream_message
+from app.projects.my3dfigure.services.generation.generation_errors import get_upstream_message
 
 class TaskStatus(str, Enum):
     """任务状态枚举"""

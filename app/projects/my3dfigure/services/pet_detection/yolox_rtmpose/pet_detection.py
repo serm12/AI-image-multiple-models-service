@@ -15,7 +15,7 @@ import numpy as np
 
 from app.projects.my3dfigure.core.config import project_getenv
 from app.projects.my3dfigure.core.i18n import get_message
-from .pet_face_visibility import analyze_pet_face
+from .pet_face_visibility import analyze_pet_face, _visual_evidence
 
 _logger = logging.getLogger(__name__)
 
@@ -28,11 +28,12 @@ except ImportError:  # pragma: no cover - runtime dependency guard
 PET_DETECTOR_MODEL_PATH = Path(
     project_getenv(
         "PET_DETECTION_YOLOX_MODEL",
-        Path(__file__).resolve().parents[5]
+        Path(__file__).resolve().parents[6]
         / "models"
-        / "my3dfigure"
-        / "object_detection_yolox"
-        / "object_detection_yolox_2022nov_int8.onnx",
+        / "pet_detection"
+        / "yolox_rtmpose"
+        / "yolox"
+        / "yolox_2022nov_int8.onnx",
     )
 )
 PET_DETECTION_INPUT_SIZE = (640, 640)
@@ -107,12 +108,17 @@ def _letterbox(image):
 
 def _detect_subjects(image, confidence: float = PET_DETECTION_CONFIDENCE) -> list[dict]:
     """Return NMS-deduplicated person/cat/dog boxes in original-image coordinates."""
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    padded, scale = _letterbox(rgb)
-    blob = np.transpose(padded, (2, 0, 1))[np.newaxis, :, :, :]
-    detector = _get_detector()
-    detector.setInput(blob)
-    outputs = detector.forward(detector.getUnconnectedOutLayersNames())[0]
+    cached = getattr(_pet_detector_thread_local, 'inference_cache', None)
+    if cached is not None and cached[0] is image:
+        outputs, scale = cached[1:]
+    else:
+        # Resize before channel swapping; each color plane keeps identical pixels.
+        padded, scale = _letterbox(image)
+        blob = cv2.dnn.blobFromImage(padded, swapRB=True)
+        detector = _get_detector()
+        detector.setInput(blob)
+        outputs = detector.forward(detector.getUnconnectedOutLayersNames())[0]
+        _pet_detector_thread_local.inference_cache = (image, outputs, scale)
     detections = outputs[0].astype(np.float32, copy=True)
     if detections.ndim != 2 or detections.shape[1] <= COCO_DOG_CLASS_ID + 5:
         raise RuntimeError("pet detector returned an unexpected output shape")
@@ -316,6 +322,35 @@ def _recover_clear_companion_pet(image, pets):
     return recovered
 
 
+def _combine_quality(quality, face):
+    """Keep independently established causes, without treating dark fur as exposure loss."""
+    quality = set(quality)
+    if face.get('usable') and face.get('reliable_face') and 'PET_TOO_DARK' not in face['issues']:
+        quality.discard('PET_TOO_DARK')
+    face_issues = set(face['issues'])
+    if quality & {'PET_TOO_DARK','PET_OVEREXPOSED','PET_TOO_SMALL'}:
+        # Edge guesses from lost detail are not independent cropping evidence.
+        if 'PET_INCOMPLETE' not in face.get('independent_issues', []):
+            face_issues.discard('PET_INCOMPLETE')
+    return quality | face_issues
+
+
+def _confirm_species(image, pet):
+    anchor = pet.get('face_analysis', {}).get('identity_anchor_box')
+    if not pet['usable'] or not anchor:
+        return
+    x,y,w,h = anchor
+    crop = image[y:y+h,x:x+w]
+    if crop.size == 0:
+        return
+    evidence = _visual_evidence(crop, None)
+    cat, dog = evidence['cat']['visible'], evidence['dog']['visible']
+    alternate = 'cat' if pet['species'] == 'dog' else 'dog'
+    margin = cat-dog if alternate == 'cat' else dog-cat
+    if margin > .035:
+        pet['species'] = alternate
+
+
 def _contains_single_pet(image_path: str, locale: str | None = None) -> dict:
     """Validate exactly one clear cat or dog without invoking YuNet."""
     if cv2 is None:
@@ -328,11 +363,12 @@ def _contains_single_pet(image_path: str, locale: str | None = None) -> dict:
         return {"valid": False, "code": "IMAGE_READ_ERROR", "message": get_message("IMAGE_READ_ERROR", locale)}
     subjects = _remove_person_duplicate_pets(_detect_subjects(image))
     pets = [subject for subject in subjects if subject["species"] in {"cat", "dog"}]
+    # Reuse the source inference before a brightened view replaces the cache.
+    weak_subjects = _remove_person_duplicate_pets(_detect_subjects(image, PET_WEAK_DETECTION_CONFIDENCE))
+    weak_pets = [p for p in weak_subjects if p['species'] in {'cat','dog'}]
     if not pets and float(np.mean(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY))) < PET_DARK_MEAN:
         subjects = _remove_person_duplicate_pets(_detect_subjects(_brighten_low_light(image)))
         pets = [subject for subject in subjects if subject["species"] in {"cat", "dog"}]
-    weak_subjects = _remove_person_duplicate_pets(_detect_subjects(image, PET_WEAK_DETECTION_CONFIDENCE))
-    weak_pets = [p for p in weak_subjects if p['species'] in {'cat','dog'}]
     pets = _recover_local_pet_candidates(image, pets, weak_pets)
     if not pets and not weak_pets and not subjects:
         # A bounded finer scan may identify a distant animal, but cannot
@@ -367,32 +403,30 @@ def _contains_single_pet(image_path: str, locale: str | None = None) -> dict:
         if pet.get('diagnostic_only') and pet['score'] < PET_DETECTION_CONFIDENCE and ev and ev['visible'] < ev['nonpet'] + .02:
             continue
         quality = set(_pet_quality_issues(image, pet['box']))
-        face_issues = set(face['issues'])
         # Exposure and tiny size can erase texture; avoid naming the same
         # detail loss a second independent blur cause for this animal.
-        if quality:
-            face_issues.clear()
-        quality.update(face_issues)
+        quality = _combine_quality(quality, face)
         if pet.get('diagnostic_only') and not quality:
             face = {**face,'usable':False}
         analyzed.append({**pet, "quality_issues": sorted(quality),
                          "usable": not quality and face is not None and face["usable"],
                          "face_analysis": face})
     usable = [pet for pet in analyzed if pet["usable"]]
-    if not usable and analyzed and all(pet["face_analysis"].get("visual_similarities") for pet in analyzed):
+    if (not usable or any(p['face_analysis'].get('exposure_recovered') for p in analyzed)) and analyzed and all(pet["face_analysis"].get("visual_similarities") for pet in analyzed):
         for pet in _recover_clear_companion_pet(image, unique):
             face = analyze_pet_face(image, pet["box"], pet["species"])
             if face.get("nonpet"):
                 continue
             quality = set(_pet_quality_issues(image, pet["box"]))
             face_issues = set(face["issues"])
-            if quality:
-                face_issues.clear()
-            quality.update(face_issues)
+            quality = _combine_quality(quality, face)
             analyzed.append({**pet, "quality_issues": sorted(quality),
                              "usable": not quality and face["usable"],
                              "face_analysis": face})
         usable = [pet for pet in analyzed if pet["usable"]]
+    for pet in analyzed:
+        pet['reason_unclear'] = not pet['usable'] and not pet['quality_issues']
+        _confirm_species(image, pet)
     issues = sorted({issue for pet in analyzed for issue in pet["quality_issues"]})
     count = len(usable)
     result = {"valid": count == 1, "pet_count": count,
@@ -415,9 +449,12 @@ def _contains_single_pet(image_path: str, locale: str | None = None) -> dict:
 
 def contains_single_pet(image_path: str, locale: str | None = None) -> dict:
     """Keep model/read failures separate from a completed zero-pet result."""
+    _pet_detector_thread_local.inference_cache = None
     try:
         return _contains_single_pet(image_path, locale)
     except Exception:
         _logger.exception("My3dFigure pet validation failed")
         return {"valid": False, "code": "PET_DETECTION_FAILED",
                 "message": get_message("PET_DETECTION_FAILED", locale)}
+    finally:
+        _pet_detector_thread_local.inference_cache = None
