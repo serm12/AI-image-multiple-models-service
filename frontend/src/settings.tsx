@@ -47,7 +47,7 @@ export function Settings() {
       >
         <TabsList className="mb-6 h-auto! max-w-full flex-wrap justify-start gap-1">
           {items.map(([key, label, Icon]) => (
-            <TabsTrigger className="h-auto flex-none gap-2 px-4 py-1.5" key={key} value={key}>
+            <TabsTrigger className="h-auto flex-none gap-2 px-4 py-1.5 data-active:bg-card data-active:text-foreground data-active:shadow-xs" key={key} value={key}>
               <Icon className="size-4" />
               {label}
             </TabsTrigger>
