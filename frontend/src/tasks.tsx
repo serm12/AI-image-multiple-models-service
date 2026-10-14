@@ -53,6 +53,7 @@ import {
 } from "@/lib/admin";
 import { taskQuery } from "@/lib/task-query";
 import { TaskStatusBadge } from "@/components/task-status-badge";
+import { SourceInfo } from "@/components/source-info";
 type Image = {
   url: string;
   thumbnail: string;
@@ -75,6 +76,7 @@ type Task = {
   source_product_title: string;
   source_page_title: string;
   source_page_url: string;
+  request_url: string;
   traffic_source: string;
   traffic_referrer: string;
   utm_source: string;
@@ -228,8 +230,6 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     subscribed: t("已订阅", "Subscribed"),
     preserved: t("保留原订阅状态", "Subscription preserved"),
   };
-  const paid = (task: Task) =>
-    /cpc|ppc|paid|ads/i.test(task.utm_medium + " " + task.traffic_source);
   return (
     <>
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
@@ -596,31 +596,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           <CountryBadge country={task.client_country} />
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-52 align-top whitespace-normal">
-                        <a
-                          className="line-clamp-2 text-xs text-primary hover:underline"
-                          href={safeUrl(task.source_page_url)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {task.source_product_title ||
-                            task.source_page_title ||
-                            task.source_page_url ||
-                            "—"}
-                        </a>
-                        <p className="mt-2 text-xs">
-                          {task.traffic_source || t("直接访问", "Direct")}
-                          {paid(task) && (
-                            <Badge className="ml-1" variant="secondary">
-                              {t("付费", "Paid")}
-                            </Badge>
-                          )}
-                        </p>
-                        <p className="table-detail break-all">
-                          {[task.utm_source, task.utm_medium, task.utm_campaign]
-                            .filter(Boolean)
-                            .join(" · ") || task.traffic_referrer}
-                        </p>
+                      <TableCell className="w-80 min-w-64 max-w-80 align-top whitespace-normal">
+                        <SourceInfo task={task} />
                       </TableCell>
                       <TableCell className="min-w-40 align-top">
                         {Object.entries(task.display_times).map(
