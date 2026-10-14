@@ -164,3 +164,29 @@ def _write_r2_mapping(task_dir: Path, mapping: dict[str, str]) -> None:
     with temporary_path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, ensure_ascii=False, indent=2)
     os.replace(temporary_path, metadata_path)
+
+
+def delete_task_images(task_id, task_dir, *, config=None, s3_client=None):
+    """Delete only the exact task prefix; keep the recycle marker on any failure."""
+    import re
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,159}', task_id):
+        raise ValueError('invalid_task_id')
+    config = config or R2StorageConfig.from_env()
+    if not config.is_configured:
+        if read_r2_mapping(task_dir): raise RuntimeError('r2_configuration_required')
+        return
+    prefix = posixpath.join(config.prefix, task_id) + '/'
+    if s3_client is None:
+        import boto3
+        from botocore.config import Config
+        s3_client = boto3.client('s3', endpoint_url=config.endpoint_url,
+            aws_access_key_id=config.access_key_id, aws_secret_access_key=config.secret_access_key,
+            region_name='auto', config=Config(connect_timeout=10, read_timeout=30, retries={'max_attempts': 2}))
+    paginator = s3_client.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=config.bucket, Prefix=prefix):
+        keys = [item['Key'] for item in page.get('Contents', [])]
+        if any(not key.startswith(prefix) for key in keys): raise RuntimeError('unexpected_r2_key')
+        for start in range(0, len(keys), 1000):
+            response = s3_client.delete_objects(Bucket=config.bucket,
+                Delete={'Objects': [{'Key': key} for key in keys[start:start+1000]], 'Quiet': True})
+            if response.get('Errors'): raise RuntimeError('r2_delete_failed')

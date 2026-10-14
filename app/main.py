@@ -52,9 +52,13 @@ async def app_lifespan(app: FastAPI):
     customer_sync_task = asyncio.create_task(worker())
     from app.services.task_list_index import worker as index_worker
     task_index_worker = asyncio.create_task(index_worker())
+    from app.services.task_recycle_bin import worker as recycle_worker
+    task_recycle_worker = asyncio.create_task(recycle_worker())
     try:
         yield
     finally:
+        task_recycle_worker.cancel()
+        await task_recycle_worker
         task_index_worker.cancel()
         await task_index_worker
         cleanup_task.cancel()

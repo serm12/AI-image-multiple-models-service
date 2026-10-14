@@ -35,6 +35,8 @@ def database():
         CREATE INDEX IF NOT EXISTS task_provider ON tasks(provider);
         CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY, value TEXT);
         ''')
+        if 'trashed_at' not in {row[1] for row in db.execute('PRAGMA table_info(tasks)')}:
+            db.execute("ALTER TABLE tasks ADD COLUMN trashed_at TEXT NOT NULL DEFAULT ''")
         yield db
         db.commit()
     finally:
@@ -49,6 +51,12 @@ def fingerprint(folder):
             values.append((stat.st_mtime_ns, stat.st_size))
         except FileNotFoundError:
             values.append(None)
+    from app.services.task_recycle_bin import marker_path
+    try:
+        stat = marker_path(folder.name).stat()
+        values.append((stat.st_mtime_ns, stat.st_size))
+    except FileNotFoundError:
+        values.append(None)
     return json.dumps(values)
 
 
@@ -81,10 +89,12 @@ def upsert(db, folder):
     # A concurrent file rewrite must not mark partially read data as current.
     if stamp != fingerprint(folder):
         return
-    db.execute('INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?)', (
+    from app.services.task_recycle_bin import metadata as recycle_metadata
+    trashed_at = recycle_metadata(folder.name).get('trashed_at', '')
+    db.execute('INSERT OR REPLACE INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?)', (
         folder.name, folder.name.casefold(), created.timestamp() if created else None,
         ip, ip.casefold(), '\n'.join(user_values), str(params.get('api_provider') or '').casefold(),
-        int(bool(metadata.get('starred'))), sum(1 << i for i, event in enumerate(EVENTS) if event in event_types), stamp))
+        int(bool(metadata.get('starred'))), sum(1 << i for i, event in enumerate(EVENTS) if event in event_types), stamp, trashed_at))
 
 
 def refresh_task(task_dir):
@@ -128,11 +138,11 @@ def ensure_ready():
 
 def select_tasks(page=None, page_size=None, client_ip_query=None, user_query=None,
                  task_id_query=None, provider_query=None, conversion_statuses=None,
-                 time_range=None, starred_only=False):
+                 time_range=None, starred_only=False, recycle_bin=False):
     from app.services.time_settings import effective_timezone
     from app.services.task_query_service import now_china
     ensure_ready()
-    clauses, values = [], []
+    clauses, values = ["trashed_at != ''" if recycle_bin else "trashed_at = ''"], []
     for column, value in [('ip_search', client_ip_query), ('user_search', user_query), ('task_search', task_id_query), ('provider', provider_query)]:
         value = str(value or '').strip().casefold()
         if value:

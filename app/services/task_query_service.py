@@ -144,6 +144,7 @@ def _list_task_summaries_from_files(
     conversion_statuses: list[str] | None = None,
     time_range: str | None = None,
     starred_only: bool = False,
+    recycle_bin: bool = False,
 ) -> dict:
     """Return compact task summaries, optionally filtered and paginated."""
     tasks = []
@@ -155,10 +156,12 @@ def _list_task_summaries_from_files(
             task_entries = [
                 entry
                 for entry in entries
-                if entry.is_dir()
+                if not entry.name.startswith(".") and not entry.is_symlink() and entry.is_dir()
                 and os.path.isfile(os.path.join(entry.path, "params.json"))
             ]
 
+    from app.services.task_recycle_bin import metadata as recycle_metadata
+    task_entries = [entry for entry in task_entries if bool(recycle_metadata(entry.name).get('trashed_at')) == recycle_bin]
     normalized_ip_query = str(client_ip_query or "").strip().casefold()
     normalized_user_query = str(user_query or "").strip().casefold()
     normalized_task_id_query = str(task_id_query or "").strip().casefold()
@@ -399,6 +402,8 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
         task_id = entry.name
         task_dir = entry.path
         filenames = os.listdir(task_dir)
+        from app.services.task_recycle_bin import metadata as recycle_metadata
+        recycle = recycle_metadata(task_id)
 
         params = selected_params.get(task_id, {})
         source_task_id = str(params.get("source_task_id") or "").strip()
@@ -418,6 +423,9 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
                 "task_id": task_id,
                 "customer_sync": customer_sync.get(task_id, {}),
                 "starred": is_task_starred(task_dir),
+                "trashed_at": recycle.get('trashed_at', ''),
+                "purge_after": recycle.get('purge_after', ''),
+                "cleanup_started": bool(recycle.get('cleanup_started_at')),
                 "description": params.get("description", ""),
                 "created_at": params.get("time", ""),
                 "time_zone": params.get("time_zone", "UTC"),
@@ -472,14 +480,14 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
 
 def list_task_summaries(page=None, page_size=None, client_ip_query=None, user_query=None,
                         task_id_query=None, provider_query=None, conversion_statuses=None,
-                        time_range=None, starred_only=False):
+                        time_range=None, starred_only=False, recycle_bin=False):
     from app.services.task_list_index import select_tasks
     from app.services.shopify_customers import summaries
     from types import SimpleNamespace
     import sqlite3
     arguments = dict(page=page, page_size=page_size, client_ip_query=client_ip_query,
                      user_query=user_query, task_id_query=task_id_query, provider_query=provider_query,
-                     conversion_statuses=conversion_statuses, time_range=time_range, starred_only=starred_only)
+                     conversion_statuses=conversion_statuses, time_range=time_range, starred_only=starred_only, recycle_bin=recycle_bin)
     try:
         rows, pagination = select_tasks(**arguments)
     except (sqlite3.Error, OSError):

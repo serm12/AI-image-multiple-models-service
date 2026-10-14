@@ -14,6 +14,9 @@ import {
   CreditCard,
   CircleCheck,
   Timer,
+  Trash2,
+  Loader2,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Sheet,
@@ -66,6 +70,9 @@ type Task = {
   task_id: string;
   status: string;
   starred: boolean;
+  trashed_at: string;
+  purge_after: string;
+  cleanup_started: boolean;
   images: Image[];
   display_times: Record<string, string>;
   api_provider: string;
@@ -133,6 +140,69 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   const [gallery, setGallery] = useState<{ images: Image[]; index: number }>();
   const [filters, setFilters] = useState(false);
   const [busy, setBusy] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [deleteTargets, setDeleteTargets] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [selectionAction, setSelectionAction] = useState<"trash" | "restore">("trash");
+  const inRecycleBin = new URLSearchParams(query).get("recycle_bin") === "true";
+  const deleteLock = useRef(false);
+  const cancelDelete = useRef<HTMLButtonElement>(null);
+  const visibleIds = result.data?.tasks.filter((task) => !task.cleanup_started).map((task) => task.task_id) || [];
+  const selectedIds = selected.filter((id) => visibleIds.includes(id));
+  const allSelected = visibleIds.length > 0 && selectedIds.length === visibleIds.length;
+  useEffect(() => { setSelected([]); }, [query]);
+  useEffect(() => {
+    setSelected((current) => current.filter((id) => result.data?.tasks.some((task) => task.task_id === id)));
+  }, [result.data]);
+  function selectTask(id: string, checked: boolean) {
+    setSelected((current) => checked ? [...new Set([...current, id])] : current.filter((item) => item !== id));
+  }
+  async function deleteSelected() {
+    if (deleteLock.current || !deleteTargets.length) return;
+    deleteLock.current = true;
+    setDeleting(true);
+    setDeleteError("");
+    const startedQuery = query;
+    try {
+      const saved = await post<{ deleted: string[]; failed: { task_id: string; reason: string }[] }>(
+        "/admin/api/tasks/" + (selectionAction === "restore" ? "restore" : "delete"), { task_ids: deleteTargets, confirmed: true },
+      );
+      const removed = new Set(saved.deleted);
+      setSelected((current) => current.filter((id) => !removed.has(id)));
+      if (queryRef.current === startedQuery) result.setData((current) => current ? {
+        ...current, tasks: current.tasks.filter((task) => !removed.has(task.task_id)),
+        total: Math.max(0, current.total - saved.deleted.length),
+      } : current);
+      if (detail && removed.has(detail.task_id)) setDetail(undefined);
+      if (saved.deleted.length) toast.success(selectionAction === "restore"
+        ? t(`已恢复 ${saved.deleted.length} 条任务`, `Restored ${saved.deleted.length} tasks`)
+        : t(`已将 ${saved.deleted.length} 条任务移入回收站`, `Moved ${saved.deleted.length} tasks to the recycle bin`));
+      if (saved.failed.length) {
+        setDeleteTargets(saved.failed.map((item) => item.task_id));
+        const reasons: Record<string, string> = {
+          task_running: t("任务仍在处理中", "Task is still processing"),
+          task_not_found: t("任务不存在或已清理", "Task no longer exists"),
+          cleanup_in_progress: t("已开始永久清理，无法恢复", "Permanent cleanup has started; cannot restore"),
+          storage_error: t("存储暂不可用，请重试", "Storage unavailable; please retry"),
+        };
+        setDeleteError(saved.failed.map((item) => `${item.task_id}: ${reasons[item.reason] || t("操作失败，请重试", "Operation failed; please retry")}`).join("\n"));
+      } else {
+        setDeleteTargets([]);
+      }
+      try {
+        const refreshed = await api<Result>("/admin/api/tasks" + startedQuery);
+        if (queryRef.current === startedQuery) result.setData(refreshed);
+      } catch {
+        toast.error(t("操作已保存，列表更新失败，请点击刷新。", "Changes saved. Could not refresh the list; please refresh."));
+      }
+    } catch (error) {
+      setDeleteError((error as Error).message);
+    } finally {
+      deleteLock.current = false;
+      setDeleting(false);
+    }
+  }
   const labels = [
     t("加入购物车", "Added to cart"),
     t("结账意向", "Checkout intent"),
@@ -203,7 +273,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   }
   const params = new URLSearchParams(query);
   const active = [...params.entries()].filter(
-    ([key, value]) => !["page", "page_size"].includes(key) && value,
+    ([key, value]) => !["page", "page_size", "recycle_bin"].includes(key) && value,
   );
   function funnel(task: Task) {
     return (
@@ -259,7 +329,20 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             ? `${result.data.total.toLocaleString()} ${t("条任务", "tasks")}`
             : t("正在查询", "Loading tasks")}
         </span>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedIds.length > 0 && !result.loading && (
+            <>
+              <span className="mr-1 text-sm text-muted-foreground">{t(`已选 ${selectedIds.length} 条`, `${selectedIds.length} selected`)}</span>
+              <Button variant="ghost" disabled={deleting} onClick={() => setSelected([])}>{t("取消选择", "Clear selection")}</Button>
+              <Button variant={inRecycleBin ? "default" : "destructive"} disabled={deleting} onClick={() => { setSelectionAction(inRecycleBin ? "restore" : "trash"); setDeleteError(""); setDeleteTargets([...selectedIds]); }}>
+                {inRecycleBin ? <RotateCcw className="size-4" /> : <Trash2 className="size-4" />}{inRecycleBin ? t("恢复所选", "Restore selected") : t("删除所选", "Delete selected")}
+              </Button>
+            </>
+          )}
+        <Button variant={inRecycleBin ? "secondary" : "outline"} disabled={deleting} onClick={() => change("recycle_bin", inRecycleBin ? "" : "true")}>
+          {inRecycleBin ? <ChevronLeft className="size-4" /> : <Trash2 className="size-4" />}
+          {inRecycleBin ? t("返回任务", "Back to tasks") : t("回收站", "Recycle bin")}
+        </Button>
         <Button
           variant="outline"
           onClick={result.reload}
@@ -294,6 +377,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           </Button>
         </div>
       </div>
+      {inRecycleBin && <div className="mb-4 rounded-lg border bg-card px-4 py-3 text-sm">
+        <span className="font-medium">{t("回收站", "Recycle bin")}</span>
+        <span className="ml-2 text-muted-foreground">{t("保留 30 天，期间可恢复；到期后自动永久清理任务数据和图片，相关下载将失效。", "Kept for 30 days and restorable during this period. After expiry, task data and images are permanently removed and related downloads become unavailable.")}</span>
+      </div>}
       <form
         id="task-filters"
         hidden={!filters}
@@ -375,13 +462,14 @@ export function Tasks({ timezones }: { timezones: string[] }) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => update(new URLSearchParams())}
+                onClick={() => update(new URLSearchParams(inRecycleBin ? "recycle_bin=true" : ""))}
               >
                 {t("清除", "Clear")}
               </Button>
             )}
           </div>
 
+        {inRecycleBin && <input type="hidden" name="recycle_bin" value="true" />}
         {params.get("starred") === "true" && (
           <input type="hidden" name="starred" value="true" />
         )}
@@ -433,10 +521,16 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             <div className="task-table-shell overflow-hidden rounded-xl border bg-card">
               <Table className="min-w-[1360px] table-fixed [&_td]:py-3 [&_td]:px-3">
                 <colgroup>
-                  {[3, 17, 10, 28, 8, 20, 14].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+                  {[3, 3, 17, 10, 26, 8, 19, 14].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
                 <TableHeader className="sticky top-0 z-10 bg-neutral-50 shadow-[0_1px_0_var(--border)] [&_th]:px-3 [&_th]:text-xs [&_th]:text-muted-foreground">
                   <TableRow>
+                    <TableHead className="w-10 text-center">
+                      <Checkbox aria-label={t("全选当前页", "Select current page")}
+                        disabled={!visibleIds.length || deleting}
+                        checked={allSelected ? true : selectedIds.length > 0 ? "indeterminate" : false}
+                        onCheckedChange={(checked) => setSelected(checked === true ? visibleIds : [])} />
+                    </TableHead>
                     <TableHead className="w-10">
                       <span className="sr-only">{t("收藏", "Star")}</span>
                     </TableHead>
@@ -454,7 +548,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                 </TableHeader>
                 <TableBody>
                   {result.data.tasks.map((task) => (
-                    <TableRow key={task.task_id} className="hover:bg-muted/40">
+                    <TableRow key={task.task_id} data-state={selectedIds.includes(task.task_id) ? "selected" : undefined} className="hover:bg-muted/40">
+                      <TableCell className="align-top text-center">
+                        <Checkbox className="mt-2" aria-label={t("选择任务", "Select task") + " " + task.task_id}
+                          checked={selectedIds.includes(task.task_id)} disabled={deleting || task.cleanup_started}
+                          onCheckedChange={(checked) => selectTask(task.task_id, checked === true)} />
+                      </TableCell>
                       <TableCell className="align-top">
                         <Button
                           variant="ghost"
@@ -480,6 +579,9 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         </Button>
                       </TableCell>
                       <TableCell className="align-top">
+                        {task.purge_after && <Badge variant="secondary" className="mb-2" title={new Date(task.purge_after).toLocaleString()}>
+                          <Timer className="size-3" />{task.cleanup_started ? t("正在清理 / 等待重试", "Cleanup pending") : t(`清理日期：${new Date(task.purge_after).toLocaleDateString()}`, `Cleanup: ${new Date(task.purge_after).toLocaleDateString()}`)}
+                        </Badge>}
                         <div className="flex gap-1.5 overflow-x-auto pb-2">
                           {task.images.length ? (
                             task.images.map((image, index) => (
@@ -660,10 +762,10 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                 <div className="px-5 py-16 text-center">
                   <ImageOff className="mx-auto mb-4 size-8 text-muted-foreground" />
                   <p className="font-medium">
-                    {t("没有匹配的任务", "No matching tasks")}
+                    {inRecycleBin && active.length === 0 ? t("回收站为空", "Recycle bin is empty") : t("没有匹配的任务", "No matching tasks")}
                   </p>
                   <p className="page-description">
-                    {t(
+                    {inRecycleBin ? t("移入回收站的任务会在这里显示，保留 30 天。", "Recycled tasks appear here and are kept for 30 days.") : t(
                       "调整筛选条件，或等待新的图片生成任务。",
                       "Adjust your filters or wait for a new image task.",
                     )}
@@ -792,6 +894,29 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           )}
         </SheetContent>
       </Sheet>
+      <Dialog open={deleteTargets.length > 0} onOpenChange={(open) => { if (!open && !deleting) { setDeleteTargets([]); setDeleteError(""); } }}>
+        <DialogContent showCloseButton={!deleting} onOpenAutoFocus={(event) => { event.preventDefault(); cancelDelete.current?.focus(); }}
+          onEscapeKeyDown={(event) => { if (deleting) event.preventDefault(); }}
+          onPointerDownOutside={(event) => { if (deleting) event.preventDefault(); }}>
+          <DialogHeader>
+            <DialogTitle>{selectionAction === "restore" ? t(`恢复 ${deleteTargets.length} 条任务？`, `Restore ${deleteTargets.length} tasks?`) : t(`将 ${deleteTargets.length} 条任务移入回收站？`, `Move ${deleteTargets.length} tasks to the recycle bin?`)}</DialogTitle>
+            <DialogDescription>{selectionAction === "restore"
+              ? t("所选任务将回到任务列表，保留图片、收藏和关联信息。", "Selected tasks return to the task list with their images, stars and links preserved.")
+              : t("保留 30 天，期间可在回收站恢复。到期后自动永久删除任务数据和图片，相关图片链接及订单原图下载可能失效。不会删除 Shopify 订单。", "Kept for 30 days and restorable from the recycle bin. After expiry, task data and images are permanently deleted; image links and order artwork downloads may stop working. Shopify orders are not deleted.")}</DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-36 space-y-1 overflow-auto rounded-md bg-muted p-3 text-xs text-muted-foreground">
+            {deleteTargets.map((id) => <li key={id} className="break-all">{id}</li>)}
+          </ul>
+          {deleteError && <p role="alert" className="whitespace-pre-wrap break-words text-sm text-destructive">{deleteError}</p>}
+          <DialogFooter>
+            <Button ref={cancelDelete} variant="outline" disabled={deleting} onClick={() => setDeleteTargets([])}>{t("取消", "Cancel")}</Button>
+            <Button variant={selectionAction === "restore" ? "default" : "destructive"} disabled={deleting} onClick={deleteSelected}>
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {deleting ? t("正在处理…", "Processing…") : selectionAction === "restore" ? t("确认恢复", "Confirm restore") : t("移入回收站", "Move to recycle bin")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={!!gallery}
         onOpenChange={(open) => {

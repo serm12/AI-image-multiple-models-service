@@ -1,7 +1,7 @@
 // Shopify launch and authentication parameters are not task filters.
 const filterKeys = new Set([
   "task_id", "user", "provider", "client_ip", "time_range", "starred",
-  "conversion_status", "page", "page_size",
+  "conversion_status", "page", "page_size", "recycle_bin",
 ]);
 export function taskQuery(search: string): string {
   const clean = new URLSearchParams();
