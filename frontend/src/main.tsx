@@ -8,6 +8,8 @@ import {
   Settings2,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -181,6 +183,7 @@ function Shell({
 }) {
   const t = useT();
   const embedded = session.shopify_embedded && window.self !== window.top;
+  const [collapsed, setCollapsed] = useState(false);
   const nav = [
     {
       path: "/admin/tasks",
@@ -195,13 +198,13 @@ function Shell({
     { path: "/admin/config", name: t("系统设置", "Settings"), icon: Settings2 },
   ];
   const active = nav.find((item) => item.path === path) || nav[0];
-  const navigation = (
+  const navigation = (compact = false) => (
     <>
-      <div className="flex items-center gap-2.5 px-3 py-7 text-lg font-semibold">
-        <Images className="size-6 text-foreground" />
-        Paintingify
+      <div className="flex items-center gap-2.5 px-3 py-7 text-lg font-semibold" title={compact ? "Paintingify" : undefined}>
+        <Images className="size-6 shrink-0 text-foreground" />
+        {!compact && "Paintingify"}
       </div>
-      <div className="mb-4 px-3 text-xs text-muted-foreground">
+      <div className={compact ? "sr-only" : "mb-4 px-3 text-xs text-muted-foreground"}>
         {t("图片生成工作台", "Image generation workspace")}
       </div>
       <nav className="space-y-1">
@@ -209,6 +212,8 @@ function Shell({
           <a
             key={item.path}
             href={item.path}
+            title={compact ? item.name : undefined}
+            aria-label={compact ? item.name : undefined}
             aria-current={active.path === item.path ? "page" : undefined}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -222,14 +227,14 @@ function Shell({
                 : "text-sidebar-foreground hover:bg-sidebar-accent")
             }
           >
-            <item.icon className="size-4" />
-            {item.name}
+            <item.icon className="size-4 shrink-0" />
+            {!compact && item.name}
           </a>
         ))}
       </nav>
       <div className="mt-auto border-t px-3 pt-5 pb-4">
-        <p className="truncate text-sm font-medium">{session.username}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className={compact ? "sr-only" : "truncate text-sm font-medium"}>{session.username}</p>
+        <p className={compact ? "sr-only" : "mt-1 text-xs text-muted-foreground"}>
           v{session.version} · {session.release_date}
         </p>
         <form action="/admin/logout" method="post">
@@ -237,9 +242,11 @@ function Shell({
             variant="ghost"
             size="sm"
             className="mt-3 -ml-3 text-muted-foreground"
+            aria-label={t("退出登录", "Sign out")}
+            title={compact ? t("退出登录", "Sign out") : undefined}
           >
             <LogOut className="size-4" />
-            {t("退出登录", "Sign out")}
+            {!compact && t("退出登录", "Sign out")}
           </Button>
         </form>
       </div>
@@ -254,19 +261,33 @@ function Shell({
       }
     >
       {!embedded && (
-        <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col bg-sidebar px-4 lg:flex">
-          {navigation}
+        <aside id="desktop-navigation" className={"fixed inset-y-0 left-0 hidden flex-col bg-sidebar lg:flex " + (collapsed ? "w-16 px-2" : "w-56 px-4")}>
+          {navigation(collapsed)}
         </aside>
       )}
       <div
         className={
           embedded
             ? "min-h-svh bg-background"
-            : "min-h-svh bg-background lg:ml-56 lg:mr-2 lg:my-2 lg:min-h-[calc(100svh-1rem)] lg:rounded-xl lg:border lg:shadow-sm"
+            : "min-h-svh bg-background lg:border-l " + (collapsed ? "lg:ml-16" : "lg:ml-56")
         }
       >
-        <header className="flex h-12 items-center justify-between gap-4 rounded-t-[inherit] border-b bg-card px-4 lg:px-6">
+        <header className="flex h-12 items-center justify-between gap-4 border-b bg-card px-4 lg:px-6">
           <div className="flex items-center gap-3">
+            {!embedded && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden lg:inline-flex"
+                onClick={() => setCollapsed((value) => !value)}
+                aria-controls="desktop-navigation"
+                aria-expanded={!collapsed}
+                aria-label={collapsed ? t("展开导航", "Expand navigation") : t("收起导航", "Collapse navigation")}
+                title={collapsed ? t("展开导航", "Expand navigation") : t("收起导航", "Collapse navigation")}
+              >
+                {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+              </Button>
+            )}
             {!embedded && (
               <Sheet open={menu} onOpenChange={setMenu}>
                 <SheetTrigger asChild>
@@ -283,7 +304,7 @@ function Shell({
                   <SheetTitle className="sr-only">
                     {t("导航", "Navigation")}
                   </SheetTitle>
-                  {navigation}
+                  {navigation()}
                 </SheetContent>
               </Sheet>
             )}
