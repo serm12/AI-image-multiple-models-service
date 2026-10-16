@@ -73,7 +73,10 @@ def _get_detector():
         raise RuntimeError(f"pet detector model is missing: {PET_DETECTOR_MODEL_PATH}")
     detector = getattr(_pet_detector_thread_local, "detector", None)
     if detector is None:
-        detector = cv2.dnn.readNetFromONNX(str(PET_DETECTOR_MODEL_PATH))
+        # OpenCV's filename loader cannot handle Unicode paths on Windows.
+        detector = cv2.dnn.readNetFromONNX(
+            np.frombuffer(PET_DETECTOR_MODEL_PATH.read_bytes(), dtype=np.uint8)
+        )
         _pet_detector_thread_local.detector = detector
     return detector
 

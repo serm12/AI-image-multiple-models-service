@@ -29,7 +29,9 @@ _labels = None
 
 def _pose_net():
     if not hasattr(_local, 'pose'):
-        _local.pose = cv2.dnn.readNetFromONNX(str(MODEL_DIRECTORY / 'rtmpose-ap10k.onnx'))
+        # Read with pathlib so Windows Unicode model paths work as well.
+        model_bytes = (MODEL_DIRECTORY / 'rtmpose-ap10k.onnx').read_bytes()
+        _local.pose = cv2.dnn.readNetFromONNX(np.frombuffer(model_bytes, dtype=np.uint8))
     return _local.pose
 
 
