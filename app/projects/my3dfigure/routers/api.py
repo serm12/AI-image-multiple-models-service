@@ -51,6 +51,7 @@ from app.projects.my3dfigure.services.generation.direct_character_prompt_service
     choose_my3d_pair_contact_preference,
     build_my3d_direct_prompt,
     append_my3d_human_prompt_audits,
+    append_my3d_pet_prompt_audits,
     build_my3d_pet_prompt,
     MY3D_PROMPT_VERSION,
     MY3D_PAIR_PROMPT_VERSION,
@@ -563,11 +564,10 @@ async def _do_generation_work(
                 identity_anchor_paths = [pet_anchor_path]
                 request_images = [*input_image_paths, pet_anchor_path]
                 anchor_instructions = (
-                    "\nPET IDENTITY ANCHOR — ABSOLUTE: Image 1 is the complete validated upload and remains the "
-                    "source for pet identity, body, coat, markings and accessories. Source pose is subordinate to the upright-pet rule; source rotation, tilt, inversion and scenery must not transfer to the output. Image 2 is the face of the "
-                    f"one validated {pet_species} extracted from Image 1. Render exactly that one pet. Use Image 2 "
-                    "only to lock its facial identity, eye area, muzzle, ears and face markings, never its tilt or rotation. The final pet body and head must be right-side up, naturally supported under normal gravity, on a fully opaque pure-white (#FFFFFF) seamless background, never a transparent cutout. Never render any "
-                    "other animal, person, reflection or background subject visible only in Image 1."
+                    "\nPET IDENTITY ANCHOR — ABSOLUTE: Image 2 is the face of the "
+                    f"one validated {pet_species} extracted from Image 1. Use it for facial identity only, "
+                    "never pose, orientation, scale or background; Image 1 supplies the full source evidence. "
+                    "FINAL CHECK: Apply PRESERVE PET IDENTITY, ANATOMY, UPRIGHT PET, STUDIO OUTPUT and COMPOSITION."
                 )
             else:
                 # Request form values are serialized as strings. Normalize before
@@ -632,21 +632,15 @@ async def _do_generation_work(
                     params["identity_anchor_bindings"] = bindings
                 if params.get("figure_composition") == "connected_pair":
                     anchor_instructions = (
-                        f"\nPAIR IDENTITY ANCHORS — ABSOLUTE: Image 1 is the source for exactly two people's "
-                        f"identity, body ownership, visible clothing, belongings and contact relationship. Images 2 "
-                        f"through {expected_face_count + 1} are identity anchors only; use them for facial identity "
-                        f"and hairline, never for head angle, pose, body, clothes, objects, scene or background. "
-                        f"Render exactly two upright standing figures with straight torsos and heads upright over "
-                        f"their necks. Use a clean solid white seamless background; do not copy Image 1's environment. "
-                        f"No unmatched person from Image 1 may appear."
+                        f"\nPAIR IDENTITY ANCHORS — ABSOLUTE: Images 2 through {expected_face_count + 1} "
+                        "supply facial identity and hairline only, never head/body angle, pose, scale, clothes, "
+                        "objects or background. Apply SOURCE IDENTITY AND OWNERSHIP to Image 1 and follow each OWNER BINDING."
                     )
                 else:
                     anchor_instructions = (
-                        f"\nIDENTITY ANCHORS — ABSOLUTE: Image 1 is the source for the person's identity, body "
-                        f"ownership, visible clothing and belongings; do not copy its environment or background. "
-                        f"Images 2 through {expected_face_count + 1} are identity anchors only; use them for facial "
-                        f"identity and hairline, never for head angle, pose, clothes, objects or background. Render "
-                        f"one upright standing figure on a clean solid white seamless background."
+                        f"\nIDENTITY ANCHORS — ABSOLUTE: Images 2 through {expected_face_count + 1} "
+                        "supply facial identity and hairline only, never head/body angle, pose, scale, clothes, "
+                        "objects or background. Apply SOURCE IDENTITY AND OWNERSHIP to Image 1."
                     )
             if params.get("validation_mode") == "pet":
                 effective_prompt = build_my3d_pet_prompt()
@@ -676,12 +670,14 @@ async def _do_generation_work(
             if params.get("figure_composition") == "connected_pair":
                 for binding in params["identity_anchor_bindings"]:
                     cx, cy = binding["source_face_center_percent"]
-                    anchor_instructions += (f"\nOWNER BINDING: Output person {binding['person_id']} = Image {binding['reference_image']}; "
-                                            f"its face in Image 1 is centered at x={cx}% from left, y={cy}% from top. "
-                                            "Use ONLY the continuous body/clothes/hands attached to that exact face in its own panel, "
-                                            "never an adjacent, back-facing or faceless interaction partner. Preserve this anchored identity and gender presentation.")
+                    anchor_instructions += (
+                        f"\nOWNER BINDING: Output person {binding['person_id']} = Image {binding['reference_image']}; "
+                        f"its face in Image 1 is centered at x={cx}% from left, y={cy}% from top."
+                    )
             effective_prompt = f"{effective_prompt}{anchor_instructions}"
-            if params.get("validation_mode") != "pet":
+            if params.get("validation_mode") == "pet":
+                effective_prompt = append_my3d_pet_prompt_audits(effective_prompt)
+            else:
                 effective_prompt = append_my3d_human_prompt_audits(
                     effective_prompt,
                     connected_pair=params.get("figure_composition") == "connected_pair",
