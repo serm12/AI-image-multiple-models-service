@@ -186,7 +186,6 @@ function Shell({
   const embedded = session.shopify_embedded && window.self !== window.top;
   const [collapsed, setCollapsed] = useState(false);
   const nav = [
-    { path: "/admin/orders", name: t("订单管理", "Orders"), icon: ListFilter },
     {
       path: "/admin/tasks",
       name: t("任务记录", "Image tasks"),
@@ -197,9 +196,10 @@ function Shell({
       name: t("风格目录", "Style library"),
       icon: Palette,
     },
+    { path: "/admin/orders", name: t("订单管理", "Orders"), icon: ListFilter },
     { path: "/admin/config", name: t("系统设置", "Settings"), icon: Settings2 },
   ];
-  const active = nav.find((item) => item.path === path) || nav[1];
+  const active = nav.find((item) => item.path === path) || nav[0];
   const navigation = (compact = false) => (
     <>
       <div className="flex items-center gap-2.5 px-3 py-7 text-lg font-semibold" title={compact ? "Paintingify" : undefined}>
