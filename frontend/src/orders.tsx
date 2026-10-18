@@ -51,11 +51,11 @@ export function PrintfulSettings() {
   if (data.error) return <ErrorBox message={data.error} retry={data.reload}/>;
   if (!data.data) return <Loading/>;
   return <section className="max-w-2xl space-y-5 rounded-xl border bg-white p-6 shadow-sm">
-    <h2 className="text-lg font-semibold">Printful</h2>
+    <h2 className="text-lg font-semibold">{t('Printful Token 配置', 'Printful token settings')}</h2>
     <p className="text-sm text-muted-foreground">{t('使用 Private Token 连接自己的店铺。Printful 也支持面向第三方用户的 OAuth 应用。', 'Use a Private Token for your own store. Printful also supports OAuth apps for third-party users.')} <a className="underline" href="https://developers.printful.com/tokens" target="_blank" rel="noreferrer">{t('获取 Token', 'Get a token')}</a></p>
     <p className="text-sm">{data.data.configured ? t('已配置密钥；留空保留原密钥。', 'Token configured; leave blank to keep it.') : t('尚未配置密钥。', 'No token configured.')}</p>
     <form className="space-y-5" onSubmit={e => {e.preventDefault(); void save();}}>
-      <div className="space-y-2"><Label htmlFor="pf-token">Private Token</Label><Input id="pf-token" type="password" autoComplete="new-password" maxLength={4096} value={token} onChange={e => setToken(e.target.value)}/></div>
+      <div className="space-y-2"><Label htmlFor="pf-token">Printful API Token</Label><Input id="pf-token" placeholder={t('粘贴你的 Printful Private Token', 'Paste your Printful Private Token')} type="password" autoComplete="new-password" maxLength={4096} value={token} onChange={e => setToken(e.target.value)}/></div>
       <div className="space-y-2"><Label htmlFor="pf-store">Store ID</Label><Input id="pf-store" inputMode="numeric" pattern="[0-9]*" value={store ?? data.data.store_id} onChange={e => setStore(e.target.value)}/><p className="text-sm text-muted-foreground">{t('账户级 Token 必填；店铺级 Token 可留空。需允许读取店铺、商品和读写订单。', 'Required for account tokens; optional for store tokens. Allow store/product reads and order read/write access.')}</p></div>
       {error && <ErrorBox message={error}/>}
       <div className="flex gap-3"><Button disabled={busy}>{t('保存设置', 'Save settings')}</Button><Button type="button" variant="outline" disabled={busy || !data.data.configured} onClick={() => void save(true)}>{t('测试已保存的连接', 'Test saved connection')}</Button></div>

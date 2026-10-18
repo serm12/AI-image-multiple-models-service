@@ -23,7 +23,7 @@ import { PrintfulSettings } from "./orders";
 export function Settings() {
   const t = useT();
   const items = [
-    ["printful", t("生产服务", "Production services"), KeyRound],
+    ["printful", t("Printful Token", "Printful Token"), KeyRound],
     ["watermark", t("水印与品牌", "Watermark & branding"), Stamp],
     ["time", t("时区", "Timezones"), Clock3],
     ["keys", t("模型密钥", "Provider keys"), KeyRound],
@@ -35,7 +35,7 @@ export function Settings() {
     <>
       <Tabs
         defaultValue={
-          items.some(([key]) => key === initial) ? initial : "watermark"
+          items.some(([key]) => key === initial) ? initial : "printful"
         }
         onValueChange={(value) => history.replaceState(null, "", "#" + value)}
       >
