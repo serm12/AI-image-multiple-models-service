@@ -21,12 +21,14 @@ from app.services.shopify_order_images import original_image
 
 LIST_QUERY = '''query ProductionOrders($after: String, $query: String) {
  orders(first: 25, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
-  nodes { id name createdAt displayFinancialStatus displayFulfillmentStatus }
+  nodes { id name createdAt displayFinancialStatus displayFulfillmentStatus
+    email customer { firstName lastName defaultEmailAddress { emailAddress } } shippingAddress { name } }
   pageInfo { hasNextPage endCursor }
  }
 }'''
 DETAIL_QUERY = '''query ProductionOrder($id: ID!, $after: String) {
  order(id: $id) { id name cancelledAt displayFinancialStatus
+ email customer { firstName lastName defaultEmailAddress { emailAddress } }
  shippingAddress { name address1 address2 city zip provinceCode countryCodeV2 phone }
  lineItems(first: 100, after: $after) { nodes {
  id title variantTitle sku unfulfilledQuantity requiresShipping
