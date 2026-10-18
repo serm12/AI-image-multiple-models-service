@@ -3,6 +3,7 @@ import asyncio
 import io
 import json
 import os
+import re
 import sqlite3
 import tempfile
 import time
@@ -22,7 +23,9 @@ from app.services.shopify_order_images import original_image
 LIST_QUERY = '''query ProductionOrders($after: String, $query: String) {
  orders(first: 25, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
   nodes { id name createdAt displayFinancialStatus displayFulfillmentStatus
-    email customer { firstName lastName defaultEmailAddress { emailAddress } } shippingAddress { name } }
+    email customer { firstName lastName defaultEmailAddress { emailAddress } } shippingAddress { name }
+    lineItems(first: 20) { nodes { title variantTitle currentQuantity requiresShipping }
+      pageInfo { hasNextPage endCursor } } }
   pageInfo { hasNextPage endCursor }
  }
 }'''
@@ -31,11 +34,72 @@ DETAIL_QUERY = '''query ProductionOrder($id: ID!, $after: String) {
  email customer { firstName lastName defaultEmailAddress { emailAddress } }
  shippingAddress { name address1 address2 city zip provinceCode countryCodeV2 phone }
  lineItems(first: 100, after: $after) { nodes {
- id title variantTitle sku unfulfilledQuantity requiresShipping
+id title variantTitle sku currentQuantity unfulfilledQuantity requiresShipping
  customAttributes { key value }
  } pageInfo { hasNextPage endCursor } }
  }
 }'''
+TYPE_LINES_QUERY = '''query ProductionOrderTypes($id: ID!, $after: String) {
+ order(id: $id) { lineItems(first: 100, after: $after) {
+  nodes { title variantTitle currentQuantity requiresShipping }
+  pageInfo { hasNextPage endCursor }
+ } }
+}'''
+
+
+def item_type(line):
+    """Use the purchased format, including legacy DIGITAL/CANVAS variants."""
+    variant = str(line.get('variantTitle') or '')
+    # An explicitly digital purchase must never become a print order even if
+    # the merchant accidentally enabled shipping on the variant.
+    if re.search(r'\bdigital\b|\bdownload\b|虚拟|电子版|数字版', variant, re.I):
+        return 'digital'
+    if re.search(r'\bcanvas\b|画布|帆布', variant, re.I):
+        return 'physical'
+    title = str(line.get('title') or '')
+    digital = bool(re.search(r'\bdigital\b|\bdownload\b|虚拟|电子版|数字版', title, re.I))
+    physical = bool(re.search(r'\bcanvas\b|画布|帆布', title, re.I))
+    if digital != physical:
+        return 'digital' if digital else 'physical'
+    if line.get('requiresShipping') is True:
+        return 'physical'
+    if line.get('requiresShipping') is False:
+        return 'digital'
+    return 'unknown'
+
+
+def classify_order(order, lines):
+    counts = {'physical': 0, 'digital': 0, 'unknown': 0}
+    for line in lines:
+        kind = item_type(line)
+        line['item_type'] = kind
+        quantity = line.get('currentQuantity', 0)
+        if quantity > 0:
+            counts[kind] += quantity
+    kinds = {kind for kind, count in counts.items() if count}
+    order['order_type'] = ('mixed' if {'physical', 'digital'} <= kinds else
+                           'unknown' if not kinds or 'unknown' in kinds else next(iter(kinds)))
+    order['type_quantities'] = counts
+
+
+async def list_orders(after=None, search=''):
+    data = (await shopify(LIST_QUERY, {'after': after or None, 'query': search or None}))['orders']
+    limit = asyncio.Semaphore(4)
+    async def classify(order):
+        async with limit:
+            connection = order.pop('lineItems')
+            lines = list(connection['nodes'])
+            while connection['pageInfo']['hasNextPage']:
+                extra = await shopify(TYPE_LINES_QUERY, {'id': order['id'], 'after': connection['pageInfo']['endCursor']})
+                if not extra.get('order'):
+                    order['order_type'] = 'unknown'
+                    order['type_quantities'] = None
+                    return
+                connection = extra['order']['lineItems']
+                lines.extend(connection['nodes'])
+            classify_order(order, lines)
+    await asyncio.gather(*(classify(order) for order in data['nodes']))
+    return data
 # White wrap templates from printful-mcp/image-processing.js; never infer a variant.
 TEMPLATES = {5: (7424, 9472, 640), 6: (9472, 11520, 640),
              7: (10496, 13568, 640), 19316: (8100, 10500, 450)}
@@ -130,6 +194,7 @@ async def detail(order_id):
         line['images'] = [{'task_id': task, **image} for task in sorted(matched_task_ids({'lineItems': {'nodes': [line]}}))
                           if (image := original_image(task))]
     order['items'] = lines
+    classify_order(order, lines)
     del order['lineItems']
     order['production'] = history(order_id)
     order['job'] = job(order_id)
@@ -217,6 +282,13 @@ async def push(order_id, selection):
         order = await detail(order_id)
         if order.get('cancelledAt'):
             raise HTTPException(400, '已取消的订单不能推送')
+        selected_lines = {line['id']: line for line in order['items']}
+        for chosen in selection.items:
+            line = selected_lines.get(chosen.line_id)
+            if not line or item_type(line) != 'physical':
+                raise HTTPException(400, '仅实物商品可以推送 Printful；虚拟商品无需生产配送')
+            if line.get('requiresShipping') is not True:
+                raise HTTPException(400, '该实物商品未启用配送，请先在 Shopify 中核对订单商品设置')
         address = recipient(order.get('shippingAddress'))
         existing = await pf('GET', '/orders/@' + quote(order_id, safe=''), missing=True)
         if existing and existing['status'] != 'draft':

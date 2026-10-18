@@ -47,3 +47,5 @@ and `npm --prefix frontend run build`.
 
 References: https://developers.printful.com/docs/ and
 https://shopify.dev/docs/api/admin-graphql/unstable/queries/order
+
+Order and line types use purchased DIGITAL/CANVAS formats, then Shopify requiresShipping as fallback. Lists fetch all line pages before classification. Current quantities exclude refunded/removed items; fulfillment alone never changes the type. Mixed orders only allow physical lines to be sent. Explicit digital variants are blocked even with shipping enabled; physical variants with shipping disabled require review.

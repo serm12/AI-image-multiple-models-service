@@ -52,8 +52,7 @@ async def test_connection(request: Request):
 
 @router.get('/orders')
 async def orders(after: str | None = None, search: str = Query('', max_length=120)):
-    data = await service.shopify(service.LIST_QUERY, {'after': after or None, 'query': search or None})
-    return data['orders']
+    return await service.list_orders(after, search)
 
 @router.get('/orders/{order_id}')
 async def order(order_id: OrderId):

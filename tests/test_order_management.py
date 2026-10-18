@@ -12,6 +12,40 @@ from app.routers.order_management import PushInput
 
 
 class ProductionTests(unittest.IsolatedAsyncioTestCase):
+    def test_purchase_format_overrides_misconfigured_shipping_and_generic_title(self):
+        self.assertEqual(service.item_type({'variantTitle': 'DIGITAL Image Only - INSTANT DOWNLOAD', 'requiresShipping': True}), 'digital')
+        self.assertEqual(service.item_type({'variantTitle': 'CANVAS Medium - 12×16', 'title': 'Digital Portrait', 'requiresShipping': False}), 'physical')
+        self.assertEqual(service.item_type({'requiresShipping': False}), 'digital')
+        self.assertEqual(service.item_type({}), 'unknown')
+
+    def test_order_types_use_remaining_purchases_not_fulfillment_status(self):
+        order = {}
+        physical = {'requiresShipping': True, 'currentQuantity': 1, 'unfulfilledQuantity': 0}
+        digital = {'requiresShipping': False, 'currentQuantity': 2}
+        service.classify_order(order, [physical, digital])
+        self.assertEqual(order['order_type'], 'mixed')
+        self.assertEqual(order['type_quantities'], {'physical': 1, 'digital': 2, 'unknown': 0})
+        service.classify_order(order, [physical, {**digital, 'currentQuantity': 0}])
+        self.assertEqual(order['order_type'], 'physical')
+
+    async def test_list_classifies_all_line_pages(self):
+        first = {'nodes': [{'requiresShipping': False, 'currentQuantity': 1}], 'pageInfo': {'hasNextPage': True, 'endCursor': 'next'}}
+        last = {'nodes': [{'requiresShipping': True, 'currentQuantity': 1}], 'pageInfo': {'hasNextPage': False, 'endCursor': None}}
+        remote = AsyncMock(side_effect=[{'orders': {'nodes': [{'id': 'order1', 'lineItems': first}], 'pageInfo': {}}}, {'order': {'lineItems': last}}])
+        with patch.object(service, 'shopify', remote):
+            result = await service.list_orders()
+        self.assertEqual(result['nodes'][0]['order_type'], 'mixed')
+        self.assertNotIn('lineItems', result['nodes'][0])
+        self.assertEqual(remote.call_args.args[1]['after'], 'next')
+
+    async def test_digital_purchase_never_calls_printful_even_with_shipping_enabled(self):
+        self.order['items'][0]['variantTitle'] = 'DIGITAL Image Only'
+        with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', AsyncMock()) as remote:
+            with self.assertRaises(HTTPException) as error:
+                await service.push('42', self.input)
+            self.assertEqual(error.exception.status_code, 400)
+            remote.assert_not_called()
+
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
