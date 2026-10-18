@@ -242,7 +242,6 @@ function Shell({
       <div className="mt-auto space-y-4 pt-6 pb-4">
         <a href="/admin/config" title={compact ? t('系统设置','Settings') : undefined} aria-label={t('系统设置','Settings')} aria-current={path==='/admin/config'?'page':undefined} onClick={e=>{if(e.metaKey||e.ctrlKey||e.shiftKey)return;e.preventDefault();navigate('/admin/config');}} className={'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-neutral-100 '+(path==='/admin/config'?'bg-neutral-100 font-medium':'')}><Settings2 className="size-4 shrink-0"/>{!compact&&t('系统设置','Settings')}</a>
         <div className="border-t px-3 pt-4">
-        <p className={compact ? "sr-only" : "truncate text-sm font-medium"}>{session.username}</p>
         <p className={compact ? "sr-only" : "mt-1 text-xs text-muted-foreground"}>
           v{session.version} · {session.release_date}
         </p>
