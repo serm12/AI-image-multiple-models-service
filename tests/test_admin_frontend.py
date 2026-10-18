@@ -116,6 +116,8 @@ class AdminFrontendTests(unittest.TestCase):
                 response = self.client.get(path, auth=None)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn('app-bridge.js', response.text)
+                navigation = response.text.split('<s-app-nav>')[1].split('</s-app-nav>')[0]
+                self.assertLess(navigation.index('/admin/orders'), navigation.index('/admin/config'))
                 self.assertIn('admin.shopify.com', response.headers['content-security-policy'])
             self.client.cookies.set(COOKIE, 'forged')
             self.assertFalse(self.client.get('/admin/api/session').json()['shopify_embedded'])
