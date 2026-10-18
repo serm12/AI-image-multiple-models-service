@@ -24,7 +24,7 @@ LIST_QUERY = '''query ProductionOrders($after: String, $query: String) {
  orders(first: 25, after: $after, query: $query, sortKey: CREATED_AT, reverse: true) {
   nodes { id name createdAt displayFinancialStatus displayFulfillmentStatus
     email customer { firstName lastName defaultEmailAddress { emailAddress } } shippingAddress { name }
-    lineItems(first: 20) { nodes { title variantTitle currentQuantity requiresShipping }
+    lineItems(first: 20) { nodes { title variantTitle currentQuantity requiresShipping customAttributes { key value } }
       pageInfo { hasNextPage endCursor } } }
   pageInfo { hasNextPage endCursor }
  }
@@ -41,7 +41,7 @@ id title variantTitle sku currentQuantity requiresShipping
 }'''
 TYPE_LINES_QUERY = '''query ProductionOrderTypes($id: ID!, $after: String) {
  order(id: $id) { lineItems(first: 100, after: $after) {
-  nodes { title variantTitle currentQuantity requiresShipping }
+  nodes { title variantTitle currentQuantity requiresShipping customAttributes { key value } }
   pageInfo { hasNextPage endCursor }
  } }
 }'''
@@ -98,6 +98,10 @@ async def list_orders(after=None, search=''):
                 connection = extra['order']['lineItems']
                 lines.extend(connection['nodes'])
             classify_order(order, lines)
+            active = [line for line in lines if line.get('currentQuantity', 0) > 0]
+            preview = next((image for line in active if line.get('customAttributes') for task in sorted(matched_task_ids({'lineItems': {'nodes': [line]}})) if (image := original_image(task))), None)
+            order['product_summary'] = {'title': active[0].get('title', '') if active else '', 'count': len(active), 'quantity': sum(line['currentQuantity'] for line in active), 'image_url': preview.get('url') if preview else None}
+
     await asyncio.gather(*(classify(order) for order in data['nodes']))
     try:
         candidates = await printful_orders()

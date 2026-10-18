@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search, RefreshCw, ChevronLeft, ChevronRight, ArrowUpRight, ImageIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ function PrintfulStatus({status}: {status: string}) {
 
 type Contact = {email?: string | null; customer?: {firstName?: string | null; lastName?: string | null; defaultEmailAddress?: {emailAddress?: string | null} | null} | null; shippingAddress?: {name?: string | null} | null};
 type OrderType = "physical" | "digital" | "mixed" | "unknown";
-type Summary = Contact & PrintfulLinks & {order_type: OrderType;id: string; name: string; createdAt: string; displayFinancialStatus: string; displayFulfillmentStatus: string};
+type Summary = Contact & PrintfulLinks & {product_summary?: {title: string; count: number; quantity: number; image_url?: string | null};order_type: OrderType;id: string; name: string; createdAt: string; displayFinancialStatus: string; displayFulfillmentStatus: string};
 type Item = {item_type: OrderType;id: string; title: string; variantTitle: string; sku: string; currentQuantity: number; requiresShipping: boolean; images: {task_id: string; url: string}[]};
 type Job = {state: string; detail?: string; production?: Production | null};
 type Order = Contact & PrintfulLinks & {order_type: OrderType;id: string; name: string; cancelledAt: string | null; displayFinancialStatus: string; displayFulfillmentStatus: string; shippingAddress: Record<string, string> | null; items: Item[]; production: Production | null; job: Job};
@@ -98,17 +98,42 @@ export function Orders() {
   const t = useT();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
   const [cursors, setCursors] = useState<string[]>([]);
   const [selected, setSelected] = useState('');
-  const data = useData<{nodes: Summary[]; pageInfo: {hasNextPage: boolean; endCursor: string}}>('/admin/api/orders?search=' + encodeURIComponent(query) + '&after=' + encodeURIComponent(cursors.at(-1) || ''));
+  const filters = [
+    {id: 'all', label: t('全部', 'All'), query: ''},
+    {id: 'shipped', label: t('已发货', 'Fulfilled'), query: 'fulfillment_status:shipped AND -status:cancelled'},
+    {id: 'pending', label: t('待发货', 'Unfulfilled'), query: 'fulfillment_status:unshipped AND -status:cancelled'},
+    {id: 'cancelled', label: t('已取消', 'Cancelled'), query: 'status:cancelled'},
+  ];
+  const filterQuery = filters.find(f=>f.id===filter)!.query;
+  const combined = [query.trim() ? '(' + query.trim() + ')' : '', filterQuery].filter(Boolean).join(' AND ');
+  const data = useData<{nodes: Summary[]; pageInfo: {hasNextPage: boolean; endCursor: string}}>('/admin/api/orders?search=' + encodeURIComponent(combined) + '&after=' + encodeURIComponent(cursors.at(-1) || ''));
+  function openOrder(order: Summary) { setSelected(order.id.split('/').pop()!); }
   if (selected) return <OrderDetail key={selected} id={selected} back={() => setSelected('')}/>;
-  return <div className="space-y-5">
-    <section className="rounded-xl border bg-white p-5 shadow-sm"><form className="flex max-w-xl gap-2" onSubmit={e => {e.preventDefault(); setCursors([]); setQuery(search); data.reload();}}><Input className="bg-white" aria-label={t('搜索订单', 'Search orders')} placeholder={t('订单号或 Shopify 搜索条件', 'Order number or Shopify search query')} value={search} onChange={e => setSearch(e.target.value)}/><Button>{t('搜索', 'Search')}</Button></form></section>
-    {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : data.loading ? <Loading/> : <>
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr>{[t('订单', 'Order'),t('类型', 'Type'),t('姓名 / 邮箱', 'Name / email'),t('时间', 'Created'),t('支付状态', 'Payment'),t('发货状态', 'Fulfillment'),'Printful',''].map((v,i)=><th className="p-4" key={i}>{v}</th>)}</tr></thead><tbody>{data.data?.nodes.map(order=><tr key={order.id} className="border-t"><td className="p-4 font-medium">{order.name}</td><td className="p-4"><TypeBadge kind={order.order_type}/></td><td className="p-4"><CustomerContact order={order}/></td><td className="p-4 whitespace-nowrap">{new Date(order.createdAt).toLocaleString()}</td><td className="p-4"><ShopifyStatus kind="payment" status={order.displayFinancialStatus}/></td><td className="p-4"><ShopifyStatus kind="fulfillment" status={order.displayFulfillmentStatus}/></td><td className="p-4"><div className="flex flex-wrap gap-1">{order.printful_orders?.map(p=><span key={p.id} title={p.external_id}><PrintfulStatus status={p.status}/></span>)}{!order.printful_orders?.length && <span className="text-muted-foreground">{order.printful_sync?.state === 'failed' ? t('同步失败', 'Sync failed') : order.printful_sync?.state === 'unconfigured' ? t('未配置', 'Not configured') : t('未关联', 'Not linked')}</span>}</div></td><td className="p-4"><Button variant="outline" onClick={()=>setSelected(order.id.split('/').pop()!)}>{order.order_type === 'digital' ? t('查看详情', 'View details') : t('查看 / 推送', 'Review / send')}</Button></td></tr>)}</tbody></table>{!data.data?.nodes.length && <p className="p-8 text-center text-muted-foreground">{t('没有匹配的订单', 'No matching orders')}</p>}</div>
-      <div className="flex gap-2"><Button variant="outline" disabled={!cursors.length} onClick={()=>setCursors(v=>v.slice(0,-1))}>{t('上一页', 'Previous')}</Button><Button variant="outline" disabled={!data.data?.pageInfo.hasNextPage} onClick={()=>setCursors(v=>[...v,data.data!.pageInfo.endCursor])}>{t('下一页', 'Next')}</Button></div>
+  return <section className="overflow-hidden rounded-3xl border border-neutral-200/80 bg-white">
+    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
+      <div role="group" aria-label={t('订单状态筛选', 'Filter order status')} className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-neutral-100 p-1">{filters.map(f=><button type="button" key={f.id} aria-pressed={filter===f.id} onClick={()=>{setFilter(f.id);setCursors([]);}} className={'rounded-full px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ' + (filter===f.id ? 'bg-white font-medium text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900')}>{f.label}</button>)}</div>
+      <div className="flex w-full items-center gap-2 sm:w-auto"><form className="flex min-w-0 flex-1 items-center rounded-full bg-neutral-100 pl-3 sm:w-64" onSubmit={e=>{e.preventDefault();setCursors([]);setQuery(search);if(search===query)data.reload();}}><Search aria-hidden="true" className="size-4 shrink-0 text-neutral-500"/><Input className="h-9 min-w-0 border-0 bg-transparent! shadow-none focus-visible:ring-0" aria-label={t('搜索订单', 'Search orders')} placeholder={t('搜索订单…', 'Search orders…')} value={search} onChange={e=>setSearch(e.target.value)}/><button type="submit" className="mr-1 shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs text-neutral-600 hover:bg-white focus-visible:outline-2">{t('搜索', 'Search')}</button></form><Button type="button" variant="outline" size="icon" className="rounded-full border-neutral-200" disabled={data.loading} aria-label={t('刷新订单', 'Refresh orders')} onClick={data.reload}><RefreshCw className={'size-4 ' + (data.loading ? 'animate-spin motion-reduce:animate-none' : '')}/></Button></div>
+    </div>
+    {data.error ? <div className="p-6"><ErrorBox message={data.error} retry={data.reload}/></div> : data.loading ? <div className="p-8"><Loading/></div> : <>
+      <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-y border-neutral-200/80 bg-neutral-100/90 text-xs font-normal text-neutral-500"><tr>{[t('订单', 'Order'),t('商品', 'Product'),t('客户', 'Customer'),t('日期', 'Date'),t('支付状态', 'Payment'),t('发货状态', 'Fulfillment'),'Printful',''].map((label,i)=><th key={i} className="whitespace-nowrap px-5 py-3 font-normal first:pl-6 last:pr-6">{label}</th>)}</tr></thead><tbody className="divide-y divide-neutral-200/80">{data.data?.nodes.map(order=>{
+        const product = order.product_summary;
+        return <tr key={order.id} className="transition-colors hover:bg-neutral-50/80">
+          <td className="whitespace-nowrap py-4 pl-6 pr-5"><button className="font-medium text-neutral-900 hover:underline focus-visible:outline-2" onClick={()=>openOrder(order)}>{order.name}</button></td>
+          <td className="px-5 py-3"><button className="flex w-64 items-center gap-3 text-left focus-visible:outline-2" onClick={()=>openOrder(order)}>{product?.image_url ? <img src={safeUrl(product.image_url)} alt="" loading="lazy" className="size-11 shrink-0 rounded-xl bg-neutral-100 object-cover"/> : <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-400"><ImageIcon className="size-5"/></span>}<span className="min-w-0"><span className="block truncate font-medium text-neutral-800" title={product?.title}>{product?.title || t('查看订单商品', 'View order items')}</span><span className="mt-1 flex items-center gap-2"><TypeBadge kind={order.order_type}/>{product && <span className="text-xs text-neutral-500">{product.quantity} {t('件商品', 'items')}</span>}</span></span></button></td>
+          <td className="px-5 py-3"><div className="max-w-52 text-[13px]"><CustomerContact order={order}/></div></td>
+          <td className="whitespace-nowrap px-5 py-3 text-xs text-neutral-500"><time dateTime={order.createdAt} title={new Date(order.createdAt).toLocaleString()}>{new Date(order.createdAt).toLocaleDateString(undefined,{year:'numeric',month:'2-digit',day:'2-digit'})}</time></td>
+          <td className="px-5 py-3"><ShopifyStatus kind="payment" status={order.displayFinancialStatus}/></td>
+          <td className="px-5 py-3"><ShopifyStatus kind="fulfillment" status={order.displayFulfillmentStatus}/></td>
+          <td className="px-5 py-3"><div className="flex min-w-20 flex-wrap gap-1">{order.printful_orders?.map(p=><span key={p.id} title={p.external_id}><PrintfulStatus status={p.status}/></span>)}{!order.printful_orders?.length && <span className="whitespace-nowrap text-xs text-neutral-400">{order.printful_sync?.state === 'failed' ? t('同步失败', 'Sync failed') : order.printful_sync?.state === 'unconfigured' ? t('未配置', 'Not configured') : t('未关联', 'Not linked')}</span>}</div></td>
+          <td className="py-3 pl-3 pr-6"><Button variant="ghost" size="icon" className="rounded-full" aria-label={t('查看订单 ', 'View order ') + order.name} title={t('查看详情', 'View details')} onClick={()=>openOrder(order)}><ArrowUpRight className="size-4"/></Button></td>
+        </tr>;
+      })}</tbody></table>{!data.data?.nodes.length && <div className="px-6 py-16 text-center"><p className="text-sm text-neutral-600">{t('没有匹配的订单', 'No matching orders')}</p><Button variant="ghost" className="mt-3" onClick={()=>{setSearch('');setQuery('');setFilter('all');setCursors([]);}}>{t('清除筛选', 'Clear filters')}</Button></div>}</div>
+      <footer className="flex items-center justify-between gap-4 border-t border-neutral-200/80 px-6 py-4"><span className="text-xs text-neutral-500">{t('本页', 'Showing')} {data.data?.nodes.length || 0} {t('笔订单', 'orders')}</span><div className="flex items-center gap-2"><Button size="icon" variant="outline" className="size-8 rounded-full" aria-label={t('上一页', 'Previous page')} disabled={!cursors.length} onClick={()=>setCursors(v=>v.slice(0,-1))}><ChevronLeft className="size-4"/></Button><span className="min-w-6 text-center text-xs tabular-nums text-neutral-600">{cursors.length+1}</span><Button size="icon" variant="outline" className="size-8 rounded-full" aria-label={t('下一页', 'Next page')} disabled={!data.data?.pageInfo.hasNextPage} onClick={()=>setCursors(v=>[...v,data.data!.pageInfo.endCursor])}><ChevronRight className="size-4"/></Button></div></footer>
     </>}
-  </div>;
+  </section>;
 }
 
 function OrderDetail({id, back}: {id: string; back: ()=>void}) {
