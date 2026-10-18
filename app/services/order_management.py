@@ -30,7 +30,7 @@ LIST_QUERY = '''query ProductionOrders($after: String, $query: String) {
  }
 }'''
 DETAIL_QUERY = '''query ProductionOrder($id: ID!, $after: String) {
- order(id: $id) { id name cancelledAt displayFinancialStatus
+ order(id: $id) { id name cancelledAt displayFinancialStatus displayFulfillmentStatus
  email customer { firstName lastName defaultEmailAddress { emailAddress } }
  shippingAddress { name address1 address2 city zip provinceCode countryCodeV2 phone }
  lineItems(first: 100, after: $after) { nodes {
