@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -120,8 +122,10 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
     } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
   }
   const result = production === undefined ? data.data?.production : production;
+  const backSlot = document.getElementById('order-detail-back');
+  const backButton = <Button type="button" variant="outline" size="sm" disabled={busy} onClick={back}><ArrowLeft className="size-4" />{t('返回订单', 'Back to orders')}</Button>;
   return <div className="space-y-5">
-    <Button variant="outline" disabled={busy} onClick={back}>{t('返回订单', 'Back to orders')}</Button>
+    {backSlot ? createPortal(backButton, backSlot) : backButton}
     {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : !data.data ? <Loading/> : <>
       <div><div className="flex items-center gap-3"><h2 className="page-heading">{data.data.name}</h2><TypeBadge kind={data.data.order_type}/></div><p className="page-description">{data.data.displayFinancialStatus} {data.data.cancelledAt && t(' · 已取消', ' · Cancelled')}</p></div>
       <section className="rounded-xl border bg-white p-5 shadow-sm"><h3 className="mb-2 font-medium">{t('客户信息', 'Customer information')}</h3><CustomerContact order={data.data}/></section>

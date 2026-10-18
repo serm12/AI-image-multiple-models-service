@@ -310,6 +310,7 @@ function Shell({
                 </SheetContent>
               </Sheet>
             )}
+            <div id="order-detail-back" />
             <h1 className="text-sm font-medium">{active.name}</h1>
           </div>
           <span className="text-xs text-muted-foreground">
