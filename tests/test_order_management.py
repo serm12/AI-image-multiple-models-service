@@ -67,12 +67,12 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
         patcher.start(); self.addCleanup(patcher.stop)
         self.order = {'id': 'gid://shopify/Order/42', 'name': '#42', 'cancelledAt': None,
             'shippingAddress': {'name': 'Test', 'address1': '1 Street', 'city': 'City', 'zip': '12345', 'countryCodeV2': 'US'},
-            'items': [{'id': 'line1', 'requiresShipping': True, 'unfulfilledQuantity': 2,
+            'items': [{'id': 'line1', 'requiresShipping': True, 'currentQuantity': 2, 'unfulfilledQuantity': 0,
                        'images': [{'task_id': '20261018_120000_123456ab', 'url': 'https://example.com/art.jpg'}]}]}
         self.input = PushInput(items=[{'line_id': 'line1', 'task_id': '20261018_120000_123456ab',
                                      'variant_id': 5, 'upscale': False, 'bleed': False}])
 
-    async def test_draft_update_keeps_quantity_and_never_confirms(self):
+    async def test_shopify_fulfilled_item_uses_current_quantity_and_never_confirms(self):
         result = {'id': 8, 'status': 'draft', 'costs': {'total': '20'}, 'items': [{'files': [{'id': 3, 'status': 'ok'}]}]}
         remote = AsyncMock(side_effect=[result, {'product': {'id': 3}}, result, result])
         with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', remote), patch.object(service, 'prepare') as prepare:
@@ -83,6 +83,16 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(call.args[:2], ('PUT', '/orders/8?confirm=0'))
         self.assertEqual(call.args[2]['items'][0]['quantity'], 2)
         self.assertEqual(service.history('42')['file_statuses'][0]['status'], 'ok')
+
+    async def test_removed_item_cannot_be_sent(self):
+        self.order['items'][0]['currentQuantity'] = 0
+        remote = AsyncMock(return_value=None)
+        with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', remote), patch.object(service, 'prepare') as prepare:
+            with self.assertRaises(HTTPException) as error:
+                await service.push('42', self.input)
+            self.assertEqual(error.exception.status_code, 400)
+            prepare.assert_not_called()
+        self.assertEqual(remote.await_count, 1)
 
     async def test_existing_production_order_is_never_overwritten(self):
         remote = AsyncMock(return_value={'id': 8, 'status': 'fulfilled'})

@@ -34,7 +34,7 @@ DETAIL_QUERY = '''query ProductionOrder($id: ID!, $after: String) {
  email customer { firstName lastName defaultEmailAddress { emailAddress } }
  shippingAddress { name address1 address2 city zip provinceCode countryCodeV2 phone }
  lineItems(first: 100, after: $after) { nodes {
-id title variantTitle sku currentQuantity unfulfilledQuantity requiresShipping
+id title variantTitle sku currentQuantity requiresShipping
  customAttributes { key value }
  } pageInfo { hasNextPage endCursor } }
  }
@@ -300,8 +300,8 @@ async def push(order_id, selection):
         # Validate every line before starting paid image processing.
         for chosen in selection.items:
             line = lines.get(chosen.line_id)
-            if not line or not line['requiresShipping'] or line['unfulfilledQuantity'] < 1:
-                raise HTTPException(400, '商品不存在、不需要配送或已履约')
+            if not line or not line['requiresShipping'] or line['currentQuantity'] < 1:
+                raise HTTPException(400, '商品不存在、不需要配送或有效数量为零')
             if not any(i['task_id'] == chosen.task_id for i in line['images']):
                 raise HTTPException(400, '所选图片不属于该订单商品')
             if chosen.bleed and chosen.variant_id not in TEMPLATES:
@@ -315,7 +315,7 @@ async def push(order_id, selection):
             manifest = await asyncio.to_thread(prepare, image['url'], chosen.variant_id, chosen.upscale, chosen.bleed) if chosen.upscale or chosen.bleed else {'file_url': image['url'], 'upscale': False, 'bleed': False}
             manifests.append({'line_id': chosen.line_id, 'variant_id': chosen.variant_id, **manifest})
             items.append({'external_id': chosen.line_id.rsplit('/', 1)[-1], 'variant_id': chosen.variant_id,
-                          'quantity': line['unfulfilledQuantity'], 'files': [{'url': manifest['file_url']}]})
+                          'quantity': line['currentQuantity'], 'files': [{'url': manifest['file_url']}]})
         body = {'external_id': order_id, 'recipient': address, 'items': items}
         result = await pf('PUT' if existing else 'POST',
             ('/orders/' + str(existing['id']) if existing else '/orders') + '?confirm=0', body)
