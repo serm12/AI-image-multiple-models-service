@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { usePageBreadcrumb } from "./workspace-header";
 import { useT, useData, post, Pick, ErrorBox, Loading } from "@/lib/admin";
 import { PrintfulSettings } from "./orders";
 export function Settings() {
@@ -30,43 +30,26 @@ export function Settings() {
     ["algorithm", t("文件命名", "File naming"), Hash],
     ["language", t("语言", "Language"), Globe2],
   ] as const;
-  const initial = location.hash.slice(1);
-  return (
-    <>
-      <Tabs
-        defaultValue={
-          items.some(([key]) => key === initial) ? initial : "printful"
-        }
-        onValueChange={(value) => history.replaceState(null, "", "#" + value)}
-      >
-        <TabsList className="mb-6 h-auto! max-w-full flex-wrap justify-start gap-1">
-          {items.map(([key, label, Icon]) => (
-            <TabsTrigger className="h-auto flex-none gap-2 px-4 py-1.5 data-active:bg-card data-active:text-foreground data-active:shadow-xs" key={key} value={key}>
-              <Icon className="size-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="printful"><PrintfulSettings /></TabsContent>
-        <TabsContent value="watermark">
-          <Watermark />
-        </TabsContent>
-        <TabsContent value="time">
-          <TimeSettings />
-        </TabsContent>
-        <TabsContent value="keys">
-          <ProviderKeys />
-        </TabsContent>
-        <TabsContent value="algorithm">
-          <Algorithm />
-        </TabsContent>
-        <TabsContent value="language">
-          <Language />
-        </TabsContent>
-      </Tabs>
-    </>
-  );
+  const valid = (value: string) => items.some(([key])=>key===value) ? value : 'printful';
+  const [selected, setSelected] = useState(()=>valid(location.hash.slice(1)));
+  const categoryNav = useRef<HTMLElement>(null);
+  useEffect(()=>{const nav=categoryNav.current;const item=nav?.querySelector<HTMLElement>('[aria-current=page]');if(nav&&item&&nav.scrollWidth>nav.clientWidth)nav.scrollLeft=item.offsetLeft-nav.offsetLeft;},[selected]);
+  useEffect(()=>{const change=()=>setSelected(valid(location.hash.slice(1)));window.addEventListener('hashchange',change);window.addEventListener('popstate',change);return ()=>{window.removeEventListener('hashchange',change);window.removeEventListener('popstate',change);};},[]);
+  usePageBreadcrumb(items.find(([key])=>key===selected)![1]);
+  function choose(value: string) {setSelected(value);history.replaceState(null,'','#'+value);}
+  return <div className="mx-auto grid max-w-6xl items-start gap-6 md:grid-cols-[210px_minmax(0,1fr)] lg:gap-10">
+    <aside className="min-w-0 md:sticky md:top-24"><p className="mb-3 px-3 text-xs font-medium text-neutral-400">{t('偏好与集成','Preferences & integrations')}</p><nav ref={categoryNav} aria-label={t('设置分类','Settings categories')} className="flex gap-1 overflow-x-auto pb-2 md:flex-col md:overflow-visible">{items.map(([key,label,Icon])=><button type="button" key={key} aria-current={selected===key?'page':undefined} onClick={()=>choose(key)} className={'flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-2 '+(selected===key?'bg-white font-medium text-neutral-900 shadow-sm ring-1 ring-neutral-200':'text-neutral-500 hover:bg-white/70 hover:text-neutral-900')}><Icon className="size-4"/><span className="whitespace-nowrap">{label}</span></button>)}</nav></aside>
+    <div className="settings-content min-w-0">
+      {selected==='printful' && <PrintfulSettings/>}
+      {selected==='watermark' && <Watermark/>}
+      {selected==='time' && <TimeSettings/>}
+      {selected==='keys' && <ProviderKeys/>}
+      {selected==='algorithm' && <Algorithm/>}
+      {selected==='language' && <Language/>}
+    </div>
+  </div>;
 }
+
 function SaveButton({ busy }: { busy: boolean }) {
   const t = useT();
   return (

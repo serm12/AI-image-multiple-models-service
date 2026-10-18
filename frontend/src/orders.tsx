@@ -1,3 +1,4 @@
+import { usePageBreadcrumb } from './workspace-header';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, RefreshCw, ChevronLeft, ChevronRight, ArrowUpRight, ImageIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -100,7 +101,8 @@ export function Orders() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [cursors, setCursors] = useState<string[]>([]);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(()=>{const id=new URLSearchParams(location.search).get('order')||'';return /^\d+$/.test(id)?id:'';});
+  useEffect(()=>{const back=()=>{setSelected('');history.replaceState(null,'',location.pathname);};window.addEventListener('admin:orders-back',back);return ()=>window.removeEventListener('admin:orders-back',back);},[]);
   const filters = [
     {id: 'all', label: t('全部', 'All'), query: ''},
     {id: 'shipped', label: t('已发货', 'Fulfilled'), query: 'fulfillment_status:shipped AND -status:cancelled'},
@@ -111,7 +113,7 @@ export function Orders() {
   const combined = [query.trim() ? '(' + query.trim() + ')' : '', filterQuery].filter(Boolean).join(' AND ');
   const data = useData<{nodes: Summary[]; pageInfo: {hasNextPage: boolean; endCursor: string}}>('/admin/api/orders?search=' + encodeURIComponent(combined) + '&after=' + encodeURIComponent(cursors.at(-1) || ''));
   function openOrder(order: Summary) { setSelected(order.id.split('/').pop()!); }
-  if (selected) return <OrderDetail key={selected} id={selected} back={() => setSelected('')}/>;
+  if (selected) return <OrderDetail key={selected} id={selected} back={() => {setSelected('');history.replaceState(null,'',location.pathname);}}/>;
   return <section className="overflow-hidden rounded-3xl border border-neutral-200/80 bg-white">
     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
       <div role="group" aria-label={t('订单状态筛选', 'Filter order status')} className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-neutral-100 p-1">{filters.map(f=><button type="button" key={f.id} aria-pressed={filter===f.id} onClick={()=>{setFilter(f.id);setCursors([]);}} className={'rounded-full px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ' + (filter===f.id ? 'bg-white font-medium text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900')}>{f.label}</button>)}</div>
@@ -139,6 +141,7 @@ export function Orders() {
 function OrderDetail({id, back}: {id: string; back: ()=>void}) {
   const t = useT();
   const data = useData<Order>('/admin/api/orders/' + id);
+  usePageBreadcrumb(data.data?.name || t('订单详情','Order details'));
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

@@ -11,6 +11,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ArrowRight,
+  ChevronRight,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +31,7 @@ import { Settings } from "./settings";
 import { Styles } from "./styles";
 import { Orders } from "./orders";
 import "./index.css";
+import { BreadcrumbContext, WorkspaceActions } from "./workspace-header";
 type Session = {
   username: string;
   shopify_embedded: boolean;
@@ -153,6 +156,7 @@ function Workspace() {
       </main>
     );
   const navigate = (next: string) => {
+    if (next === "/admin/orders") window.dispatchEvent(new Event("admin:orders-back"));
     history.pushState(null, "", next);
     setPath(next);
     setMenu(false);
@@ -185,6 +189,7 @@ function Shell({
   const t = useT();
   const embedded = session.shopify_embedded && window.self !== window.top;
   const [collapsed, setCollapsed] = useState(false);
+  const [breadcrumb, setBreadcrumb] = useState("");
   const nav = [
     {
       path: "/admin/tasks",
@@ -196,7 +201,7 @@ function Shell({
       name: t("风格目录", "Style library"),
       icon: Palette,
     },
-    { path: "/admin/orders", name: t("订单管理", "Orders"), icon: ListFilter },
+    { path: "/admin/orders", name: t("订单管理", "Orders"), icon: ShoppingBag },
     { path: "/admin/config", name: t("系统设置", "Settings"), icon: Settings2 },
   ];
   const active = nav.find((item) => item.path === path) || nav[0];
@@ -210,7 +215,7 @@ function Shell({
         {t("图片生成工作台", "Image generation workspace")}
       </div>
       <nav className="space-y-1">
-        {nav.map((item) => (
+        {nav.filter(item=>item.path!=="/admin/config").map((item) => (
           <a
             key={item.path}
             href={item.path}
@@ -234,7 +239,9 @@ function Shell({
           </a>
         ))}
       </nav>
-      <div className="mt-auto border-t px-3 pt-5 pb-4">
+      <div className="mt-auto space-y-4 pt-6 pb-4">
+        <a href="/admin/config" title={compact ? t('系统设置','Settings') : undefined} aria-label={t('系统设置','Settings')} aria-current={path==='/admin/config'?'page':undefined} onClick={e=>{if(e.metaKey||e.ctrlKey||e.shiftKey)return;e.preventDefault();navigate('/admin/config');}} className={'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-neutral-100 '+(path==='/admin/config'?'bg-neutral-100 font-medium':'')}><Settings2 className="size-4 shrink-0"/>{!compact&&t('系统设置','Settings')}</a>
+        <div className="border-t px-3 pt-4">
         <p className={compact ? "sr-only" : "truncate text-sm font-medium"}>{session.username}</p>
         <p className={compact ? "sr-only" : "mt-1 text-xs text-muted-foreground"}>
           v{session.version} · {session.release_date}
@@ -251,10 +258,12 @@ function Shell({
             {!compact && t("退出登录", "Sign out")}
           </Button>
         </form>
+        </div>
       </div>
     </>
   );
   return (
+    <BreadcrumbContext.Provider value={setBreadcrumb}>
     <div
       className={
         embedded
@@ -274,8 +283,8 @@ function Shell({
             : "min-h-svh bg-background lg:border-l " + (collapsed ? "lg:ml-16" : "lg:ml-56")
         }
       >
-        <header className="flex h-12 items-center justify-between gap-4 border-b bg-card px-4 lg:px-6">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b bg-white px-3 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {!embedded && (
               <Button
                 variant="ghost"
@@ -311,11 +320,9 @@ function Shell({
               </Sheet>
             )}
             <div id="order-detail-back" />
-            <h1 className="text-sm font-medium">{active.name}</h1>
+            <nav aria-label={t('面包屑导航','Breadcrumb')} className="min-w-0"><ol className="flex min-w-0 items-center gap-1.5 text-xs sm:gap-2 sm:text-sm"><li className="hidden sm:block"><a href="/admin/tasks" className="text-neutral-500 hover:text-neutral-900" onClick={e=>{if(e.ctrlKey||e.metaKey)return;e.preventDefault();navigate('/admin/tasks');}}>{t('工作台','Home')}</a></li><li aria-hidden="true" className="hidden sm:block"><ChevronRight className="size-3.5 text-neutral-400"/></li><li className="shrink-0">{breadcrumb ? <button className="text-neutral-500 hover:text-neutral-900" onClick={()=>{if(path==='/admin/orders')window.dispatchEvent(new Event('admin:orders-back'));else if(path==='/admin/config')location.hash='printful';else navigate(active.path);}}>{active.name}</button> : <span aria-current="page" className="font-medium">{active.name}</span>}</li>{breadcrumb&&<><li aria-hidden="true"><ChevronRight className="size-3.5 text-neutral-400"/></li><li aria-current="page" className="max-w-32 truncate font-medium">{breadcrumb}</li></>}</ol></nav>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {t("管理后台", "Admin workspace")}
-          </span>
+          <WorkspaceActions username={session.username} navigate={navigate}/>
         </header>
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
           {active.path === "/admin/orders" ? <Orders /> : active.path === "/admin/config" ? (
@@ -328,6 +335,7 @@ function Shell({
         </main>
       </div>
     </div>
+    </BreadcrumbContext.Provider>
   );
 }
 createRoot(document.getElementById("root")!).render(

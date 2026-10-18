@@ -125,3 +125,6 @@
   overflow: auto;
   scrollbar-gutter: stable;
 }
+
+.settings-content > section, .settings-content > form { max-width: none; }
+.settings-content .panel, .settings-content > section { border-radius: 1rem; }

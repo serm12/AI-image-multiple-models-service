@@ -43,6 +43,14 @@ def session(request: Request, _username: str = Depends(require_admin_login)):
     return JSONResponse({'username': _username, 'shopify_embedded': bool(getattr(request.state, 'shopify_admin', False)), 'locale': selected_locale(), 'version': APP_VERSION,
         'release_date': APP_RELEASE_DATE, 'timezones': display_timezones()}, headers={'Cache-Control': 'no-store'})
 
+@router.get('/admin/api/workspace')
+async def workspace(_username: str = Depends(require_admin_login)):
+    import asyncio
+    from app.services.workspace_overview import shop_identity, notifications
+    shop, messages = await asyncio.gather(shop_identity(), asyncio.to_thread(notifications))
+    return JSONResponse({'shop': shop, 'notifications': messages}, headers={'Cache-Control': 'no-store'})
+
+
 @router.get('/admin/api/tasks')
 def tasks(page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=100),
           client_ip: str = '', user: str = '', task_id: str = '', provider: str = '',

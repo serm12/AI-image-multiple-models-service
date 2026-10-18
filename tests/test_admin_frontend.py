@@ -34,7 +34,7 @@ class AdminFrontendTests(unittest.TestCase):
         return folder
 
     def test_all_pages_require_auth_and_deliver_react_shell_and_assets(self):
-        for path in ['/admin/tasks','/admin/styles','/admin/config','/admin/api/session','/admin/api/tasks','/admin/api/styles']:
+        for path in ['/admin/tasks','/admin/styles','/admin/config','/admin/api/session','/admin/api/workspace','/admin/api/tasks','/admin/api/styles']:
             denied=self.client.get(path,auth=None,follow_redirects=False)
             self.assertEqual(denied.status_code,303,path)
             self.assertTrue(denied.headers['location'].startswith('/admin/login'))
@@ -46,6 +46,21 @@ class AdminFrontendTests(unittest.TestCase):
             for asset in re.findall(r'(?:src|href)="(/admin/assets/[^"]+)"',response.text):
                 self.assertEqual(self.client.get(asset,auth=None).status_code,200,asset)
         self.assertEqual(self.client.get('/admin/assets/../../.env',auth=None).status_code,404)
+
+    def test_workspace_identity_and_notifications_are_authenticated_and_safe(self):
+        from unittest.mock import AsyncMock
+        from app.services import workspace_overview as workspace
+        from app.services import order_management
+        order_management.start_job('42')
+        order_management.finish_job('42', 'failed', 'sensitive-provider-error')
+        identity = {'name': 'Example Store', 'domain': 'example.myshopify.com', 'url': 'https://example.com', 'state': 'connected'}
+        with patch.object(workspace, 'shop_identity', AsyncMock(return_value=identity)):
+            response = self.client.get('/admin/api/workspace')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['cache-control'], 'no-store')
+        self.assertEqual(response.json()['shop']['name'], 'Example Store')
+        self.assertEqual(response.json()['notifications'][0]['url'], '/admin/orders?order=42')
+        self.assertNotIn('sensitive-provider-error', response.text)
 
     def test_login_error_remember_cookie_and_logout(self):
         client=TestClient(app,base_url='https://testserver')
@@ -136,3 +151,21 @@ class AdminFrontendTests(unittest.TestCase):
             self.assertNotIn('password',json.dumps(session))
 
 if __name__ == '__main__': unittest.main()
+
+
+class WorkspaceIdentityTests(unittest.IsolatedAsyncioTestCase):
+    async def test_shop_identity_cache_and_unavailable_fallback(self):
+        from unittest.mock import AsyncMock
+        from app.services import workspace_overview as workspace
+        workspace._shop_cache.clear()
+        remote = AsyncMock(return_value={'shop': {'name': 'Example Store', 'myshopifyDomain': 'example.myshopify.com', 'primaryDomain': {'url': 'https://example.com'}, 'currencyCode': 'USD'}})
+        with patch.object(workspace, 'allowed_shop', return_value='example'), patch.object(workspace, 'query', remote):
+            self.assertEqual((await workspace.shop_identity())['state'], 'connected')
+            await workspace.shop_identity()
+            self.assertEqual(remote.await_count, 1)
+        workspace._shop_cache.clear()
+        with patch.object(workspace, 'allowed_shop', return_value='example'), patch.object(workspace, 'query', AsyncMock(side_effect=RuntimeError('secret'))):
+            result = await workspace.shop_identity()
+            self.assertEqual(result['state'], 'unavailable')
+            self.assertEqual(result['domain'], 'example.myshopify.com')
+            self.assertNotIn('secret', str(result))
