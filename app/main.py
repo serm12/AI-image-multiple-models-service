@@ -112,6 +112,8 @@ from app.routers.admin_frontend import router as admin_frontend_router, DIST as 
 from fastapi.staticfiles import StaticFiles
 app.mount("/admin/assets", StaticFiles(directory=str(admin_dist), check_dir=False), name="admin-assets")
 app.include_router(admin_frontend_router)
+from app.routers.order_management import router as order_management_router
+app.include_router(order_management_router)
 app.include_router(admin_router)
 from app.routers.language_settings import router as language_settings_router, LanguageMiddleware
 app.include_router(language_settings_router)

@@ -27,6 +27,7 @@ import { Locale, useT, useData, api, ErrorBox, Loading } from "@/lib/admin";
 import { Tasks } from "./tasks";
 import { Settings } from "./settings";
 import { Styles } from "./styles";
+import { Orders } from "./orders";
 import "./index.css";
 type Session = {
   username: string;
@@ -185,6 +186,7 @@ function Shell({
   const embedded = session.shopify_embedded && window.self !== window.top;
   const [collapsed, setCollapsed] = useState(false);
   const nav = [
+    { path: "/admin/orders", name: t("订单管理", "Orders"), icon: ListFilter },
     {
       path: "/admin/tasks",
       name: t("任务记录", "Image tasks"),
@@ -197,7 +199,7 @@ function Shell({
     },
     { path: "/admin/config", name: t("系统设置", "Settings"), icon: Settings2 },
   ];
-  const active = nav.find((item) => item.path === path) || nav[0];
+  const active = nav.find((item) => item.path === path) || nav[1];
   const navigation = (compact = false) => (
     <>
       <div className="flex items-center gap-2.5 px-3 py-7 text-lg font-semibold" title={compact ? "Paintingify" : undefined}>
@@ -315,7 +317,7 @@ function Shell({
           </span>
         </header>
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
-          {active.path === "/admin/config" ? (
+          {active.path === "/admin/orders" ? <Orders /> : active.path === "/admin/config" ? (
             <Settings />
           ) : active.path === "/admin/styles" ? (
             <Styles />

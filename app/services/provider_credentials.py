@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from cryptography.fernet import Fernet
 from app.core.config import DirectoryConfig
 
-NAMES = ('AIAPIROUTE_API_KEY', 'FAL_API_KEY')
+NAMES = ('AIAPIROUTE_API_KEY', 'FAL_API_KEY', 'PRINTFUL_TOKEN', 'PRINTFUL_STORE_ID')
 
 
 def path():
@@ -47,7 +47,7 @@ def resolve(name, fallback=None):
 
 def status():
     from app.core.config import APIConfig
-    return {name: {'configured': bool(getattr(APIConfig, name))} for name in NAMES}
+    return {name: {'configured': bool(getattr(APIConfig, name))} for name in ('AIAPIROUTE_API_KEY', 'FAL_API_KEY')}
 
 
 def save(values):

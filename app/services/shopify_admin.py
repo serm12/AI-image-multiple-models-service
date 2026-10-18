@@ -86,6 +86,9 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                           '}catch(e){}},300000);</script>')
                 body = body.replace(b"<head>", ("<head>" + bridge).encode(), 1)
                 navigation = (_i18n('template_5ac216d3ac03'))
+                from app.services.i18n import selected_locale
+                orders_label = 'Orders' if selected_locale() == 'en' else '订单管理'
+                navigation = navigation.replace('</s-app-nav>', f'<s-link href="/admin/orders">{orders_label}</s-link></s-app-nav>')
                 body = body.replace(b'<body>', ('<body>' + navigation).encode(), 1)
                 headers = dict(response.headers)
                 headers.pop("content-length", None)

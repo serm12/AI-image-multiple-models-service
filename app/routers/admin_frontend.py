@@ -33,6 +33,7 @@ def login_page(request: Request, next: str = '/admin/tasks'):
 @router.get('/admin/', include_in_schema=False)
 @router.get('/admin/tasks', include_in_schema=False)
 @router.get('/admin/styles', include_in_schema=False)
+@router.get('/admin/orders', include_in_schema=False)
 @router.get('/admin/config', include_in_schema=False)
 def page(_username: str = Depends(require_admin_login)):
     return shell()

@@ -19,9 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useT, useData, post, Pick, ErrorBox, Loading } from "@/lib/admin";
+import { PrintfulSettings } from "./orders";
 export function Settings() {
   const t = useT();
   const items = [
+    ["printful", t("生产服务", "Production services"), KeyRound],
     ["watermark", t("水印与品牌", "Watermark & branding"), Stamp],
     ["time", t("时区", "Timezones"), Clock3],
     ["keys", t("模型密钥", "Provider keys"), KeyRound],
@@ -45,6 +47,7 @@ export function Settings() {
             </TabsTrigger>
           ))}
         </TabsList>
+        <TabsContent value="printful"><PrintfulSettings /></TabsContent>
         <TabsContent value="watermark">
           <Watermark />
         </TabsContent>
