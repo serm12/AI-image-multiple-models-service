@@ -26,6 +26,27 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
                 await routes.test_connection(None)
             self.assertEqual(routes.settings()['connection_status'], 'failed')
 
+    def test_historical_orders_match_exact_numbers_and_keep_reprints(self):
+        order = {'id': 'gid://shopify/Order/12345', 'name': '#1076'}
+        candidates = [
+            {'id': 1, 'external_id': 'shopify-1076-12345', 'status': 'canceled'},
+            {'id': 2, 'external_id': 'shopify-1076-no-hat-v2', 'status': 'fulfilled'},
+            {'id': 3, 'external_id': 'shopify-10760-55', 'status': 'fulfilled'},
+            {'id': 4, 'external_id': '12345', 'status': 'draft'},
+            {'id': 5, 'external_id': None, 'items': [{'name': 'Shopify #1076 | Canvas'}]},
+            {'id': 6, 'external_id': 'shopify-9999-other', 'items': [{'name': 'Shopify #1076 | Canvas'}]},
+        ]
+        self.assertEqual({p['id'] for p in service.match_printful(order, candidates)}, {1, 2, 4, 5})
+        self.assertEqual(service.match_printful({**order, 'name': '#107', 'id': 'other'}, candidates), [])
+
+    async def test_sync_failure_stops_push_before_processing(self):
+        self.printful_orders.side_effect = HTTPException(502, 'unavailable')
+        with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', AsyncMock()) as remote, patch.object(service, 'prepare') as prepare:
+            with self.assertRaises(HTTPException):
+                await service.push('42', self.input)
+            remote.assert_not_called()
+            prepare.assert_not_called()
+
     def test_purchase_format_overrides_misconfigured_shipping_and_generic_title(self):
         self.assertEqual(service.item_type({'variantTitle': 'DIGITAL Image Only - INSTANT DOWNLOAD', 'requiresShipping': True}), 'digital')
         self.assertEqual(service.item_type({'variantTitle': 'CANVAS Medium - 12×16', 'title': 'Digital Portrait', 'requiresShipping': False}), 'physical')
@@ -61,6 +82,8 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
             remote.assert_not_called()
 
     def setUp(self):
+        orders_patch = patch.object(service, 'printful_orders', AsyncMock(return_value=[]))
+        self.printful_orders = orders_patch.start(); self.addCleanup(orders_patch.stop)
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         patcher = patch.object(DirectoryConfig, 'TASKS_DIR', self.folder.name)
@@ -74,12 +97,13 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_shopify_fulfilled_item_uses_current_quantity_and_never_confirms(self):
         result = {'id': 8, 'status': 'draft', 'costs': {'total': '20'}, 'items': [{'files': [{'id': 3, 'status': 'ok'}]}]}
-        remote = AsyncMock(side_effect=[result, {'product': {'id': 3}}, result, result])
+        self.printful_orders.return_value = [{**result, 'external_id': '42'}]
+        remote = AsyncMock(side_effect=[{'product': {'id': 3}}, result, result])
         with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', remote), patch.object(service, 'prepare') as prepare:
             value = await service.push('42', self.input)
         self.assertEqual(value['id'], 8)
         prepare.assert_not_called()
-        call = remote.call_args_list[2]
+        call = remote.call_args_list[1]
         self.assertEqual(call.args[:2], ('PUT', '/orders/8?confirm=0'))
         self.assertEqual(call.args[2]['items'][0]['quantity'], 2)
         self.assertEqual(service.history('42')['file_statuses'][0]['status'], 'ok')
@@ -92,15 +116,16 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
                 await service.push('42', self.input)
             self.assertEqual(error.exception.status_code, 400)
             prepare.assert_not_called()
-        self.assertEqual(remote.await_count, 1)
+        self.assertEqual(remote.await_count, 0)
 
     async def test_existing_production_order_is_never_overwritten(self):
-        remote = AsyncMock(return_value={'id': 8, 'status': 'fulfilled'})
+        self.printful_orders.return_value = [{'id': 8, 'status': 'fulfilled', 'external_id': 'shopify-42-old-id'}]
+        remote = AsyncMock()
         with patch.object(service, 'detail', AsyncMock(return_value=self.order)), patch.object(service, 'pf', remote):
             with self.assertRaises(HTTPException) as error:
                 await service.push('42', self.input)
         self.assertEqual(error.exception.status_code, 409)
-        self.assertEqual(remote.await_count, 1)
+        self.assertEqual(remote.await_count, 0)
 
     async def test_foreign_artwork_rejected_before_processing(self):
         self.input.items[0].task_id = '20261018_120000_876543ab'
@@ -167,3 +192,17 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PrintfulPaginationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_all_pages_and_force_refresh(self):
+        service._catalog_orders.clear()
+        first = [{'id': i} for i in range(100)]
+        remote = AsyncMock(side_effect=[first, [{'id': 100}], []])
+        with patch.object(service, 'config', return_value={'PRINTFUL_TOKEN': 'test-only', 'PRINTFUL_STORE_ID': '12'}), patch.object(service, 'pf', remote):
+            self.assertEqual(len(await service.printful_orders()), 101)
+            self.assertEqual(len(await service.printful_orders()), 101)
+            self.assertEqual(remote.await_count, 2)
+            self.assertEqual(remote.call_args_list[1].args[1], '/orders?limit=100&offset=100')
+            self.assertEqual(await service.printful_orders(force=True), [])
+        service._catalog_orders.clear()

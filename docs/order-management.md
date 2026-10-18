@@ -49,3 +49,10 @@ References: https://developers.printful.com/docs/ and
 https://shopify.dev/docs/api/admin-graphql/unstable/queries/order
 
 Order and line types use purchased DIGITAL/CANVAS formats, then Shopify requiresShipping as fallback. Lists fetch all line pages before classification. Current quantities exclude refunded/removed items; fulfillment alone never changes the type. Mixed orders only allow physical lines to be sent. Explicit digital variants are blocked even with shipping enabled; physical variants with shipping disabled require review.
+
+
+## Existing Printful orders
+
+Opening the order list or detail loads all Printful order pages in the configured store, cached for at most 60 seconds. Manual status sync bypasses the cache. This is read-through synchronization, not a webhook or a background Shopify fulfillment update.
+
+Matching accepts the Shopify numeric ID, exact display number, MCP `shopify-{number}-...` references, and unambiguous `Shopify #{number}` item names. All matching replacement/reprint/canceled records remain visible with Printful status and shipment tracking. A fresh complete scan runs before any image processing or draft submission; unavailable Printful blocks submission. Multiple matches or any non-draft match require review and cannot be overwritten by this flow. A single existing draft retains its external ID; new drafts use the MCP-style reference.

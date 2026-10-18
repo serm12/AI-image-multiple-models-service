@@ -9,12 +9,20 @@ import { Switch } from '@/components/ui/switch';
 import { api, useData, useT, post, ErrorBox, Loading, Pick, safeUrl } from '@/lib/admin';
 
 type Production = { id: number; status: string; costs?: {total?: string; currency?: string}; file_statuses?: {id: number; status: string}[]; files?: {line_id: string; file_url: string; dimensions?: number[]}[] };
+type LinkedOrder = {id: number; external_id?: string; status: string; dashboard_url?: string; shipments?: {tracking_number?: string; tracking_url?: string; carrier?: string}[]};
+type PrintfulLinks = {printful_orders?: LinkedOrder[]; printful_sync?: {state: string}};
+function PrintfulStatus({status}: {status: string}) {
+  const t = useT();
+  const labels: Record<string, string> = {fulfilled: t('已履约', 'Fulfilled'), partial: t('部分履约', 'Partially fulfilled'), draft: t('草稿', 'Draft'), pending: t('待处理', 'Pending'), inprocess: t('生产中', 'In production'), onhold: t('暂停', 'On hold'), failed: t('失败', 'Failed'), canceled: t('已取消', 'Canceled'), archived: t('已归档', 'Archived')};
+  return <span className={'rounded-full px-2 py-1 text-xs ' + (status === 'fulfilled' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700')}>{labels[status] || status}</span>;
+}
+
 type Contact = {email?: string | null; customer?: {firstName?: string | null; lastName?: string | null; defaultEmailAddress?: {emailAddress?: string | null} | null} | null; shippingAddress?: {name?: string | null} | null};
 type OrderType = "physical" | "digital" | "mixed" | "unknown";
-type Summary = Contact & {order_type: OrderType;id: string; name: string; createdAt: string; displayFinancialStatus: string; displayFulfillmentStatus: string};
+type Summary = Contact & PrintfulLinks & {order_type: OrderType;id: string; name: string; createdAt: string; displayFinancialStatus: string; displayFulfillmentStatus: string};
 type Item = {item_type: OrderType;id: string; title: string; variantTitle: string; sku: string; currentQuantity: number; requiresShipping: boolean; images: {task_id: string; url: string}[]};
 type Job = {state: string; detail?: string; production?: Production | null};
-type Order = Contact & {order_type: OrderType;id: string; name: string; cancelledAt: string | null; displayFinancialStatus: string; shippingAddress: Record<string, string> | null; items: Item[]; production: Production | null; job: Job};
+type Order = Contact & PrintfulLinks & {order_type: OrderType;id: string; name: string; cancelledAt: string | null; displayFinancialStatus: string; shippingAddress: Record<string, string> | null; items: Item[]; production: Production | null; job: Job};
 type Choice = {line_id: string; task_id: string; variant_id: number; upscale: boolean; bleed: boolean};
 
 function TypeBadge({kind}: {kind: OrderType}) {
@@ -80,7 +88,7 @@ export function Orders() {
   return <div className="space-y-5">
     <section className="rounded-xl border bg-white p-5 shadow-sm"><form className="flex max-w-xl gap-2" onSubmit={e => {e.preventDefault(); setCursors([]); setQuery(search); data.reload();}}><Input className="bg-white" aria-label={t('搜索订单', 'Search orders')} placeholder={t('订单号或 Shopify 搜索条件', 'Order number or Shopify search query')} value={search} onChange={e => setSearch(e.target.value)}/><Button>{t('搜索', 'Search')}</Button></form></section>
     {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : data.loading ? <Loading/> : <>
-      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr>{[t('订单', 'Order'),t('类型', 'Type'),t('姓名 / 邮箱', 'Name / email'),t('时间', 'Created'),t('支付状态', 'Payment'),t('履约状态', 'Fulfillment'),''].map((v,i)=><th className="p-4" key={i}>{v}</th>)}</tr></thead><tbody>{data.data?.nodes.map(order=><tr key={order.id} className="border-t"><td className="p-4 font-medium">{order.name}</td><td className="p-4"><TypeBadge kind={order.order_type}/></td><td className="p-4"><CustomerContact order={order}/></td><td className="p-4 whitespace-nowrap">{new Date(order.createdAt).toLocaleString()}</td><td className="p-4">{order.displayFinancialStatus}</td><td className="p-4">{order.displayFulfillmentStatus}</td><td className="p-4"><Button variant="outline" onClick={()=>setSelected(order.id.split('/').pop()!)}>{order.order_type === 'digital' ? t('查看详情', 'View details') : t('查看 / 推送', 'Review / send')}</Button></td></tr>)}</tbody></table>{!data.data?.nodes.length && <p className="p-8 text-center text-muted-foreground">{t('没有匹配的订单', 'No matching orders')}</p>}</div>
+      <div className="overflow-x-auto rounded-xl border bg-white shadow-sm"><table className="w-full text-left text-sm"><thead className="bg-slate-50"><tr>{[t('订单', 'Order'),t('类型', 'Type'),t('姓名 / 邮箱', 'Name / email'),t('时间', 'Created'),t('支付状态', 'Payment'),t('履约状态', 'Fulfillment'),'Printful',''].map((v,i)=><th className="p-4" key={i}>{v}</th>)}</tr></thead><tbody>{data.data?.nodes.map(order=><tr key={order.id} className="border-t"><td className="p-4 font-medium">{order.name}</td><td className="p-4"><TypeBadge kind={order.order_type}/></td><td className="p-4"><CustomerContact order={order}/></td><td className="p-4 whitespace-nowrap">{new Date(order.createdAt).toLocaleString()}</td><td className="p-4">{order.displayFinancialStatus}</td><td className="p-4">{order.displayFulfillmentStatus}</td><td className="p-4"><div className="flex flex-wrap gap-1">{order.printful_orders?.map(p=><span key={p.id} title={p.external_id}><PrintfulStatus status={p.status}/></span>)}{!order.printful_orders?.length && <span className="text-muted-foreground">{order.printful_sync?.state === 'failed' ? t('同步失败', 'Sync failed') : order.printful_sync?.state === 'unconfigured' ? t('未配置', 'Not configured') : t('未关联', 'Not linked')}</span>}</div></td><td className="p-4"><Button variant="outline" onClick={()=>setSelected(order.id.split('/').pop()!)}>{order.order_type === 'digital' ? t('查看详情', 'View details') : t('查看 / 推送', 'Review / send')}</Button></td></tr>)}</tbody></table>{!data.data?.nodes.length && <p className="p-8 text-center text-muted-foreground">{t('没有匹配的订单', 'No matching orders')}</p>}</div>
       <div className="flex gap-2"><Button variant="outline" disabled={!cursors.length} onClick={()=>setCursors(v=>v.slice(0,-1))}>{t('上一页', 'Previous')}</Button><Button variant="outline" disabled={!data.data?.pageInfo.hasNextPage} onClick={()=>setCursors(v=>[...v,data.data!.pageInfo.endCursor])}>{t('下一页', 'Next')}</Button></div>
     </>}
   </div>;
@@ -117,7 +125,8 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
     setBusy(true); setError('');
     try {
       if (refresh) {
-        setProduction(await post<Production | null>(`/admin/api/orders/${id}/printful/status`, {}));
+        await post(`/admin/api/orders/${id}/printful/status`, {});
+        data.reload();
         toast.success(t('状态已刷新', 'Status refreshed'));
       } else {
         await post(`/admin/api/orders/${id}/printful`, {items:Object.values(choices)});
@@ -126,12 +135,21 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
     } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
   }
   const result = production === undefined ? data.data?.production : production;
+  const linked = data.data?.printful_orders || [];
+  const duplicate = linked.length > 1 || linked.some(p => p.status !== 'draft');
   const backSlot = document.getElementById('order-detail-back');
   const backButton = <Button type="button" variant="outline" size="sm" disabled={busy} onClick={back}><ArrowLeft className="size-4" />{t('返回订单', 'Back to orders')}</Button>;
   return <div className="space-y-5">
     {backSlot ? createPortal(backButton, backSlot) : backButton}
     {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : !data.data ? <Loading/> : <>
       <div><div className="flex items-center gap-3"><h2 className="page-heading">{data.data.name}</h2><TypeBadge kind={data.data.order_type}/></div><p className="page-description">{data.data.displayFinancialStatus} {data.data.cancelledAt && t(' · 已取消', ' · Cancelled')}</p></div>
+      <section className="rounded-xl border bg-white p-5 shadow-sm space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-medium">{t('Printful 关联订单', 'Linked Printful orders')}</h3><Button variant="outline" disabled={busy} onClick={()=>void send(true)}>{t('同步状态', 'Sync status')}</Button></div>
+        <p className="text-xs text-muted-foreground">{t('打开页面自动读取 Printful 状态（缓存最多 60 秒）；同步状态可立即刷新。', 'Status loads on opening (cached up to 60 seconds); sync to refresh immediately.')}</p>
+        {data.data.printful_sync?.state === 'failed' && <p className="text-sm text-red-700">{t('Printful 同步失败，请重试。推送前会再次检查已有订单。', 'Printful sync failed. Retry; existing orders are checked again before sending.')}</p>}
+        {!linked.length && <p className="text-sm text-muted-foreground">{data.data.printful_sync?.state === 'synced' ? t('未找到关联的 Printful 订单。', 'No linked Printful orders found.') : t('尚未同步到关联订单。', 'Linked orders have not been synced.')}</p>}
+        {linked.map(p=><div key={p.id} className="space-y-2 border-t pt-3"><div className="flex flex-wrap items-center gap-3"><a className="underline" href={safeUrl(p.dashboard_url || 'https://www.printful.com/dashboard?order_id='+p.id)} target="_blank" rel="noreferrer">Printful #{p.id}</a><PrintfulStatus status={p.status}/></div><p className="break-all text-sm text-muted-foreground">{p.external_id}</p>{p.shipments?.map((shipment,i)=><p key={i} className="text-sm">{shipment.carrier} {shipment.tracking_url ? <a className="underline" href={safeUrl(shipment.tracking_url)} target="_blank" rel="noreferrer">{shipment.tracking_number || t('物流追踪', 'Track shipment')}</a> : shipment.tracking_number}</p>)}</div>)}
+        {duplicate && <p className="text-sm text-amber-700">{t('已有生产、历史或多笔关联订单，已阻止重复推送。请先在 Printful 核对，补印须单独处理。', 'Existing production, historical or multiple orders found. Duplicate submission is blocked; review in Printful. Reprints need separate handling.')}</p>}
+      </section>
       <section className="rounded-xl border bg-white p-5 shadow-sm"><h3 className="mb-2 font-medium">{t('客户信息', 'Customer information')}</h3><CustomerContact order={data.data}/></section>
       <section className="rounded-xl border bg-white p-5 shadow-sm"><h3 className="mb-2 font-medium">{t('收货信息', 'Shipping address')}</h3><p className="text-sm">{data.data.shippingAddress ? Object.values(data.data.shippingAddress).filter(Boolean).join(' · ') : t('缺少收货地址', 'Shipping address missing')}</p></section>
       {data.data.order_type === 'digital' && <p className="rounded-xl border bg-white p-5 text-sm">{t('虚拟订单，仅交付电子图片，无需推送 Printful 生产配送。', 'Digital order: deliver image files only. No Printful production or shipping is needed.')}</p>}
@@ -141,7 +159,7 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
         const choice = choices[item.id];
         const update = (value: Partial<Choice>) => setChoices(v=>({...v,[item.id]:{...v[item.id],...value}}));
         return <section key={item.id} className="rounded-xl border bg-white p-5 shadow-sm space-y-4">
-          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.title}</h3><TypeBadge kind={item.item_type}/></div><p className="text-sm text-muted-foreground">{item.variantTitle} · SKU {item.sku || '—'}</p></div>{item.item_type === 'physical' && <Label className="flex shrink-0 gap-2 whitespace-nowrap"><Switch disabled={busy || running || !item.images.length || item.item_type !== 'physical' || !item.requiresShipping || item.currentQuantity < 1 || !!data.data?.cancelledAt} checked={!!choice} onCheckedChange={on=>setChoices(v=>{const next={...v}; if(on) next[item.id]={line_id:item.id,task_id:item.images[0].task_id,variant_id:0,upscale:true,bleed:true}; else delete next[item.id];return next;})}/>{t('推送', 'Send')}</Label>}</div>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-medium">{item.title}</h3><TypeBadge kind={item.item_type}/></div><p className="text-sm text-muted-foreground">{item.variantTitle} · SKU {item.sku || '—'}</p></div>{item.item_type === 'physical' && <Label className="flex shrink-0 gap-2 whitespace-nowrap"><Switch disabled={busy || running || duplicate || !item.images.length || item.item_type !== 'physical' || !item.requiresShipping || item.currentQuantity < 1 || !!data.data?.cancelledAt} checked={!!choice} onCheckedChange={on=>setChoices(v=>{const next={...v}; if(on) next[item.id]={line_id:item.id,task_id:item.images[0].task_id,variant_id:0,upscale:true,bleed:true}; else delete next[item.id];return next;})}/>{t('推送', 'Send')}</Label>}</div>
           {item.item_type === 'physical' && !item.requiresShipping && <p className="text-sm text-amber-700">{t('实物规格未启用配送，请先在 Shopify 核对商品设置。', 'Shipping is disabled for this physical item. Review its Shopify settings before sending.')}</p>}
           {!item.images.length && <p className="text-sm text-muted-foreground">{t('未关联可用的无水印原图', 'No original artwork available')}</p>}
           <div className="flex flex-wrap gap-3">{item.images.map(image=><a href={safeUrl(image.url)} key={image.task_id} target="_blank" rel="noreferrer"><img className="h-32 w-32 rounded border object-contain" src={safeUrl(image.url)} alt={item.title}/></a>)}</div>
@@ -154,7 +172,7 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
         </section>;
       })}
       {error && <ErrorBox message={error}/>}
-      {data.data.order_type !== 'digital' && <div className="flex flex-wrap gap-3"><Button disabled={busy || running || !Object.keys(choices).length || Object.values(choices).some(c=>!c.variant_id) || !!data.data.cancelledAt || !data.data.shippingAddress} onClick={()=>void send()}>{busy || running ? t('处理中，请稍候…', 'Processing, please wait…') : t('推送到 Printful 草稿', 'Send to Printful draft')}</Button><Button variant="outline" disabled={busy} onClick={()=>void send(true)}>{t('查询 Printful 状态', 'Check Printful status')}</Button></div>}
+      {data.data.order_type !== 'digital' && <div className="flex flex-wrap gap-3"><Button disabled={busy || running || duplicate || !Object.keys(choices).length || Object.values(choices).some(c=>!c.variant_id) || !!data.data.cancelledAt || !data.data.shippingAddress} onClick={()=>void send()}>{busy || running ? t('处理中，请稍候…', 'Processing, please wait…') : t('推送到 Printful 草稿', 'Send to Printful draft')}</Button><Button variant="outline" disabled={busy} onClick={()=>void send(true)}>{t('查询 Printful 状态', 'Check Printful status')}</Button></div>}
       {data.data.order_type !== 'digital' && <p className="text-sm text-muted-foreground">{t('草稿不会自动扣款生产。请在 Printful 核对印刷文件、运费和总价后确认。', 'Drafts do not start production. Review print files, shipping and total in Printful before confirming.')}</p>}
       {result && <section className="space-y-2 rounded-xl border bg-white p-5 shadow-sm"><h3 className="font-medium">Printful #{result.id} · {result.status}</h3><p>{result.costs?.total} {result.costs?.currency}</p>{result.file_statuses?.map((f,i)=><p key={i} className="text-sm">{t('文件', 'File')} #{f.id}: {f.status}</p>)}{result.files?.map((f,i)=><p key={i} className="text-sm"><a className="underline" href={safeUrl(f.file_url)} target="_blank" rel="noreferrer">{t('查看印刷文件', 'View print file')} {i+1}</a> {f.dimensions?.join(' × ')}</p>)}</section>}
     </>}

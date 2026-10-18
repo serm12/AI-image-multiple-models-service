@@ -99,6 +99,14 @@ async def list_orders(after=None, search=''):
                 lines.extend(connection['nodes'])
             classify_order(order, lines)
     await asyncio.gather(*(classify(order) for order in data['nodes']))
+    try:
+        candidates = await printful_orders()
+        for order in data['nodes']:
+            order['printful_orders'] = [production_summary(value) for value in match_printful(order, candidates or [])]
+            order['printful_sync'] = {'state': 'synced' if candidates is not None else 'unconfigured'}
+    except HTTPException:
+        for order in data['nodes']:
+            order['printful_sync'] = {'state': 'failed'}
     return data
 # White wrap templates from printful-mcp/image-processing.js; never infer a variant.
 TEMPLATES = {5: (7424, 9472, 640), 6: (9472, 11520, 640),
@@ -173,6 +181,64 @@ async def pf(method, path, body=None, missing=False):
         raise HTTPException(502, f'Printful 请求失败 ({response.status_code})，请检查权限、Store ID 和商品规格')
     return response.json()['result']
 
+_catalog_orders = {}
+_orders_lock = asyncio.Lock()
+
+
+async def printful_orders(force=False):
+    settings = config()
+    if not settings['PRINTFUL_TOKEN']:
+        return None
+    key = tuple(settings.values())
+    async with _orders_lock:
+        cached = _catalog_orders.get(key)
+        if not force and cached and time.time() - cached[0] < 60:
+            return cached[1]
+        orders = []
+        for offset in range(0, 100000, 100):
+            page = await pf('GET', f'/orders?limit=100&offset={offset}')
+            orders.extend(page)
+            if len(page) < 100:
+                _catalog_orders.clear()
+                _catalog_orders[key] = (time.time(), orders)
+                return orders
+        raise HTTPException(502, 'Printful 订单过多，无法完成关联检查')
+
+
+def match_printful(order, candidates):
+    numeric_id = order['id'].rsplit('/', 1)[-1]
+    number = str(order.get('name', '')).lstrip('#')
+    matches = []
+    for candidate in candidates:
+        external = str(candidate.get('external_id') or '')
+        # Match whole identifiers, never a substring such as 107 matching 1076.
+        identity = re.match(r'^shopify-(\d+)(?:-|$)', external, re.I)
+        reason = None
+        if external == numeric_id:
+            reason = 'shopify_id'
+        elif number and (external == '#' + number or external == number or (identity and identity[1] == number)):
+            reason = 'order_number'
+        elif not identity and not external.isdigit():
+            refs = set(re.findall(r'Shopify\s*#(\d+)(?!\d)', ' '.join(str(i.get('name') or '') for i in candidate.get('items', [])), re.I))
+            if number and refs == {number}:
+                reason = 'item_reference'
+        if reason:
+            matches.append({**candidate, 'match_reason': reason})
+    return sorted(matches, key=lambda x: (x.get('status') in ('canceled', 'archived'), -int(x.get('created') or 0)))
+
+
+def production_summary(order):
+    return {key: order.get(key) for key in ('id', 'external_id', 'status', 'costs', 'dashboard_url', 'shipments', 'match_reason')}
+
+
+async def sync_printful(order, force=False):
+    candidates = await printful_orders(force)
+    matches = match_printful(order, candidates or [])
+    order['printful_orders'] = [production_summary(value) for value in matches]
+    order['printful_sync'] = {'state': 'synced' if candidates is not None else 'unconfigured', 'checked_at': int(time.time())}
+    return matches
+
+
 async def shopify(document, variables):
     try:
         return await query(document, variables)
@@ -198,6 +264,11 @@ async def detail(order_id):
     del order['lineItems']
     order['production'] = history(order_id)
     order['job'] = job(order_id)
+    try:
+        await sync_printful(order)
+    except HTTPException:
+        order['printful_orders'] = []
+        order['printful_sync'] = {'state': 'failed'}
     return order
 
 def recipient(address):
@@ -290,7 +361,10 @@ async def push(order_id, selection):
             if line.get('requiresShipping') is not True:
                 raise HTTPException(400, '该实物商品未启用配送，请先在 Shopify 中核对订单商品设置')
         address = recipient(order.get('shippingAddress'))
-        existing = await pf('GET', '/orders/@' + quote(order_id, safe=''), missing=True)
+        matches = await sync_printful(order, force=True)
+        if any(value['status'] != 'draft' for value in matches) or len(matches) > 1:
+            raise HTTPException(409, 'Printful 已有此 Shopify 订单的关联记录，请核对状态；补印须单独处理，禁止重复推送')
+        existing = matches[0] if matches else None
         if existing and existing['status'] != 'draft':
             raise HTTPException(409, 'Printful 已存在非草稿订单，请在 Printful 中核对，禁止重复创建')
         lines = {line['id']: line for line in order['items']}
@@ -316,11 +390,12 @@ async def push(order_id, selection):
             manifests.append({'line_id': chosen.line_id, 'variant_id': chosen.variant_id, **manifest})
             items.append({'external_id': chosen.line_id.rsplit('/', 1)[-1], 'variant_id': chosen.variant_id,
                           'quantity': line['currentQuantity'], 'files': [{'url': manifest['file_url']}]})
-        body = {'external_id': order_id, 'recipient': address, 'items': items}
+        body = {'external_id': existing.get('external_id') if existing else f"shopify-{order['name'].lstrip('#')}-{order_id}", 'recipient': address, 'items': items}
         result = await pf('PUT' if existing else 'POST',
             ('/orders/' + str(existing['id']) if existing else '/orders') + '?confirm=0', body)
         value = {'id': result['id'], 'status': result['status'], 'costs': result.get('costs'), 'files': manifests}
         record(order_id, value)
+        _catalog_orders.clear()
         # Processing may outlast this poll; expose pending/error states without claiming files are ready.
         for attempt in range(5):
             current = await pf('GET', '/orders/' + str(result['id']))

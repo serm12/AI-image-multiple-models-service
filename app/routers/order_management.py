@@ -103,14 +103,9 @@ def production_job(order_id: OrderId):
 @router.post('/orders/{order_id}/printful/status')
 async def refresh(order_id: OrderId, request: Request):
     origin(request)
-    result = await service.pf('GET', '/orders/@' + order_id, missing=True)
+    order = await service.detail(order_id)
+    await service.sync_printful(order, force=True)
     job = service.job(order_id)
     if job['state'] == 'running' and time.time() - job['started'] > 3600 and not service._push_lock.locked():
         service.finish_job(order_id, 'failed', '处理已中断，Printful 状态已核对，可以重新推送草稿。')
-    if not result:
-        return None
-    saved = service.history(order_id) or {}
-    saved.update({'id': result['id'], 'status': result['status'], 'costs': result.get('costs'),
-        'file_statuses': [{'id': f.get('id'), 'status': f.get('status')} for i in result.get('items', []) for f in i.get('files', [])]})
-    service.record(order_id, saved)
-    return saved
+    return {'orders': order['printful_orders'], 'sync': order['printful_sync']}
