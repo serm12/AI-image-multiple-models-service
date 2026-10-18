@@ -12,9 +12,9 @@ import { api, useData, useT, post, ErrorBox, Loading, Pick, safeUrl } from '@/li
 type Production = { id: number; status: string; costs?: {total?: string; currency?: string}; file_statuses?: {id: number; status: string}[]; files?: {line_id: string; file_url: string; dimensions?: number[]}[] };
 type LinkedOrder = {id: number; external_id?: string; status: string; dashboard_url?: string; shipments?: {tracking_number?: string; tracking_url?: string; carrier?: string}[]};
 type PrintfulLinks = {printful_orders?: LinkedOrder[]; printful_sync?: {state: string}};
-type StatusTone = 'neutral' | 'attention' | 'warning' | 'critical' | 'info';
+type StatusTone = 'success' | 'neutral' | 'attention' | 'warning' | 'critical' | 'info';
 function StatusLabel({label, tone = 'neutral', complete = false}: {label: string; tone?: StatusTone; complete?: boolean}) {
-  const colors = {neutral: 'bg-[#f1f1f1] text-[#616161]', attention: 'bg-[#ffeb78] text-[#4f4700]', warning: 'bg-[#ffebd5] text-[#5e4200]', critical: 'bg-[#fee9e8] text-[#8e1f0b]', info: 'bg-[#eaf4ff] text-[#00527c]'};
+  const colors = {success: 'bg-[#dcfce7] text-[#166534]', neutral: 'bg-[#f1f1f1] text-[#616161]', attention: 'bg-[#ffeb78] text-[#4f4700]', warning: 'bg-[#ffebd5] text-[#5e4200]', critical: 'bg-[#fee9e8] text-[#8e1f0b]', info: 'bg-[#eaf4ff] text-[#00527c]'};
   return <span className={'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium leading-4 ' + colors[tone]}><span aria-hidden="true" className={'size-2 shrink-0 rounded-[2px] ' + (complete ? 'bg-current' : 'border border-current')}/>{label}</span>;
 }
 function ShopifyStatus({status, kind}: {status?: string | null; kind: 'payment' | 'fulfillment'}) {
@@ -23,7 +23,7 @@ function ShopifyStatus({status, kind}: {status?: string | null; kind: 'payment' 
     PAID: ['已付款', 'Paid', 'neutral', true], AUTHORIZED: ['已授权', 'Authorized', 'neutral'], PENDING: ['待付款', 'Payment pending', 'attention'], PARTIALLY_PAID: ['部分付款', 'Partially paid', 'attention'], PARTIALLY_REFUNDED: ['部分退款', 'Partially refunded', 'neutral'], REFUNDED: ['已退款', 'Refunded', 'neutral', true], VOIDED: ['已作废', 'Voided', 'neutral'], EXPIRED: ['已过期', 'Expired', 'critical'],
   };
   const fulfillment: Record<string, [string, string, StatusTone, boolean?]> = {
-    FULFILLED: ['已发货', 'Fulfilled', 'neutral', true], UNFULFILLED: ['未发货', 'Unfulfilled', 'attention'], PARTIALLY_FULFILLED: ['部分发货', 'Partially fulfilled', 'attention'], IN_PROGRESS: ['处理中', 'In progress', 'info'], ON_HOLD: ['暂停发货', 'On hold', 'warning'], SCHEDULED: ['已安排发货', 'Scheduled', 'info'], FULFILLMENT_NOT_REQUIRED: ['无需发货', 'Not required', 'neutral'], REQUEST_DECLINED: ['发货请求被拒绝', 'Request declined', 'critical'], OPEN: ['未发货', 'Unfulfilled', 'attention'], PENDING_FULFILLMENT: ['待处理发货', 'Pending fulfillment', 'info'], RESTOCKED: ['已重新入库', 'Restocked', 'neutral'],
+    FULFILLED: ['已发货', 'Fulfilled', 'success', true], UNFULFILLED: ['未发货', 'Unfulfilled', 'attention'], PARTIALLY_FULFILLED: ['部分发货', 'Partially fulfilled', 'attention'], IN_PROGRESS: ['处理中', 'In progress', 'info'], ON_HOLD: ['暂停发货', 'On hold', 'warning'], SCHEDULED: ['已安排发货', 'Scheduled', 'info'], FULFILLMENT_NOT_REQUIRED: ['无需发货', 'Not required', 'neutral'], REQUEST_DECLINED: ['发货请求被拒绝', 'Request declined', 'critical'], OPEN: ['未发货', 'Unfulfilled', 'attention'], PENDING_FULFILLMENT: ['待处理发货', 'Pending fulfillment', 'info'], RESTOCKED: ['已重新入库', 'Restocked', 'neutral'],
   };
   const value = (kind === 'payment' ? payment : fulfillment)[status || ''];
   return <StatusLabel label={value ? t(value[0], value[1]) : t('待核对', 'Needs review')} tone={value?.[2]} complete={value?.[3]}/>;
@@ -31,7 +31,7 @@ function ShopifyStatus({status, kind}: {status?: string | null; kind: 'payment' 
 function PrintfulStatus({status}: {status: string}) {
   const t = useT();
   const labels: Record<string, string> = {fulfilled: t('已发货', 'Fulfilled'), partial: t('部分发货', 'Partially fulfilled'), draft: t('草稿', 'Draft'), pending: t('待处理', 'Pending'), inprocess: t('生产中', 'In production'), onhold: t('暂停', 'On hold'), failed: t('失败', 'Failed'), canceled: t('已取消', 'Canceled'), archived: t('已归档', 'Archived'), inreview: t('审核中', 'In review')};
-  const tone = status === 'failed' ? 'critical' : status === 'onhold' ? 'warning' : status === 'partial' || status === 'pending' ? 'attention' : status === 'inprocess' || status === 'inreview' ? 'info' : 'neutral';
+  const tone = status === 'fulfilled' ? 'success' : status === 'failed' || status === 'canceled' ? 'critical' : status === 'onhold' ? 'warning' : status === 'partial' || status === 'pending' ? 'attention' : status === 'inprocess' || status === 'inreview' ? 'info' : 'neutral';
   return <StatusLabel label={labels[status] || t('待核对', 'Needs review')} tone={tone} complete={status === 'fulfilled'}/>;
 }
 
@@ -187,7 +187,7 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
   return <div className="space-y-5">
     {backSlot ? createPortal(backButton, backSlot) : backButton}
     {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : !data.data ? <Loading/> : <>
-      <div><div className="flex items-center gap-3"><h2 className="page-heading">{data.data.name}</h2><TypeBadge kind={data.data.order_type}/></div><div className="mt-2 flex flex-wrap gap-2"><ShopifyStatus kind="payment" status={data.data.displayFinancialStatus}/><ShopifyStatus kind="fulfillment" status={data.data.displayFulfillmentStatus}/>{data.data.cancelledAt && <StatusLabel label={t('已取消', 'Canceled')}/>}</div></div>
+      <div><div className="flex items-center gap-3"><h2 className="page-heading">{data.data.name}</h2><TypeBadge kind={data.data.order_type}/></div><div className="mt-2 flex flex-wrap gap-2"><ShopifyStatus kind="payment" status={data.data.displayFinancialStatus}/><ShopifyStatus kind="fulfillment" status={data.data.displayFulfillmentStatus}/>{data.data.cancelledAt && <StatusLabel label={t('已取消', 'Canceled')} tone="critical"/>}</div></div>
       <section className="rounded-xl border bg-white p-5 shadow-sm space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-medium">{t('Printful 关联订单', 'Linked Printful orders')}</h3><Button variant="outline" disabled={busy} onClick={()=>void send(true)}>{t('同步状态', 'Sync status')}</Button></div>
         <p className="text-xs text-muted-foreground">{t('打开页面自动读取 Printful 状态（缓存最多 60 秒）；同步状态可立即刷新。', 'Status loads on opening (cached up to 60 seconds); sync to refresh immediately.')}</p>
         {data.data.printful_sync?.state === 'failed' && <p className="text-sm text-red-700">{t('Printful 同步失败，请重试。推送前会再次检查已有订单。', 'Printful sync failed. Retry; existing orders are checked again before sending.')}</p>}
