@@ -1,5 +1,7 @@
 """Authenticated production order actions."""
 import asyncio
+import hashlib
+import json
 import time
 from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
@@ -18,10 +20,21 @@ def origin(request):
     if request.headers.get('origin') != str(request.base_url).rstrip('/'):
         raise HTTPException(403, 'Invalid request origin')
 
+def connection_status(value, state=None):
+    fingerprint = hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+    with credentials.database() as db:
+        db.execute('CREATE TABLE IF NOT EXISTS production_connection (fingerprint TEXT PRIMARY KEY, state TEXT NOT NULL)')
+        if state is not None:
+            db.execute('DELETE FROM production_connection')
+            db.execute('INSERT INTO production_connection VALUES (?, ?)', (fingerprint, state))
+        row = db.execute('SELECT state FROM production_connection WHERE fingerprint=?', (fingerprint,)).fetchone()
+    return row[0] if row else 'unverified'
+
+
 @router.get('/production/settings')
 def settings():
     value = service.config()
-    return {'configured': bool(value['PRINTFUL_TOKEN']), 'store_id': value['PRINTFUL_STORE_ID']}
+    return {'configured': bool(value['PRINTFUL_TOKEN']), 'store_id': value['PRINTFUL_STORE_ID'], 'connection_status': connection_status(value)}
 
 class SettingsInput(BaseModel):
     token: str = Field(default='', max_length=4096)
@@ -44,10 +57,18 @@ async def save_settings(request: Request):
 @router.post('/production/test')
 async def test_connection(request: Request):
     origin(request)
-    stores = await service.pf('GET', '/stores')
-    configured = service.config()['PRINTFUL_STORE_ID']
-    if configured and not any(str(store['id']) == configured for store in stores):
-        raise HTTPException(400, '此 Token 无法访问所填 Store ID')
+    value = service.config()
+    try:
+        stores = await service.pf('GET', '/stores')
+        configured = value['PRINTFUL_STORE_ID']
+        if configured and not any(str(store['id']) == configured for store in stores):
+            raise HTTPException(400, '此 Token 无法访问所填 Store ID')
+    except Exception:
+        connection_status(value, 'failed')
+        raise
+    if service.config() != value:
+        raise HTTPException(409, '配置已更改，请重新测试连接')
+    connection_status(value, 'connected')
     return {'stores': stores}
 
 @router.get('/orders')

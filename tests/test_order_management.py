@@ -12,6 +12,20 @@ from app.routers.order_management import PushInput
 
 
 class ProductionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_connection_status_persists_and_tracks_credentials(self):
+        from app.routers import order_management as routes
+        value = {'PRINTFUL_TOKEN': 'test-token', 'PRINTFUL_STORE_ID': '12'}
+        with patch.object(service, 'config', return_value=value), patch.object(routes, 'origin'), patch.object(service, 'pf', AsyncMock(return_value=[{'id': 12}])):
+            self.assertEqual(routes.settings()['connection_status'], 'unverified')
+            await routes.test_connection(None)
+            self.assertEqual(routes.settings()['connection_status'], 'connected')
+            self.assertEqual(routes.connection_status({**value, 'PRINTFUL_TOKEN': 'changed'}), 'unverified')
+            self.assertEqual(routes.connection_status({**value, 'PRINTFUL_STORE_ID': '13'}), 'unverified')
+        with patch.object(service, 'config', return_value=value), patch.object(routes, 'origin'), patch.object(service, 'pf', AsyncMock(side_effect=HTTPException(502, 'failed'))):
+            with self.assertRaises(HTTPException):
+                await routes.test_connection(None)
+            self.assertEqual(routes.settings()['connection_status'], 'failed')
+
     def test_purchase_format_overrides_misconfigured_shipping_and_generic_title(self):
         self.assertEqual(service.item_type({'variantTitle': 'DIGITAL Image Only - INSTANT DOWNLOAD', 'requiresShipping': True}), 'digital')
         self.assertEqual(service.item_type({'variantTitle': 'CANVAS Medium - 12×16', 'title': 'Digital Portrait', 'requiresShipping': False}), 'physical')
@@ -135,7 +149,7 @@ class ProductionTests(unittest.IsolatedAsyncioTestCase):
                 result = client.post('/admin/api/production/settings', headers={'Origin': 'https://testserver'}, json={'token': 'secret-value', 'store_id': '123'})
                 self.assertEqual(result.status_code, 200, result.text)
                 self.assertNotIn('secret-value', result.text)
-                self.assertEqual(result.json(), {'configured': True, 'store_id': '123'})
+                self.assertEqual(result.json(), {'configured': True, 'store_id': '123', 'connection_status': 'unverified'})
                 self.assertEqual(result.headers['cache-control'], 'no-store')
                 bad = client.post('/admin/api/production/settings', headers={'Origin': 'https://testserver'}, json={'token': 'secret-value', 'store_id': 'invalid'})
                 self.assertEqual(bad.status_code, 400)

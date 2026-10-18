@@ -33,7 +33,7 @@ function CustomerContact({order}: {order: Contact}) {
 
 export function PrintfulSettings() {
   const t = useT();
-  const data = useData<{configured: boolean; store_id: string}>('/admin/api/production/settings');
+  const data = useData<{configured: boolean; store_id: string; connection_status: string}>('/admin/api/production/settings');
   const [token, setToken] = useState('');
   const [store, setStore] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -48,19 +48,23 @@ export function PrintfulSettings() {
         await post('/admin/api/production/settings', {token, store_id: store ?? data.data?.store_id ?? ''});
         setToken(''); data.reload(); toast.success(t('已保存', 'Saved'));
       }
-    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    } catch (e) { setError((e as Error).message); } finally { data.reload(); setBusy(false); }
   }
   if (data.error) return <ErrorBox message={data.error} retry={data.reload}/>;
   if (!data.data) return <Loading/>;
+  const changed = !!token.trim() || (store !== undefined && store !== data.data.store_id);
+  const status = changed ? 'unverified' : data.data.connection_status;
+  const connected = data.data.configured && status === 'connected';
   return <section className="max-w-2xl space-y-5 rounded-xl border bg-white p-6 shadow-sm">
     <h2 className="text-lg font-semibold">{t('Printful Token 配置', 'Printful token settings')}</h2>
     <p className="text-sm text-muted-foreground">{t('使用 Private Token 连接自己的店铺。Printful 也支持面向第三方用户的 OAuth 应用。', 'Use a Private Token for your own store. Printful also supports OAuth apps for third-party users.')} <a className="underline" href="https://developers.printful.com/tokens" target="_blank" rel="noreferrer">{t('获取 Token', 'Get a token')}</a></p>
+    <div role="status" className={'inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ' + (connected ? 'bg-emerald-50 text-emerald-700' : status === 'failed' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600')}><span aria-hidden="true" className={'size-2 rounded-full ' + (connected ? 'bg-emerald-500' : status === 'failed' ? 'bg-red-500' : 'bg-slate-400')} />{connected ? t('连接成功', 'Connected') : status === 'failed' ? t('连接失败，请重新测试', 'Connection failed; test again') : data.data.configured ? t('已配置 · 待验证', 'Configured · Not verified') : t('未配置', 'Not configured')}</div>
     <p className="text-sm">{data.data.configured ? t('已配置密钥；留空保留原密钥。', 'Token configured; leave blank to keep it.') : t('尚未配置密钥。', 'No token configured.')}</p>
     <form className="space-y-5" onSubmit={e => {e.preventDefault(); void save();}}>
       <div className="space-y-2"><Label htmlFor="pf-token">Printful API Token</Label><Input id="pf-token" placeholder={t('粘贴你的 Printful Private Token', 'Paste your Printful Private Token')} type="password" autoComplete="new-password" maxLength={4096} value={token} onChange={e => setToken(e.target.value)}/></div>
       <div className="space-y-2"><Label htmlFor="pf-store">Store ID</Label><Input id="pf-store" inputMode="numeric" pattern="[0-9]*" value={store ?? data.data.store_id} onChange={e => setStore(e.target.value)}/><p className="text-sm text-muted-foreground">{t('账户级 Token 必填；店铺级 Token 可留空。需允许读取店铺、商品和读写订单。', 'Required for account tokens; optional for store tokens. Allow store/product reads and order read/write access.')}</p></div>
       {error && <ErrorBox message={error}/>}
-      <div className="flex gap-3"><Button disabled={busy}>{t('保存设置', 'Save settings')}</Button><Button type="button" variant="outline" disabled={busy || !data.data.configured} onClick={() => void save(true)}>{t('测试已保存的连接', 'Test saved connection')}</Button></div>
+      <div className="flex gap-3"><Button disabled={busy}>{t('保存设置', 'Save settings')}</Button><Button type="button" variant="outline" disabled={busy || !data.data.configured || changed} onClick={() => void save(true)}>{t('测试已保存的连接', 'Test saved connection')}</Button></div>
     </form>
   </section>;
 }
