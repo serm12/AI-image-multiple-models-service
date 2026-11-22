@@ -140,6 +140,15 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   queryRef.current = query;
   const [detail, setDetail] = useState<Task>();
   const [gallery, setGallery] = useState<{ images: Image[]; index: number }>();
+  function changeGalleryImage(direction: -1 | 1) {
+    setGallery((current) => {
+      if (!current) return current;
+      const index = current.index + direction;
+      return index >= 0 && index < current.images.length
+        ? { ...current, index }
+        : current;
+    });
+  }
   const [filters, setFilters] = useState(false);
   const [busy, setBusy] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -987,19 +996,43 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           </DialogHeader>
           {gallery && (
             <>
-              <img
-                className="max-h-[68svh] w-full rounded-md bg-muted object-contain"
-                src={safeUrl(gallery.images[gallery.index].url)}
-                alt={gallery.images[gallery.index].filename}
-              />
+              <div className="relative">
+                <img
+                  className="max-h-[68svh] w-full rounded-md bg-muted object-contain"
+                  src={safeUrl(gallery.images[gallery.index].url)}
+                  alt={gallery.images[gallery.index].filename}
+                />
+                {gallery.images.length > 1 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="absolute top-1/2 left-2 size-10 -translate-y-1/2 rounded-full bg-background shadow-sm sm:left-4"
+                      aria-label={t("上一张", "Previous")}
+                      disabled={gallery.index === 0}
+                      onClick={() => changeGalleryImage(-1)}
+                    >
+                      <ChevronLeft />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="absolute top-1/2 right-2 size-10 -translate-y-1/2 rounded-full bg-background shadow-sm sm:right-4"
+                      aria-label={t("下一张", "Next")}
+                      disabled={gallery.index === gallery.images.length - 1}
+                      onClick={() => changeGalleryImage(1)}
+                    >
+                      <ChevronRight />
+                    </Button>
+                  </>
+                )}
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     disabled={gallery.index === 0}
-                    onClick={() =>
-                      setGallery({ ...gallery, index: gallery.index - 1 })
-                    }
+                    onClick={() => changeGalleryImage(-1)}
                   >
                     <ChevronLeft />
                     {t("上一张", "Previous")}
@@ -1007,9 +1040,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                   <Button
                     variant="outline"
                     disabled={gallery.index === gallery.images.length - 1}
-                    onClick={() =>
-                      setGallery({ ...gallery, index: gallery.index + 1 })
-                    }
+                    onClick={() => changeGalleryImage(1)}
                   >
                     {t("下一张", "Next")}
                     <ChevronRight />
