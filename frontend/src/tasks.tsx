@@ -311,6 +311,17 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       ? `https://admin.shopify.com/store/paintingify/customers/${id}`
       : undefined;
   }
+  function customerIdentity(task: Task) {
+    if (task.customer_logged_in || task.customer_id?.trim()) {
+      return t("已登录用户", "Signed-in user");
+    }
+    if (task.customer_sync?.customer_id) {
+      return t("Shopify 客户", "Shopify customer");
+    }
+    return task.customer_email
+      ? t("登录状态未记录", "Sign-in not recorded")
+      : t("访客", "Visitor");
+  }
   const subscription: Record<string, string> = {
     accepted: t("订阅已接受", "Subscription accepted"),
     verification_required: t("订阅需要验证", "Verification required"),
@@ -322,6 +333,14 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     subscribed: t("已订阅", "Subscribed"),
     preserved: t("保留原订阅状态", "Subscription preserved"),
   };
+  function subscriptionBadge(task: Task) {
+    const state = task.customer_sync?.state || task.subscription_status;
+    return (
+      <Badge variant="outline" className={state === "subscribed" ? stageColors[3] : "text-muted-foreground"}>
+        {subscription[state] || t("订阅未记录", "Subscription not recorded")}
+      </Badge>
+    );
+  }
   return (
     <>
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("任务统计", "Task statistics")} aria-busy={result.loading}>
@@ -691,12 +710,12 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                           {customer(task) ? (
                             <a
                               className="min-w-0 max-w-[52%] truncate font-medium text-foreground hover:underline"
-                              title={task.customer_email || task.customer_id}
+                              title={task.customer_email || task.customer_id || task.customer_sync?.customer_id}
                               target="_blank"
                               rel="noreferrer"
                               href={customer(task)}
                             >
-                              {task.customer_email || task.customer_id}
+                              {task.customer_email || task.customer_id || task.customer_sync?.customer_id}
                             </a>
                           ) : (
                             <span className="min-w-0 max-w-[52%] truncate font-medium" title={task.customer_email || task.customer_id || task.storefront_visitor_id}>
@@ -710,15 +729,9 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                             <CopyButton value={task.customer_email} />
                           )}
                           <span className="ml-1 text-xs text-muted-foreground">
-                          {task.customer_logged_in
-                            ? t("已登录客户", "Signed-in customer")
-                            : t("访客", "Visitor")}{" "}
-                          ·{" "}
-                          {subscription[
-                            task.customer_sync?.state ||
-                              task.subscription_status
-                          ] || t("订阅未记录", "Subscription not recorded")}
+                            {customerIdentity(task)}
                           </span>
+                          {subscriptionBadge(task)}
                         </div>
                         <div className="mt-2.5">{funnel(task)}</div>
                         <div className="mt-2.5 flex items-center gap-2 whitespace-nowrap">
