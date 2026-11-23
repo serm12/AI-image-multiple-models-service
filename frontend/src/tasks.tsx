@@ -57,6 +57,8 @@ import {
   Loading,
   CopyButton,
   safeUrl,
+  adminPageUrl,
+  isShopifyEmbedded,
 } from "@/lib/admin";
 import { taskQuery } from "@/lib/task-query";
 import { TaskStatusBadge } from "@/components/task-status-badge";
@@ -227,7 +229,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   }, []);
   function update(params: URLSearchParams) {
     const next = taskQuery(params.toString());
-    history.pushState(null, "", "/admin/tasks" + next);
+    history.pushState(null, "", adminPageUrl("/admin/tasks" + next));
     setQuery(next);
   }
   function change(key: string, value: string) {
@@ -673,12 +675,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                                   image.filename
                                 }
                               >
-                                <img
-                                  className="size-16 rounded-md object-cover"
-                                  src={image.thumbnail}
-                                  loading="lazy"
-                                  alt={image.filename}
-                                />
+                                <TaskThumbnail key={image.thumbnail} image={image} />
                                 {image.reference && (
                                   <span className="absolute inset-x-0 bottom-0 rounded-b-md bg-primary/85 text-[10px] text-white">
                                     {t("参考图", "Reference")}
@@ -1086,6 +1083,47 @@ function TimeRange({ value, onChange }: { value: string; onChange?: (value: stri
         ]}
       />
     </>
+  );
+}
+
+function TaskThumbnail({ image }: { image: Image }) {
+  const embedded = isShopifyEmbedded();
+  const element = useRef<HTMLImageElement>(null);
+  const [source, setSource] = useState<string>();
+  useEffect(() => {
+    if (!embedded || !element.current) return;
+    const request = new AbortController();
+    let objectUrl: string | undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      observer.disconnect();
+      void fetch(image.thumbnail, { signal: request.signal, redirect: "error" })
+        .then((response) => {
+          if (!response.ok) throw new Error("Thumbnail request failed");
+          return response.blob();
+        })
+        .then((blob) => {
+          if (request.signal.aborted) return;
+          objectUrl = URL.createObjectURL(blob);
+          setSource(objectUrl);
+        })
+        .catch(() => {});
+    }, { rootMargin: "160px" });
+    observer.observe(element.current);
+    return () => {
+      observer.disconnect();
+      request.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [embedded, image.thumbnail]);
+  return (
+    <img
+      ref={element}
+      className="size-16 rounded-md object-cover"
+      src={embedded ? source : image.thumbnail}
+      loading="lazy"
+      alt={image.filename}
+    />
   );
 }
 

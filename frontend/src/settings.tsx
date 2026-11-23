@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { usePageBreadcrumb } from "./workspace-header";
-import { useT, useData, post, Pick, ErrorBox, Loading } from "@/lib/admin";
+import { useT, useData, post, Pick, ErrorBox, Loading, isShopifyEmbedded } from "@/lib/admin";
 import { PrintfulSettings } from "./orders";
 export function Settings() {
   const t = useT();
@@ -142,7 +142,7 @@ function Watermark() {
       signal,
     });
     if (response.redirected) {
-      location.assign("/admin/login");
+      if (!isShopifyEmbedded()) location.assign("/admin/login");
       throw new Error(t("请重新登录", "Please sign in again"));
     }
     if (!response.ok) {

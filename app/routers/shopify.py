@@ -46,7 +46,8 @@ async def verified_session(request, sdk, redirect=False):
     await authorize(sdk, result)
     await ensure_pixel(sdk, result)
     context = urlencode({"shop": f"{allowed_shop()}.myshopify.com", "embedded": "1",
-                         "host": base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
+                         "host": request.query_params.get("host") or
+                         base64.b64encode(b"admin.shopify.com/store/paintingify").decode().rstrip("=")})
     response = RedirectResponse("/admin/tasks?" + context, status_code=303) if redirect else Response(status_code=204)
     response.headers.update(result.response.headers)
     response.headers["Cache-Control"] = "no-store"

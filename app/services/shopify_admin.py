@@ -3,6 +3,7 @@ from app.services.i18n import render as _i18n, Message as _i18n_message
 import os
 import time
 from html import escape
+from urllib.parse import urlencode
 
 import jwt
 from fastapi import Request
@@ -12,6 +13,7 @@ from starlette.responses import Response
 COOKIE = "__Secure-paintingify-shopify"
 MAX_AGE = 900
 ORIGIN = "https://image-api.shopupup.com"
+EMBEDDED_PAGES = {"/admin", "/admin/", "/admin/tasks", "/admin/styles", "/admin/orders", "/admin/config"}
 
 
 def allowed_shop():
@@ -20,6 +22,25 @@ def allowed_shop():
 
 def secret():
     return os.getenv("SHOPIFY_API_SECRET") or os.environ["SHOPIFY_CLIENT_SECRET"]
+
+
+def shopify_token_shop(request: Request):
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer "):
+        return None
+    client_id = (os.getenv("SHOPIFY_API_KEY") or os.getenv("SHOPIFY_CLIENT_ID", "")).strip()
+    if not client_id:
+        return None
+    try:
+        claims = jwt.decode(authorization[7:], secret(), algorithms=["HS256"],
+                            audience=client_id, options={"require": ["exp", "nbf", "dest", "iss", "sub"]})
+        shop = allowed_shop()
+        dest = f"https://{shop}.myshopify.com"
+        if claims["dest"] == dest and claims["iss"] == f"{dest}/admin" and claims["sub"]:
+            return shop
+    except (jwt.PyJWTError, KeyError):
+        return None
+    return None
 
 
 def session_shop(request: Request):
@@ -55,7 +76,15 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS',
                 'Access-Control-Allow-Headers': 'Authorization, Content-Type',
                 'Access-Control-Max-Age': '600'})
-        shop = session_shop(request) if request.url.path.startswith("/admin/") else None
+        admin_path = request.url.path == "/admin" or request.url.path.startswith("/admin/")
+        shop = (shopify_token_shop(request) or session_shop(request)) if admin_path else None
+        embedded_page = (
+            request.method == "GET" and request.url.path in EMBEDDED_PAGES
+            and request.query_params.get("embedded") == "1"
+            and request.query_params.get("shop") == f"{allowed_shop()}.myshopify.com"
+            and bool(request.query_params.get("host"))
+        )
+        request.state.shopify_shell = embedded_page
         if shop:
             if request.method not in {"GET", "HEAD", "OPTIONS"} and request.headers.get("origin") != ORIGIN:
                 return Response("Forbidden", status_code=403)
@@ -68,8 +97,8 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
             response.headers['Access-Control-Allow-Origin'] = '*'
             if 'access-control-allow-credentials' in response.headers:
                 del response.headers['access-control-allow-credentials']
-        if shop:
-            response.headers["Content-Security-Policy"] = f"frame-ancestors https://{shop}.myshopify.com https://admin.shopify.com;"
+        if shop or embedded_page:
+            response.headers["Content-Security-Policy"] = f"frame-ancestors https://{allowed_shop()}.myshopify.com https://admin.shopify.com;"
             response.headers["Cache-Control"] = "no-store"
             response.headers["Referrer-Policy"] = "no-referrer"
             if request.url.path == "/admin/logout":
@@ -80,15 +109,16 @@ class ShopifyAdminMiddleware(BaseHTTPMiddleware):
                 key = escape(os.getenv("SHOPIFY_API_KEY") or os.getenv("SHOPIFY_CLIENT_ID", ""), quote=True)
                 bridge = (f'<meta name="shopify-api-key" content="{key}">'
                           '<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>'
-                          '<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>'
-                          '<script>setInterval(async()=>{try{const token=await shopify.idToken();'
-                          'await fetch("/shopify/session",{method:"POST",headers:{Authorization:"Bearer "+token}});'
-                          '}catch(e){}},300000);</script>')
+                          '<script src="https://cdn.shopify.com/shopifycloud/polaris.js"></script>')
                 body = body.replace(b"<head>", ("<head>" + bridge).encode(), 1)
                 navigation = (_i18n('template_5ac216d3ac03'))
                 from app.services.i18n import selected_locale
                 orders_label = 'Orders' if selected_locale() == 'en' else '订单管理'
                 navigation = navigation.replace('<s-link href="/admin/config">', f'<s-link href="/admin/orders">{orders_label}</s-link><s-link href="/admin/config">')
+                if embedded_page:
+                    context = escape(urlencode({key: request.query_params[key] for key in ("embedded", "shop", "host")}), quote=True)
+                    for path in EMBEDDED_PAGES:
+                        navigation = navigation.replace(f'href="{path}"', f'href="{path}?{context}"')
                 body = body.replace(b'<body>', ('<body>' + navigation).encode(), 1)
                 headers = dict(response.headers)
                 headers.pop("content-length", None)

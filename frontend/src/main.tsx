@@ -25,7 +25,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Locale, useT, useData, api, ErrorBox, Loading } from "@/lib/admin";
+import { Locale, useT, useData, api, ErrorBox, Loading, adminPageUrl } from "@/lib/admin";
 import { Tasks } from "./tasks";
 import { Settings } from "./settings";
 import { Styles } from "./styles";
@@ -157,7 +157,7 @@ function Workspace() {
     );
   const navigate = (next: string) => {
     if (next === "/admin/orders") window.dispatchEvent(new Event("admin:orders-back"));
-    history.pushState(null, "", next);
+    history.pushState(null, "", adminPageUrl(next));
     setPath(next);
     setMenu(false);
   };
@@ -187,7 +187,7 @@ function Shell({
   setMenu: (v: boolean) => void;
 }) {
   const t = useT();
-  const embedded = session.shopify_embedded && window.self !== window.top;
+  const embedded = session.shopify_embedded;
   const [collapsed, setCollapsed] = useState(false);
   const [breadcrumb, setBreadcrumb] = useState("");
   const nav = [

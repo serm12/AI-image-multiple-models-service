@@ -1,5 +1,9 @@
 """The production React routes: permissions, real task data, and build delivery."""
 import json
+import os
+import time
+
+import jwt
 import re
 import tempfile
 import unittest
@@ -77,6 +81,42 @@ class AdminFrontendTests(unittest.TestCase):
         self.assertEqual(client.get('/admin/api/session').json()['username'],'admin')
         client.post('/admin/logout')
         self.assertEqual(client.get('/admin/api/tasks',follow_redirects=False).status_code,303)
+
+    def test_shopify_embedded_admin_uses_id_token_without_cookie(self):
+        self.task('embedded-task')
+        secret = 'shopify-test-secret-at-least-32-bytes'
+        shop = 'ai-generate-image.myshopify.com'
+        origin = 'https://image-api.shopupup.com'
+        now = int(time.time())
+        claims = {'aud': 'test-shopify-app', 'dest': f'https://{shop}',
+                  'iss': f'https://{shop}/admin', 'sub': '123', 'nbf': now - 1, 'exp': now + 60}
+        context = {'embedded': '1', 'shop': shop, 'host': 'test-host'}
+        with patch.dict(os.environ, {'SHOPIFY_API_KEY': 'test-shopify-app',
+                                       'SHOPIFY_API_SECRET': secret, 'SHOPIFY_SHOP': shop}):
+            with TestClient(app, base_url=origin, follow_redirects=False) as client:
+                shell = client.get('/admin/tasks', params=context)
+                self.assertEqual(shell.status_code, 200)
+                self.assertIn('app-bridge.js', shell.text)
+                self.assertIn('frame-ancestors', shell.headers['content-security-policy'])
+                self.assertNotIn('embedded-task', shell.text)
+                for path in ['/admin/api/session', '/admin/api/tasks',
+                             '/admin/tasks/embedded-task/thumbnail/result.png']:
+                    self.assertEqual(client.get(path, params=context).status_code, 303)
+                for changed in [{'aud': 'wrong-app'}, {'dest': 'https://wrong.myshopify.com'},
+                                {'iss': 'https://wrong.myshopify.com/admin'}, {'exp': now - 1}]:
+                    token = jwt.encode({**claims, **changed}, secret, algorithm='HS256')
+                    self.assertEqual(client.get('/admin/api/tasks', headers={
+                        'Authorization': f'Bearer {token}'}).status_code, 303)
+                token = jwt.encode(claims, secret, algorithm='HS256')
+                headers = {'Authorization': f'Bearer {token}'}
+                self.assertTrue(client.get('/admin/api/session', headers=headers).json()['shopify_embedded'])
+                self.assertEqual(client.get('/admin/api/tasks', headers=headers).status_code, 200)
+                self.assertEqual(client.get('/admin/tasks/embedded-task/thumbnail/result.png', headers=headers).status_code, 200)
+                star = '/admin/api/tasks/embedded-task/star'
+                self.assertEqual(client.post(star, json={'starred': True}, headers={
+                    **headers, 'Origin': 'https://other.example'}).status_code, 403)
+                self.assertEqual(client.post(star, json={'starred': True}, headers={
+                    **headers, 'Origin': origin}).status_code, 200)
 
     def test_task_data_filters_pagination_references_and_thumbnail(self):
         self.task('task-1',api_provider='gemini',customer_email='other@example.com')

@@ -4,9 +4,10 @@ from urllib.parse import quote, unquote, urlparse
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.security import HTTPBasicCredentials
 from pydantic import BaseModel, Field
 from typing import Annotated, Literal
-from app.services.security import require_admin_login, get_admin_session_user, ADMIN_SESSION_COOKIE
+from app.services.security import require_admin_login, get_admin_session_user, ADMIN_SESSION_COOKIE, http_basic
 from app.services.i18n import selected_locale
 from app.services.time_settings import display_timezones
 from app.services.task_query_service import list_task_summaries, set_task_starred
@@ -35,7 +36,9 @@ def login_page(request: Request, next: str = '/admin/tasks'):
 @router.get('/admin/styles', include_in_schema=False)
 @router.get('/admin/orders', include_in_schema=False)
 @router.get('/admin/config', include_in_schema=False)
-def page(_username: str = Depends(require_admin_login)):
+def page(request: Request, credentials: HTTPBasicCredentials | None = Depends(http_basic)):
+    if not getattr(request.state, 'shopify_shell', False):
+        require_admin_login(request, credentials)
     return shell()
 
 @router.get('/admin/api/session')

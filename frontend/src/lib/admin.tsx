@@ -14,12 +14,27 @@ export function useT() {
   const locale = useContext(Locale);
   return (zh: string, en: string) => (locale === "en" ? en : zh);
 }
+export const isShopifyEmbedded = () => !!document.querySelector('meta[name="shopify-api-key"]');
+
+export function adminPageUrl(path: string) {
+  const current = new URLSearchParams(location.search);
+  const url = new URL(path, location.origin);
+  for (const key of ["embedded", "shop", "host"]) {
+    const value = current.get(key);
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.pathname + url.search;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { credentials: "same-origin", ...init });
   if (
     response.redirected &&
     new URL(response.url).pathname === "/admin/login"
   ) {
+    if (isShopifyEmbedded()) {
+      throw new Error("Shopify 认证失败，请从 Shopify 的应用菜单重新打开 / Shopify authentication failed. Reopen the app from Shopify.");
+    }
     window.location.assign(
       "/admin/login?next=" +
         encodeURIComponent(location.pathname + location.search),
@@ -139,7 +154,7 @@ export function Loading() {
   return (
     <div
       role="status"
-      className="flex items-center gap-2 py-12 text-sm text-muted-foreground"
+      className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"
     >
       <Loader2 className="size-4 animate-spin" />
       {t("正在加载…", "Loading…")}
