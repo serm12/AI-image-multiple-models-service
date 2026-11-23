@@ -203,6 +203,34 @@ class APIConfig:
             "aspect_ratios": ["match_input_image", *STANDARD_ASPECT_RATIOS],
             "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
+        "gpt-image-2.5-flare_fal": {
+            "label": "fal.ai API (GPT Image 2.5 Flare)",
+            "key": "FAL_API_KEY",
+            "fal_image_endpoint": "openai/gpt-image-2.5/flare",
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        "gpt-image-2.5-sunburst_fal": {
+            "label": "fal.ai API (GPT Image 2.5 Sunburst)",
+            "key": "FAL_API_KEY",
+            "fal_image_endpoint": "openai/gpt-image-2.5/sunburst",
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        "gpt-image-2.6-flare_fal": {
+            "label": "fal.ai API (GPT Image 2.6 Flare)",
+            "key": "FAL_API_KEY",
+            "fal_image_endpoint": "openai/gpt-image-2.6/flare",
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        "gpt-image-2.6-sunburst_fal": {
+            "label": "fal.ai API (GPT Image 2.6 Sunburst)",
+            "key": "FAL_API_KEY",
+            "fal_image_endpoint": "openai/gpt-image-2.6/sunburst",
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
         "aiapiroute_gpt-image-1": {
             "label": "aiapiroute/Sub2API gpt-image-1",
             "key": "AIAPIROUTE_API_KEY",
@@ -261,10 +289,14 @@ class APIConfig:
         "gpt-image-2.5": [
             "gpt-image-2.5-flare_aiapiroute",
             "gpt-image-2.5-sunburst_aiapiroute",
+            "gpt-image-2.5-flare_fal",
+            "gpt-image-2.5-sunburst_fal",
         ],
         "gpt-image-2.6": [
             "gpt-image-2.6-flare_aiapiroute",
             "gpt-image-2.6-sunburst_aiapiroute",
+            "gpt-image-2.6-flare_fal",
+            "gpt-image-2.6-sunburst_fal",
         ],
         "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
         "seedream-5-pro": ["seedream-5-pro_fal"],
@@ -275,6 +307,11 @@ class APIConfig:
         ],
     }
     PROVIDER_FALLBACK_GROUPS = DEFAULT_PROVIDER_FALLBACK_GROUPS
+    FAL_GPT_IMAGE_ENDPOINTS = {
+        provider: config["fal_image_endpoint"]
+        for provider, config in PROVIDERS.items()
+        if "fal_image_endpoint" in config
+    }
     AIAPIROUTE_PROVIDER_MODEL_MAP = {
         provider: config["model"]
         for provider, config in PROVIDERS.items()
@@ -423,6 +460,10 @@ class ProviderEnum(str, Enum):
     seedream_4_replicate = "seedream-4_replicate"
     seedream_4_fal = "seedream-4_fal"
     gpt_image_2_fal = "gpt-image-2_fal"
+    gpt_image_2_5_flare_fal = "gpt-image-2.5-flare_fal"
+    gpt_image_2_5_sunburst_fal = "gpt-image-2.5-sunburst_fal"
+    gpt_image_2_6_flare_fal = "gpt-image-2.6-flare_fal"
+    gpt_image_2_6_sunburst_fal = "gpt-image-2.6-sunburst_fal"
     aiapiroute_gpt_image_1 = "aiapiroute_gpt-image-1"
     aiapiroute_gpt_image_1_5 = "aiapiroute_gpt-image-1.5"
     gpt_image_2_aiapiroute = "gpt-image-2_aiapiroute"

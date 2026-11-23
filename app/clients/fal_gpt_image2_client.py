@@ -107,35 +107,41 @@ class FalGPTImage2Client:
         aspect_ratio: Any = None,
         size: str | None = None,
         quality: str | None = None,
+        endpoint_base: str | None = None,
         **kwargs,
     ) -> dict:
         image_urls = await self._prepare_image_urls(input_image_paths, input_image_url)
-        if not image_urls:
+        if not image_urls and not endpoint_base:
             raise ValueError("GPT Image 2 Fal.ai 模型需要至少一个参考图像。")
+        model_id = self.model_id
+        if endpoint_base:
+            mode = "edit" if image_urls else "text-to-image"
+            model_id = f"{endpoint_base}/{mode}"
 
         image_size = self._resolve_image_size(aspect_ratio=aspect_ratio, size=size)
         request_quality = (quality or self.quality or "medium").strip()
 
         arguments = {
             "prompt": prompt,
-            "image_urls": image_urls,
             "image_size": image_size,
             "quality": request_quality,
             "num_images": 1,
         }
-        if seed is not None:
+        if image_urls:
+            arguments["image_urls"] = image_urls
+        if seed is not None and not endpoint_base:
             arguments["seed"] = seed
 
         print(
             "GPT Image 2 Fal.ai 生成图像: "
-            f"model_id={self.model_id}, aspect_ratio={getattr(aspect_ratio, 'value', aspect_ratio)}, "
+            f"model_id={model_id}, aspect_ratio={getattr(aspect_ratio, 'value', aspect_ratio)}, "
             f"size={size}, image_size={image_size}, quality={request_quality}, refs={len(image_urls)}"
         )
 
         try:
-            handler = self.fal.submit(self.model_id, arguments)
+            handler = self.fal.submit(model_id, arguments)
         except TypeError:
-            handler = self.fal.submit(self.model_id, **arguments)
+            handler = self.fal.submit(model_id, **arguments)
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, handler.get)
@@ -160,12 +166,12 @@ class FalGPTImage2Client:
                 "image_size": image_size,
                 "quality": request_quality,
                 "seed": seed,
-                "model_id": self.model_id,
+                "model_id": model_id,
             },
             "api_type": "gpt_image2_fal",
             "raw": {
                 "seed": result.get("seed"),
                 "images_count": len(result.get("images", [])),
             },
-            "extracted_seed": result.get("seed") or seed,
+            "extracted_seed": result.get("seed") if endpoint_base else result.get("seed") or seed,
         }

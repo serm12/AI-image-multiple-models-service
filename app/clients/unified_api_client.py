@@ -191,9 +191,10 @@ class UnifiedAPIClient:
             return await self._generate_with_seedream_5_pro_fal(
                 prompt, input_image_paths, seed, art_style, aspect_ratio
             )
-        elif effective_provider == "gpt-image-2_fal":
+        elif effective_provider == "gpt-image-2_fal" or effective_provider in APIConfig.FAL_GPT_IMAGE_ENDPOINTS:
             return await self._generate_with_fal_gpt_image2(
-                prompt, input_image_paths, input_image_url, seed, aspect_ratio, size
+                prompt, input_image_paths, input_image_url, seed, aspect_ratio, size,
+                endpoint_base=APIConfig.FAL_GPT_IMAGE_ENDPOINTS.get(effective_provider),
             )
         elif effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP:
             return await self._generate_with_aiapiroute(
@@ -312,7 +313,8 @@ class UnifiedAPIClient:
         except Exception as e:
             raise ValueError(f"Seedream 5 Pro Fal.ai API调用失败: {e}")
 
-    async def _generate_with_fal_gpt_image2(self, prompt, input_image_paths=None, input_image_url=None, seed=None, aspect_ratio=None, size=None):
+    async def _generate_with_fal_gpt_image2(self, prompt, input_image_paths=None, input_image_url=None, seed=None,
+                                           aspect_ratio=None, size=None, endpoint_base=None):
         """使用 GPT Image 2 Fal.ai API 生成图像"""
         try:
             client = self._get_fal_gpt_image2_client()
@@ -323,6 +325,7 @@ class UnifiedAPIClient:
                 seed=seed,
                 aspect_ratio=aspect_ratio,
                 size=size,
+                endpoint_base=endpoint_base,
             )
         except Exception as e:
             raise ValueError(f"GPT Image 2 Fal.ai API调用失败: {e}")
