@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Palette, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { useT, useData, Loading, ErrorBox, CopyButton } from "@/lib/admin";
-export function Styles() {
+export function Styles({ searchTarget }: { searchTarget: HTMLDivElement | null }) {
   const t = useT();
   const result =
     useData<{ id: string; description: string; prompt: string }[]>(
@@ -24,16 +25,20 @@ export function Styles() {
   );
   return (
     <>
-      <div className="mb-6 flex max-w-xl items-center gap-3">
-        <Search className="size-4 text-muted-foreground" />
-        <Input
-          aria-label={t("搜索风格", "Search styles")}
-          placeholder={t("搜索风格或提示词…", "Search styles or prompts…")}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Badge variant="secondary">{styles?.length || 0}</Badge>
-      </div>
+      {searchTarget && createPortal(
+        <div className="flex min-w-0 items-center gap-2">
+          <Search className="hidden size-4 shrink-0 text-muted-foreground sm:block" />
+          <Input
+            className="min-w-0"
+            aria-label={t("搜索风格", "Search styles")}
+            placeholder={t("搜索风格或提示词…", "Search styles or prompts…")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Badge variant="secondary">{styles?.length || 0}</Badge>
+        </div>,
+        searchTarget,
+      )}
       {result.error && (
         <ErrorBox message={result.error} retry={result.reload} />
       )}{" "}

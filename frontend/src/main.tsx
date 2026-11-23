@@ -189,6 +189,7 @@ function Shell({
   const t = useT();
   const embedded = session.shopify_embedded;
   const [collapsed, setCollapsed] = useState(false);
+  const [styleSearchTarget, setStyleSearchTarget] = useState<HTMLDivElement | null>(null);
   const [breadcrumb, setBreadcrumb] = useState("");
   const nav = [
     {
@@ -321,13 +322,16 @@ function Shell({
             <div id="order-detail-back" />
             <nav aria-label={t('面包屑导航','Breadcrumb')} className="min-w-0"><ol className="flex min-w-0 items-center gap-1.5 text-xs sm:gap-2 sm:text-sm"><li className="hidden sm:block"><a href="/admin/tasks" className="text-neutral-500 hover:text-neutral-900" onClick={e=>{if(e.ctrlKey||e.metaKey)return;e.preventDefault();navigate('/admin/tasks');}}>{t('工作台','Home')}</a></li><li aria-hidden="true" className="hidden sm:block"><ChevronRight className="size-3.5 text-neutral-400"/></li><li className="shrink-0">{breadcrumb ? <button className="text-neutral-500 hover:text-neutral-900" onClick={()=>{if(path==='/admin/orders')window.dispatchEvent(new Event('admin:orders-back'));else if(path==='/admin/config')location.hash='printful';else navigate(active.path);}}>{active.name}</button> : <span aria-current="page" className="font-medium">{active.name}</span>}</li>{breadcrumb&&<><li aria-hidden="true"><ChevronRight className="size-3.5 text-neutral-400"/></li><li aria-current="page" className="max-w-32 truncate font-medium">{breadcrumb}</li></>}</ol></nav>
           </div>
+          {active.path === "/admin/styles" && (
+            <div ref={setStyleSearchTarget} className="order-last w-full min-w-0 sm:order-none sm:max-w-xl sm:flex-1" />
+          )}
           <WorkspaceActions username={session.username} navigate={navigate}/>
         </header>
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
           {active.path === "/admin/orders" ? <Orders /> : active.path === "/admin/config" ? (
             <Settings />
           ) : active.path === "/admin/styles" ? (
-            <Styles />
+            <Styles searchTarget={styleSearchTarget} />
           ) : (
             <Tasks timezones={session.timezones} />
           )}
