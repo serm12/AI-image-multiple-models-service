@@ -110,6 +110,14 @@ class APIConfig:
         "AIAPIROUTE_GPT_IMAGE25_SUNBURST_MODEL",
         "gpt-image-2.5-sunburst",
     )
+    AIAPIROUTE_GPT_IMAGE26_FLARE_MODEL = os.getenv(
+        "AIAPIROUTE_GPT_IMAGE26_FLARE_MODEL",
+        "gpt-image-2.6-flare",
+    )
+    AIAPIROUTE_GPT_IMAGE26_SUNBURST_MODEL = os.getenv(
+        "AIAPIROUTE_GPT_IMAGE26_SUNBURST_MODEL",
+        "gpt-image-2.6-sunburst",
+    )
     AIAPIROUTE_IMAGE_RESOLUTION = os.getenv("AIAPIROUTE_IMAGE_RESOLUTION", os.getenv("AIAPIROUTE_GPT_IMAGE2_RESOLUTION", "1K"))
     AIAPIROUTE_IMAGE_QUALITY = os.getenv("AIAPIROUTE_IMAGE_QUALITY", os.getenv("AIAPIROUTE_GPT_IMAGE2_QUALITY", ""))
     # Sub2API v0.2.5 image edits are most reliable with non-streaming JSON.
@@ -230,6 +238,20 @@ class APIConfig:
             "aspect_ratios": STANDARD_ASPECT_RATIOS,
             "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
+        "gpt-image-2.6-flare_aiapiroute": {
+            "label": "aiapiroute/Sub2API gpt-image-2.6 Flare",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE26_FLARE_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        "gpt-image-2.6-sunburst_aiapiroute": {
+            "label": "aiapiroute/Sub2API gpt-image-2.6 Sunburst",
+            "key": "AIAPIROUTE_API_KEY",
+            "model": AIAPIROUTE_GPT_IMAGE26_SUNBURST_MODEL,
+            "aspect_ratios": STANDARD_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
     }
 
     ALL_PROVIDERS = list(PROVIDERS.keys())
@@ -239,6 +261,10 @@ class APIConfig:
         "gpt-image-2.5": [
             "gpt-image-2.5-flare_aiapiroute",
             "gpt-image-2.5-sunburst_aiapiroute",
+        ],
+        "gpt-image-2.6": [
+            "gpt-image-2.6-flare_aiapiroute",
+            "gpt-image-2.6-sunburst_aiapiroute",
         ],
         "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
         "seedream-5-pro": ["seedream-5-pro_fal"],
@@ -402,6 +428,8 @@ class ProviderEnum(str, Enum):
     gpt_image_2_aiapiroute = "gpt-image-2_aiapiroute"
     gpt_image_2_5_flare_aiapiroute = "gpt-image-2.5-flare_aiapiroute"
     gpt_image_2_5_sunburst_aiapiroute = "gpt-image-2.5-sunburst_aiapiroute"
+    gpt_image_2_6_flare_aiapiroute = "gpt-image-2.6-flare_aiapiroute"
+    gpt_image_2_6_sunburst_aiapiroute = "gpt-image-2.6-sunburst_aiapiroute"
 
 # 目录配置
 class DirectoryConfig:
