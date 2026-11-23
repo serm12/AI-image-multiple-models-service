@@ -660,7 +660,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         {task.purge_after && <Badge variant="secondary" className="mb-2" title={new Date(task.purge_after).toLocaleString()}>
                           <Timer className="size-3" />{task.cleanup_started ? t("正在清理 / 等待重试", "Cleanup pending") : t(`清理日期：${new Date(task.purge_after).toLocaleDateString()}`, `Cleanup: ${new Date(task.purge_after).toLocaleDateString()}`)}
                         </Badge>}
-                        <div className="flex gap-1.5 overflow-x-auto pb-2">
+                        <div className="task-thumbnail-strip flex gap-1.5 overflow-x-auto pb-2">
                           {task.images.length ? (
                             task.images.map((image, index) => (
                               <button

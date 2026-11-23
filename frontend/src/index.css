@@ -128,3 +128,27 @@
 
 .settings-content > section, .settings-content > form { max-width: none; }
 .settings-content .panel, .settings-content > section { border-radius: 1rem; }
+
+.task-thumbnail-strip {
+  scrollbar-width: thin;
+}
+
+@supports selector(::-webkit-scrollbar) {
+  .task-thumbnail-strip {
+    scrollbar-width: auto;
+  }
+
+  .task-thumbnail-strip::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .task-thumbnail-strip::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+  }
+
+  .task-thumbnail-strip::-webkit-scrollbar-thumb {
+    background: var(--muted-foreground);
+    border-radius: 999px;
+  }
+}
