@@ -288,14 +288,14 @@ class APIConfig:
         "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
         "gpt-image-2.5": [
             "gpt-image-2.5-flare_aiapiroute",
-            "gpt-image-2.5-sunburst_aiapiroute",
             "gpt-image-2.5-flare_fal",
+            "gpt-image-2.5-sunburst_aiapiroute",
             "gpt-image-2.5-sunburst_fal",
         ],
         "gpt-image-2.6": [
             "gpt-image-2.6-flare_aiapiroute",
-            "gpt-image-2.6-sunburst_aiapiroute",
             "gpt-image-2.6-flare_fal",
+            "gpt-image-2.6-sunburst_aiapiroute",
             "gpt-image-2.6-sunburst_fal",
         ],
         "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
