@@ -994,7 +994,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="absolute top-1/2 left-2 size-10 -translate-y-1/2 rounded-full bg-background shadow-sm sm:left-4"
+                      className="absolute top-1/2 left-2 size-10 -translate-y-1/2 rounded-full bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 dark:bg-white dark:hover:bg-neutral-50 sm:left-4"
                       aria-label={t("上一张", "Previous")}
                       disabled={gallery.index === 0}
                       onClick={() => changeGalleryImage(-1)}
@@ -1004,7 +1004,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="absolute top-1/2 right-2 size-10 -translate-y-1/2 rounded-full bg-background shadow-sm sm:right-4"
+                      className="absolute top-1/2 right-2 size-10 -translate-y-1/2 rounded-full bg-white text-neutral-900 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 dark:bg-white dark:hover:bg-neutral-50 sm:right-4"
                       aria-label={t("下一张", "Next")}
                       disabled={gallery.index === gallery.images.length - 1}
                       onClick={() => changeGalleryImage(1)}
