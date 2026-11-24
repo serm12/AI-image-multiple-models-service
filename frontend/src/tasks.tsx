@@ -9,7 +9,7 @@ import {
   OpenNewWindow as ExternalLink,
   NavArrowLeft as ChevronLeft,
   NavArrowRight as ChevronRight,
-  IosSettings as SlidersHorizontal,
+  Filter,
   Cart as ShoppingCart,
   CursorPointer as MousePointerClick,
   CreditCard,
@@ -403,7 +403,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
             aria-expanded={filters}
             aria-controls="task-filters"
           >
-            <SlidersHorizontal className="size-4" />
+            <Filter aria-hidden="true" className="size-4" />
             {t("筛选", "Filters")}
             {active.length > 0 && (
               <Badge variant="secondary">{active.length}</Badge>
