@@ -189,6 +189,7 @@ function Shell({
   const t = useT();
   const embedded = session.shopify_embedded;
   const [collapsed, setCollapsed] = useState(false);
+  const [taskRefreshTarget, setTaskRefreshTarget] = useState<HTMLDivElement | null>(null);
   const [styleSearchTarget, setStyleSearchTarget] = useState<HTMLDivElement | null>(null);
   const [breadcrumb, setBreadcrumb] = useState("");
   const nav = [
@@ -325,7 +326,10 @@ function Shell({
           {active.path === "/admin/styles" && (
             <div ref={setStyleSearchTarget} className="order-last w-full min-w-0 sm:order-none sm:max-w-xl sm:flex-1" />
           )}
-          <WorkspaceActions username={session.username} navigate={navigate}/>
+          <div className="flex shrink-0 items-center gap-2">
+            {active.path === "/admin/tasks" && <div ref={setTaskRefreshTarget} />}
+            <WorkspaceActions username={session.username} navigate={navigate}/>
+          </div>
         </header>
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
           {active.path === "/admin/orders" ? <Orders /> : active.path === "/admin/config" ? (
@@ -333,7 +337,7 @@ function Shell({
           ) : active.path === "/admin/styles" ? (
             <Styles searchTarget={styleSearchTarget} />
           ) : (
-            <Tasks timezones={session.timezones} />
+            <Tasks timezones={session.timezones} refreshTarget={taskRefreshTarget} />
           )}
         </main>
       </div>

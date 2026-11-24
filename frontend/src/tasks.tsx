@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   Images,
@@ -135,7 +136,7 @@ const stageColors = [
   "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
   "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
 ] as const;
-export function Tasks({ timezones }: { timezones: string[] }) {
+export function Tasks({ timezones, refreshTarget }: { timezones: string[]; refreshTarget?: HTMLDivElement | null }) {
   const t = useT();
   const [query, setQuery] = useState(() => taskQuery(location.search));
   const result = useData<Result>("/admin/api/tasks" + query);
@@ -351,8 +352,21 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       </Badge>
     );
   }
+  const refreshButton = (
+    <Button
+      variant="outline"
+      onClick={result.reload}
+      disabled={result.loading}
+    >
+      <RefreshCw
+        className={"size-4 " + (result.loading ? "animate-spin" : "")}
+      />
+      {t("刷新", "Refresh")}
+    </Button>
+  );
   return (
     <>
+      {refreshTarget && createPortal(refreshButton, refreshTarget)}
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("任务统计", "Task statistics")} aria-busy={result.loading}>
         {[
           { key: "total", label: t("任务总数", "Total tasks"), Icon: Images },
@@ -428,16 +442,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           {inRecycleBin ? <ChevronLeft className="size-4" /> : <Trash2 className="size-4" />}
           {inRecycleBin ? t("返回任务", "Back to tasks") : t("回收站", "Recycle bin")}
         </Button>
-        <Button
-          variant="outline"
-          onClick={result.reload}
-          disabled={result.loading}
-        >
-          <RefreshCw
-            className={"size-4 " + (result.loading ? "animate-spin" : "")}
-          />
-          {t("刷新", "Refresh")}
-        </Button>
+        {refreshButton}
 
           <Button
             variant={params.get("starred") === "true" ? "default" : "outline"}
