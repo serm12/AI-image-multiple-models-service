@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Copy, Loader2 } from "lucide-react";
+import { WarningCircle as AlertCircle, Copy, Refresh as Loader2 } from "iconoir-react";
 export const Locale = createContext("zh-CN");
 export function useT() {
   const locale = useContext(Locale);
@@ -67,7 +67,10 @@ export function post<T>(path: string, value: unknown) {
     body: JSON.stringify(value),
   });
 }
+export const DataRefreshRevision = createContext(0);
+
 export function useData<T>(path: string) {
+  const pageRevision = useContext(DataRefreshRevision);
   const [data, setData] = useState<T>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,7 @@ export function useData<T>(path: string) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [path, revision]);
+  }, [path, revision, pageRevision]);
   return {
     data,
     setData,

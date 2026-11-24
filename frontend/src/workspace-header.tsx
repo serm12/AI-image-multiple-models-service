@@ -1,8 +1,23 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Popover } from 'radix-ui';
-import { Store, ChevronDown, Bell, ExternalLink, CheckCheck, Settings2, LogOut, RefreshCw, X, CircleCheck, CircleAlert, Clock3 } from 'lucide-react';
+import { Shop as Store, NavArrowDown as ChevronDown, Bell, OpenNewWindow as ExternalLink, DoubleCheck as CheckCheck, IosSettings as Settings2, LogOut, Refresh as RefreshCw, Xmark as X, CheckCircle as CircleCheck, WarningCircle as CircleAlert, Clock as Clock3 } from 'iconoir-react';
 import { Button } from '@/components/ui/button';
 import { useData, useT, safeUrl } from '@/lib/admin';
+
+export const HeaderRefreshTarget = createContext<HTMLDivElement | null>(null);
+
+export function HeaderRefresh({ onRefresh, loading = false }: { onRefresh: () => void; loading?: boolean }) {
+  const target = useContext(HeaderRefreshTarget);
+  const t = useT();
+  return target && createPortal(
+    <Button type="button" variant="outline" onClick={onRefresh} disabled={loading}>
+      <RefreshCw aria-hidden="true" className={loading ? "size-4 animate-spin motion-reduce:animate-none" : "size-4"} />
+      {t("刷新", "Refresh")}
+    </Button>,
+    target,
+  );
+}
 
 export const BreadcrumbContext = createContext<(value: string) => void>(()=>{});
 export function usePageBreadcrumb(label: string) {

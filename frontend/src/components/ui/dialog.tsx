@@ -1,4 +1,4 @@
-import { XIcon } from "lucide-react"
+import { Xmark as XIcon } from "iconoir-react"
 "use client"
 
 import * as React from "react"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe } from "iconoir-react";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/admin";
 

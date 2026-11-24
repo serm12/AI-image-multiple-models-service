@@ -1,26 +1,27 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
-  Save,
+  FloppyDisk as Save,
   Upload,
   Plus,
-  X,
-  CheckCircle2,
-  KeyRound,
-  Globe2,
-  Clock3,
-  Stamp,
-  Hash,
-} from "lucide-react";
+  Xmark as X,
+  CheckCircle as CheckCircle2,
+  Key as KeyRound,
+  Globe as Globe2,
+  Clock as Clock3,
+  BadgeCheck as Stamp,
+  Hashtag as Hash,
+} from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { usePageBreadcrumb } from "./workspace-header";
-import { useT, useData, post, Pick, ErrorBox, Loading, isShopifyEmbedded } from "@/lib/admin";
+import { HeaderRefresh, usePageBreadcrumb } from "./workspace-header";
+import { DataRefreshRevision, useT, useData, post, Pick, ErrorBox, Loading, isShopifyEmbedded } from "@/lib/admin";
 import { PrintfulSettings } from "./orders";
 export function Settings() {
+  const [revision, setRevision] = useState(0);
   const t = useT();
   const items = [
     ["printful", t("Printful Token", "Printful Token"), KeyRound],
@@ -38,7 +39,9 @@ export function Settings() {
   usePageBreadcrumb(items.find(([key])=>key===selected)![1]);
   function choose(value: string) {setSelected(value);history.replaceState(null,'','#'+value);}
   return <div className="mx-auto grid max-w-6xl items-start gap-6 md:grid-cols-[210px_minmax(0,1fr)] lg:gap-10">
+    <HeaderRefresh onRefresh={() => setRevision(value => value + 1)} />
     <aside className="min-w-0 md:sticky md:top-24"><p className="mb-3 px-3 text-xs font-medium text-neutral-400">{t('偏好与集成','Preferences & integrations')}</p><nav ref={categoryNav} aria-label={t('设置分类','Settings categories')} className="flex gap-1 overflow-x-auto pb-2 md:flex-col md:overflow-visible">{items.map(([key,label,Icon])=><button type="button" key={key} aria-current={selected===key?'page':undefined} onClick={()=>choose(key)} className={'flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-2 '+(selected===key?'bg-white font-medium text-neutral-900 shadow-sm ring-1 ring-neutral-200':'text-neutral-500 hover:bg-white/70 hover:text-neutral-900')}><Icon className="size-4"/><span className="whitespace-nowrap">{label}</span></button>)}</nav></aside>
+    <DataRefreshRevision.Provider value={revision}>
     <div className="settings-content min-w-0">
       {selected==='printful' && <PrintfulSettings/>}
       {selected==='watermark' && <Watermark/>}
@@ -47,6 +50,7 @@ export function Settings() {
       {selected==='algorithm' && <Algorithm/>}
       {selected==='language' && <Language/>}
     </div>
+    </DataRefreshRevision.Provider>
   </div>;
 }
 

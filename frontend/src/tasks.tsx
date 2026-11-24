@@ -1,25 +1,24 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { createPortal } from "react-dom";
+import { HeaderRefresh } from "./workspace-header";
 import { toast } from "sonner";
 import {
-  Images,
+  MediaImageList as Images,
   Star,
-  RefreshCw,
   Search,
-  ImageOff,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
-  SlidersHorizontal,
-  ShoppingCart,
-  MousePointerClick,
+  MediaImageXmark as ImageOff,
+  OpenNewWindow as ExternalLink,
+  NavArrowLeft as ChevronLeft,
+  NavArrowRight as ChevronRight,
+  IosSettings as SlidersHorizontal,
+  Cart as ShoppingCart,
+  CursorPointer as MousePointerClick,
   CreditCard,
-  CircleCheck,
+  CheckCircle as CircleCheck,
   Timer,
-  Trash2,
-  Loader2,
-  RotateCcw,
-} from "lucide-react";
+  Trash as Trash2,
+  Refresh as Loader2,
+  Undo as RotateCcw,
+} from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,7 +135,7 @@ const stageColors = [
   "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300",
   "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
 ] as const;
-export function Tasks({ timezones, refreshTarget }: { timezones: string[]; refreshTarget?: HTMLDivElement | null }) {
+export function Tasks({ timezones }: { timezones: string[] }) {
   const t = useT();
   const [query, setQuery] = useState(() => taskQuery(location.search));
   const result = useData<Result>("/admin/api/tasks" + query);
@@ -352,21 +351,9 @@ export function Tasks({ timezones, refreshTarget }: { timezones: string[]; refre
       </Badge>
     );
   }
-  const refreshButton = (
-    <Button
-      variant="outline"
-      onClick={result.reload}
-      disabled={result.loading}
-    >
-      <RefreshCw
-        className={"size-4 " + (result.loading ? "animate-spin" : "")}
-      />
-      {t("刷新", "Refresh")}
-    </Button>
-  );
   return (
     <>
-      {refreshTarget && createPortal(refreshButton, refreshTarget)}
+      <HeaderRefresh onRefresh={result.reload} loading={result.loading} />
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("任务统计", "Task statistics")} aria-busy={result.loading}>
         {[
           { key: "total", label: t("任务总数", "Total tasks"), Icon: Images },
@@ -442,7 +429,6 @@ export function Tasks({ timezones, refreshTarget }: { timezones: string[]; refre
           {inRecycleBin ? <ChevronLeft className="size-4" /> : <Trash2 className="size-4" />}
           {inRecycleBin ? t("返回任务", "Back to tasks") : t("回收站", "Recycle bin")}
         </Button>
-        {refreshButton}
 
           <Button
             variant={params.get("starred") === "true" ? "default" : "outline"}

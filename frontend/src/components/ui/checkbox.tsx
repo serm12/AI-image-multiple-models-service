@@ -1,4 +1,4 @@
-import { CheckIcon } from "lucide-react"
+import { Check as CheckIcon } from "iconoir-react"
 "use client"
 
 import * as React from "react"

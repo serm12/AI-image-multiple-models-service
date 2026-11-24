@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Palette, Search } from "lucide-react";
+import { HeaderRefresh } from "./workspace-header";
+import { Palette, Search } from "iconoir-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,6 +26,7 @@ export function Styles({ searchTarget }: { searchTarget: HTMLDivElement | null }
   );
   return (
     <>
+      <HeaderRefresh onRefresh={result.reload} loading={result.loading} />
       {searchTarget && createPortal(
         <div className="flex min-w-0 items-center gap-2">
           <Search className="hidden size-4 shrink-0 text-muted-foreground sm:block" />

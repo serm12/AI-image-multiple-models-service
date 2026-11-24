@@ -2,18 +2,18 @@ import { useState, useEffect, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import {
-  Images,
-  ListFilter,
+  MediaImageList as Images,
+  FilterList as ListFilter,
   Palette,
-  Settings2,
+  IosSettings as Settings2,
   LogOut,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
+  SidebarCollapse as PanelLeftClose,
+  SidebarExpand as PanelLeftOpen,
   ArrowRight,
-  ChevronRight,
+  NavArrowRight as ChevronRight,
   ShoppingBag,
-} from "lucide-react";
+} from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,7 +31,7 @@ import { Settings } from "./settings";
 import { Styles } from "./styles";
 import { Orders } from "./orders";
 import "./index.css";
-import { BreadcrumbContext, WorkspaceActions } from "./workspace-header";
+import { BreadcrumbContext, HeaderRefreshTarget, WorkspaceActions } from "./workspace-header";
 type Session = {
   username: string;
   shopify_embedded: boolean;
@@ -189,7 +189,7 @@ function Shell({
   const t = useT();
   const embedded = session.shopify_embedded;
   const [collapsed, setCollapsed] = useState(false);
-  const [taskRefreshTarget, setTaskRefreshTarget] = useState<HTMLDivElement | null>(null);
+  const [headerRefreshTarget, setHeaderRefreshTarget] = useState<HTMLDivElement | null>(null);
   const [styleSearchTarget, setStyleSearchTarget] = useState<HTMLDivElement | null>(null);
   const [breadcrumb, setBreadcrumb] = useState("");
   const nav = [
@@ -327,18 +327,20 @@ function Shell({
             <div ref={setStyleSearchTarget} className="order-last w-full min-w-0 sm:order-none sm:max-w-xl sm:flex-1" />
           )}
           <div className="flex shrink-0 items-center gap-2">
-            {active.path === "/admin/tasks" && <div ref={setTaskRefreshTarget} />}
+            <div ref={setHeaderRefreshTarget} />
             <WorkspaceActions username={session.username} navigate={navigate}/>
           </div>
         </header>
         <main className="mx-auto max-w-[1800px] p-4 lg:p-6">
+          <HeaderRefreshTarget.Provider value={headerRefreshTarget}>
           {active.path === "/admin/orders" ? <Orders /> : active.path === "/admin/config" ? (
             <Settings />
           ) : active.path === "/admin/styles" ? (
             <Styles searchTarget={styleSearchTarget} />
           ) : (
-            <Tasks timezones={session.timezones} refreshTarget={taskRefreshTarget} />
+            <Tasks timezones={session.timezones} />
           )}
+          </HeaderRefreshTarget.Provider>
         </main>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import { Check as CheckIcon, NavArrowDown as ChevronDownIcon, NavArrowUp as ChevronUpIcon } from "iconoir-react"
 "use client"
 
 import * as React from "react"

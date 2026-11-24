@@ -1,6 +1,6 @@
-import { usePageBreadcrumb } from './workspace-header';
+import { HeaderRefresh, usePageBreadcrumb } from './workspace-header';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Search, RefreshCw, ChevronLeft, ChevronRight, ArrowUpRight, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Search, NavArrowLeft as ChevronLeft, NavArrowRight as ChevronRight, ArrowUpRight, MediaImage as ImageIcon } from 'iconoir-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -115,9 +115,10 @@ export function Orders() {
   function openOrder(order: Summary) { setSelected(order.id.split('/').pop()!); }
   if (selected) return <OrderDetail key={selected} id={selected} back={() => {setSelected('');history.replaceState(null,'',location.pathname);}}/>;
   return <section className="overflow-hidden rounded-3xl border border-neutral-200/80 bg-white">
+    <HeaderRefresh onRefresh={data.reload} loading={data.loading}/>
     <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-6">
       <div role="group" aria-label={t('订单状态筛选', 'Filter order status')} className="inline-flex max-w-full flex-wrap gap-1 rounded-full bg-neutral-100 p-1">{filters.map(f=><button type="button" key={f.id} aria-pressed={filter===f.id} onClick={()=>{setFilter(f.id);setCursors([]);}} className={'rounded-full px-4 py-1.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ' + (filter===f.id ? 'bg-white font-medium text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-900')}>{f.label}</button>)}</div>
-      <div className="flex w-full items-center gap-2 sm:w-auto"><form className="flex min-w-0 flex-1 items-center rounded-full bg-neutral-100 pl-3 sm:w-64" onSubmit={e=>{e.preventDefault();setCursors([]);setQuery(search);if(search===query)data.reload();}}><Search aria-hidden="true" className="size-4 shrink-0 text-neutral-500"/><Input className="h-9 min-w-0 border-0 bg-transparent! shadow-none focus-visible:ring-0" aria-label={t('搜索订单', 'Search orders')} placeholder={t('搜索订单…', 'Search orders…')} value={search} onChange={e=>setSearch(e.target.value)}/><button type="submit" className="mr-1 shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs text-neutral-600 hover:bg-white focus-visible:outline-2">{t('搜索', 'Search')}</button></form><Button type="button" variant="outline" size="icon" className="rounded-full border-neutral-200" disabled={data.loading} aria-label={t('刷新订单', 'Refresh orders')} onClick={data.reload}><RefreshCw className={'size-4 ' + (data.loading ? 'animate-spin motion-reduce:animate-none' : '')}/></Button></div>
+      <div className="flex w-full items-center gap-2 sm:w-auto"><form className="flex min-w-0 flex-1 items-center rounded-full bg-neutral-100 pl-3 sm:w-64" onSubmit={e=>{e.preventDefault();setCursors([]);setQuery(search);if(search===query)data.reload();}}><Search aria-hidden="true" className="size-4 shrink-0 text-neutral-500"/><Input className="h-9 min-w-0 border-0 bg-transparent! shadow-none focus-visible:ring-0" aria-label={t('搜索订单', 'Search orders')} placeholder={t('搜索订单…', 'Search orders…')} value={search} onChange={e=>setSearch(e.target.value)}/><button type="submit" className="mr-1 shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs text-neutral-600 hover:bg-white focus-visible:outline-2">{t('搜索', 'Search')}</button></form></div>
     </div>
     {data.error ? <div className="p-6"><ErrorBox message={data.error} retry={data.reload}/></div> : data.loading ? <div className="p-8"><Loading/></div> : <>
       <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead className="border-y border-neutral-200/80 bg-neutral-100/90 text-xs font-normal text-neutral-500"><tr>{[t('订单', 'Order'),t('商品', 'Product'),t('客户', 'Customer'),t('日期', 'Date'),t('支付状态', 'Payment'),t('发货状态', 'Fulfillment'),'Printful',''].map((label,i)=><th key={i} className="whitespace-nowrap px-5 py-3 font-normal first:pl-6 last:pr-6">{label}</th>)}</tr></thead><tbody className="divide-y divide-neutral-200/80">{data.data?.nodes.map(order=>{
@@ -185,6 +186,7 @@ function OrderDetail({id, back}: {id: string; back: ()=>void}) {
   const backSlot = document.getElementById('order-detail-back');
   const backButton = <Button type="button" variant="outline" size="sm" disabled={busy} onClick={back}><ArrowLeft className="size-4" />{t('返回订单', 'Back to orders')}</Button>;
   return <div className="space-y-5">
+    <HeaderRefresh onRefresh={data.reload} loading={data.loading || busy}/>
     {backSlot ? createPortal(backButton, backSlot) : backButton}
     {data.error ? <ErrorBox message={data.error} retry={data.reload}/> : !data.data ? <Loading/> : <>
       <div><div className="flex items-center gap-3"><h2 className="page-heading">{data.data.name}</h2><TypeBadge kind={data.data.order_type}/></div><div className="mt-2 flex flex-wrap gap-2"><ShopifyStatus kind="payment" status={data.data.displayFinancialStatus}/><ShopifyStatus kind="fulfillment" status={data.data.displayFulfillmentStatus}/>{data.data.cancelledAt && <StatusLabel label={t('已取消', 'Canceled')} tone="critical"/>}</div></div>
