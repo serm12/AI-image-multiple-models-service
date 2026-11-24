@@ -102,6 +102,7 @@ type Task = {
   subscription_status: string;
   subscription_reason: string;
   customer_sync: { state?: string; detail?: string; customer_id?: string };
+  registered_customer_id?: string;
   shopify_orders: { url: string; name: string; financial_status: string }[];
   ip_task_sequence: number;
   ip_task_total: number;
@@ -316,6 +317,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
     const id = (
       task.customer_sync?.customer_id ||
       task.customer_id ||
+      task.registered_customer_id ||
       ""
     ).replace("gid://shopify/Customer/", "");
     return /^\d+$/.test(id)
@@ -323,11 +325,8 @@ export function Tasks({ timezones }: { timezones: string[] }) {
       : undefined;
   }
   function customerIdentity(task: Task) {
-    if (task.customer_logged_in || task.customer_id?.trim()) {
-      return t("已登录用户", "Signed-in user");
-    }
-    if (task.customer_sync?.customer_id) {
-      return t("Shopify 客户", "Shopify customer");
+    if (task.customer_logged_in || task.customer_id?.trim() || task.customer_sync?.customer_id || task.registered_customer_id) {
+      return t("注册用户", "Registered user");
     }
     return task.customer_email
       ? t("登录状态未记录", "Sign-in not recorded")

@@ -406,7 +406,32 @@ def _read_json_if_exists(path: str) -> dict | list:
         return json.load(f)
 
 
+def _customer_identity_key(params):
+    return (
+        str(params.get("shop_domain") or "").strip().lower(),
+        str(params.get("storefront_visitor_id") or "").strip(),
+        str(params.get("customer_email") or "").strip().casefold(),
+    )
+
+
 def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_sequences, customer_sync):
+    registered_customers = {}
+    for task_id, sync in customer_sync.items():
+        customer_id = sync.get("customer_id")
+        if not customer_id:
+            continue
+        params = selected_params.get(task_id)
+        if params is None:
+            try:
+                params = _read_json_if_exists(os.path.join(DirectoryConfig.TASKS_DIR, task_id, "params.json"))
+            except (OSError, ValueError):
+                continue
+        if not isinstance(params, dict):
+            continue
+        key = _customer_identity_key(params)
+        if key[1] and key[2]:
+            registered_customers.setdefault(key, set()).add(customer_id)
+
     tasks = []
     for entry in selected_entries:
         task_id = entry.name
@@ -416,6 +441,8 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
         recycle = recycle_metadata(task_id)
 
         params = selected_params.get(task_id, {})
+        matching_customers = registered_customers.get(_customer_identity_key(params), set())
+        registered_customer_id = next(iter(matching_customers)) if len(matching_customers) == 1 else ""
         source_task_id = str(params.get("source_task_id") or "").strip()
         event_summary = summarize_storefront_events(read_storefront_events(task_dir))
         response = _read_first_api_response(task_dir, filenames)
@@ -432,6 +459,7 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
             {
                 "task_id": task_id,
                 "customer_sync": customer_sync.get(task_id, {}),
+                "registered_customer_id": registered_customer_id,
                 "starred": is_task_starred(task_dir),
                 "trashed_at": recycle.get('trashed_at', ''),
                 "purge_after": recycle.get('purge_after', ''),
