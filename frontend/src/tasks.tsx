@@ -1078,8 +1078,10 @@ function TimeRange({ value, onChange }: { value: string; onChange?: (value: stri
 
 function TaskThumbnail({ image }: { image: Image }) {
   const embedded = isShopifyEmbedded();
-  const element = useRef<HTMLImageElement>(null);
+  const t = useT();
+  const element = useRef<HTMLSpanElement>(null);
   const [source, setSource] = useState<string>();
+  const [status, setStatus] = useState<"loading" | "loaded" | "failed">("loading");
   useEffect(() => {
     if (!embedded || !element.current) return;
     const request = new AbortController();
@@ -1097,7 +1099,9 @@ function TaskThumbnail({ image }: { image: Image }) {
           objectUrl = URL.createObjectURL(blob);
           setSource(objectUrl);
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!request.signal.aborted) setStatus("failed");
+        });
     }, { rootMargin: "160px" });
     observer.observe(element.current);
     return () => {
@@ -1106,14 +1110,28 @@ function TaskThumbnail({ image }: { image: Image }) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [embedded, image.thumbnail]);
+  const src = embedded ? source : image.thumbnail;
   return (
-    <img
-      ref={element}
-      className="size-16 rounded-md object-cover"
-      src={embedded ? source : image.thumbnail}
-      loading="lazy"
-      alt={image.filename}
-    />
+    <span ref={element} className="relative grid size-16 place-items-center overflow-hidden rounded-md text-muted-foreground">
+      {status === "loading" && (
+        <Loader2 aria-hidden="true" className="size-4 motion-safe:animate-spin" />
+      )}
+      {status === "failed" && (
+        <span role="img" aria-label={t("图片加载失败", "Image failed to load")} title={t("图片加载失败", "Image failed to load")}>
+          <ImageOff aria-hidden="true" className="size-4" />
+        </span>
+      )}
+      {src && status !== "failed" && (
+        <img
+          className={`absolute inset-0 size-full object-cover ${status === "loaded" ? "" : "opacity-0"}`}
+          src={src}
+          loading="lazy"
+          alt={image.filename}
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("failed")}
+        />
+      )}
+    </span>
   );
 }
 
