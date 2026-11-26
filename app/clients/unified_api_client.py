@@ -196,6 +196,12 @@ class UnifiedAPIClient:
                 prompt, input_image_paths, input_image_url, seed, aspect_ratio, size,
                 endpoint_base=APIConfig.FAL_GPT_IMAGE_ENDPOINTS.get(effective_provider),
             )
+        elif effective_provider in APIConfig.ANTIGRAVITY_PROVIDERS:
+            from .aiapiroute_antigravity_client import generate_image
+
+            return await generate_image(
+                effective_provider, prompt, input_image_paths, input_image_url, aspect_ratio, size
+            )
         elif effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP:
             return await self._generate_with_aiapiroute(
                 prompt, effective_provider, input_image_paths, input_image_url, seed, aspect_ratio, size

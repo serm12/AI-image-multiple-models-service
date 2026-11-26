@@ -223,6 +223,7 @@ async def generate_image_async(
         allows_text_to_image = (
             effective_provider in APIConfig.AIAPIROUTE_PROVIDER_MODEL_MAP
             or effective_provider in APIConfig.FAL_GPT_IMAGE_ENDPOINTS
+            or effective_provider in APIConfig.ANTIGRAVITY_PROVIDERS
         )
         if not input_image_paths and not input_image_url and not allows_text_to_image:
             raise ValueError("必须提供 files 或 input_image_url 其中之一")

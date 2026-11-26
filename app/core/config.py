@@ -99,6 +99,11 @@ class APIConfig:
     # aiapiroute/Sub2API GPT-image 配置（OpenAI 兼容 Images API）
     AIAPIROUTE_API_KEY = _StoredProviderKey("AIAPIROUTE_API_KEY", os.getenv("AIAPIROUTE_API_KEY") or os.getenv("SUB2API_API_KEY"))
     AIAPIROUTE_BASE_URL = os.getenv("AIAPIROUTE_BASE_URL") or os.getenv("SUB2API_BASE_URL", "https://aiapiroute.com")
+    AIAPIROUTE_Antigravity_API_KEY = os.getenv("AIAPIROUTE_Antigravity_API_KEY", "").strip()
+    ANTIGRAVITY_PROVIDER = "gemini-3.1-flash-image_aiapiroute_antigravity"
+    ANTIGRAVITY_PRO_PROVIDER = "gemini-3-pro-image_aiapiroute_antigravity"
+    ANTIGRAVITY_PROVIDERS = (ANTIGRAVITY_PROVIDER, ANTIGRAVITY_PRO_PROVIDER)
+    ANTIGRAVITY_ASPECT_RATIOS = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]
     AIAPIROUTE_GPT_IMAGE1_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE1_MODEL", "gpt-image-1")
     AIAPIROUTE_GPT_IMAGE15_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE15_MODEL", "gpt-image-1.5")
     AIAPIROUTE_GPT_IMAGE2_MODEL = os.getenv("AIAPIROUTE_GPT_IMAGE2_MODEL", "gpt-image-2")
@@ -178,6 +183,20 @@ class APIConfig:
             "key": "OPENROUTER_API_KEY",
             "aspect_ratios": ["match_input_image", "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
             # Source: https://openrouter.ai/docs/features/multimodal/images
+        },
+        ANTIGRAVITY_PROVIDER: {
+            "label": "AIAPIROUTE Antigravity (Gemini 3.1 Flash Image)",
+            "key": "AIAPIROUTE_Antigravity_API_KEY",
+            "model": "gemini-3.1-flash-image",
+            "aspect_ratios": ANTIGRAVITY_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
+        },
+        ANTIGRAVITY_PRO_PROVIDER: {
+            "label": "AIAPIROUTE Antigravity (Gemini 3 Pro Image alias)",
+            "key": "AIAPIROUTE_Antigravity_API_KEY",
+            "model": "gemini-3-pro-image",
+            "aspect_ratios": ANTIGRAVITY_ASPECT_RATIOS,
+            "sizes": AIAPIROUTE_IMAGE_SIZES,
         },
         "seedream-4_replicate": {
             "label": "Replicate API (Seedream-4)",
@@ -315,7 +334,7 @@ class APIConfig:
     AIAPIROUTE_PROVIDER_MODEL_MAP = {
         provider: config["model"]
         for provider, config in PROVIDERS.items()
-        if "model" in config
+        if config.get("key") == "AIAPIROUTE_API_KEY" and "model" in config
     }
     PROVIDER_ASPECT_RATIO_MAP = {
         provider: config.get("aspect_ratios", [])
@@ -457,6 +476,8 @@ class ProviderEnum(str, Enum):
     gemini_nanobanana_google = "gemini-nanobanana_google"
     gemini_nanobanana_replicate = "gemini-nanobanana_replicate"
     gemini_nanobanana_openrouter = "gemini-nanobanana_openrouter"
+    gemini_3_1_flash_image_aiapiroute_antigravity = APIConfig.ANTIGRAVITY_PROVIDER
+    gemini_3_pro_image_aiapiroute_antigravity = APIConfig.ANTIGRAVITY_PRO_PROVIDER
     seedream_4_replicate = "seedream-4_replicate"
     seedream_4_fal = "seedream-4_fal"
     gpt_image_2_fal = "gpt-image-2_fal"
