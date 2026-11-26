@@ -446,6 +446,16 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
         source_task_id = str(params.get("source_task_id") or "").strip()
         event_summary = summarize_storefront_events(read_storefront_events(task_dir))
         response = _read_first_api_response(task_dir, filenames)
+        failure = {}
+        if ".generation-error.json" in filenames:
+            try:
+                saved_failure = _read_json_if_exists(os.path.join(task_dir, ".generation-error.json"))
+                if isinstance(saved_failure, dict):
+                    failure = saved_failure
+            except (OSError, ValueError):
+                pass
+        status = "failed" if failure else response.get("status", "unknown")
+        error = failure.get("message") or (response.get("error") if status == "failed" else None)
         output_filenames = [
             filename
             for filename in filenames
@@ -469,7 +479,8 @@ def _hydrate_entries(selected_entries, selected_params, ip_task_counts, ip_task_
                 "time_zone": params.get("time_zone", "UTC"),
                 "extracted_seed": response.get("extracted_seed"),
                 "output_files_count": len(output_filenames),
-                "status": response.get("status", "unknown"),
+                "status": status,
+                "generation_error": str(error)[:16000] if error else None,
                 "api_provider": params.get("api_provider"),
                 "request_url": params.get("request_url", ""),
                 "source_page_url": params.get("source_page_url", ""),

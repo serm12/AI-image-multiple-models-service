@@ -459,6 +459,15 @@ async def process_generation_background(
         print(f"❌ 后台任务 {task_id} 失败: {e}")
         task_manager.set_task_failed(task_id, str(e))
     finally:
+        task = task_manager.get_task(task_id) or {}
+        if task.get("status") == TaskStatus.FAILED:
+            error_path = os.path.join(task_dir, ".generation-error.json")
+            try:
+                async with aiofiles.open(error_path + ".tmp", "w", encoding="utf-8") as file:
+                    await file.write(json.dumps({"message": str(task.get("error") or "")[:16000]}, ensure_ascii=False))
+                await asyncio.to_thread(os.replace, error_path + ".tmp", error_path)
+            except OSError:
+                logger.exception("Could not persist generation error for task %s", task_id)
         completed_at = time.time()
         started_at = params.get("started_at_epoch", completed_at)
         try:

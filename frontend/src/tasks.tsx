@@ -72,6 +72,7 @@ type Image = {
 type Task = {
   task_id: string;
   status: string;
+  generation_error?: string | null;
   starred: boolean;
   trashed_at: string;
   purge_after: string;
@@ -142,6 +143,7 @@ export function Tasks({ timezones }: { timezones: string[] }) {
   const queryRef = useRef(query);
   queryRef.current = query;
   const [detail, setDetail] = useState<Task>();
+  const [errorTask, setErrorTask] = useState<Task>();
   const [gallery, setGallery] = useState<{ images: Image[]; index: number }>();
   function changeGalleryImage(direction: -1 | 1) {
     setGallery((current) => {
@@ -700,6 +702,15 @@ export function Tasks({ timezones }: { timezones: string[] }) {
                         <p className="mt-2 break-words whitespace-normal text-xs leading-relaxed text-muted-foreground">
                           {task.api_provider || "—"}
                         </p>
+                        {task.generation_error && (
+                          <button
+                            type="button"
+                            className="mt-1 block text-left text-xs text-destructive underline underline-offset-2"
+                            onClick={() => setErrorTask(task)}
+                          >
+                            {t("查看错误", "View error")}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="align-top whitespace-normal">
                         <div className="flex min-w-0 items-center gap-1 whitespace-nowrap text-[13px]">
@@ -944,6 +955,19 @@ export function Tasks({ timezones }: { timezones: string[] }) {
           )}
         </SheetContent>
       </Sheet>
+      <Dialog open={Boolean(errorTask)} onOpenChange={(open) => { if (!open) setErrorTask(undefined); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("生成错误", "Generation error")}</DialogTitle>
+            <DialogDescription className="break-all">
+              {errorTask?.task_id} · {errorTask?.api_provider}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="max-h-[55svh] overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-sm">
+            {errorTask?.generation_error}
+          </p>
+        </DialogContent>
+      </Dialog>
       <Dialog open={deleteTargets.length > 0} onOpenChange={(open) => { if (!open && !deleting) { setDeleteTargets([]); setDeleteError(""); } }}>
         <DialogContent showCloseButton={!deleting} onOpenAutoFocus={(event) => { event.preventDefault(); cancelDelete.current?.focus(); }}
           onEscapeKeyDown={(event) => { if (deleting) event.preventDefault(); }}
