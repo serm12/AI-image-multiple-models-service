@@ -524,7 +524,7 @@ async def _do_generation_work(
 
         # 处理seed逻辑差异 - Gemini不返回实际使用的seed
         extracted_seed = result.get("extracted_seed")
-        if actual_provider in ["gemini-nanobanana_google", "gemini-nanobanana_replicate"]:
+        if actual_provider in ["gemini-2.5-flash-image_google", "gemini-2.5-flash-image_replicate"]:
             # Gemini自己生成seed，我们记录用户输入的seed
             extracted_seed = seed
         

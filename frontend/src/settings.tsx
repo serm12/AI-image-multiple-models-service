@@ -586,7 +586,7 @@ function ProviderKeys() {
         <div className="field" key={name}>
           <div className="flex items-center justify-between">
             <Label htmlFor={name}>
-              {name === "FAL_API_KEY" ? "fal.ai" : "AIAPIROUTE"}
+              {name === "FAL_API_KEY" ? "fal.ai" : "AIAPIROUTE OpenAI"}
             </Label>
             <Badge variant="secondary">
               {status.configured ? (

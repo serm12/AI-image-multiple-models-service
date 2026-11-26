@@ -249,7 +249,7 @@
   "algorithm_error": "操作失败，请检查数字后重试。",
   "algorithm_preview": "计算结果",
   "keys_title": "图片生成密钥",
-  "keys_help": "管理 AIAPIROUTE 和 FAL 的 API Key。留空保留现有密钥；替换后用于后续生成请求。",
+  "keys_help": "管理 AIAPIROUTE OpenAI 渠道和 FAL 的 API Key。留空保留现有密钥；替换后用于后续生成请求。",
   "keys_configured": "已配置（密钥已隐藏）",
   "keys_missing": "未配置",
   "keys_placeholder": "输入新密钥以替换，留空不修改",

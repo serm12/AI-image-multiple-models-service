@@ -115,7 +115,7 @@ def main() -> int:
         response = client.post(
             "/generate-async/",
             data={
-                "provider": "gemini-nanobanana_google",
+                "provider": "gemini-2.5-flash-image_google",
                 "prompt": "smoke test gemini automatic dimension",
                 "aspect_ratio": "match_input_image",
                 "output_format": "png",

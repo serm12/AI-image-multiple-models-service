@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from cryptography.fernet import Fernet
 from app.core.config import DirectoryConfig
 
-NAMES = ('AIAPIROUTE_API_KEY', 'FAL_API_KEY', 'PRINTFUL_TOKEN', 'PRINTFUL_STORE_ID')
+NAMES = ('AIAPIROUTE_OPENAI_API_KEY', 'FAL_API_KEY', 'PRINTFUL_TOKEN', 'PRINTFUL_STORE_ID')
 
 
 def path():
@@ -42,12 +42,15 @@ def resolve(name, fallback=None):
         return fallback
     with database() as db:
         row = db.execute('SELECT encrypted FROM credentials WHERE name=?', (name,)).fetchone()
+        if row is None and name == 'AIAPIROUTE_OPENAI_API_KEY':
+            # Existing installations may still have an encrypted value under the previous name.
+            row = db.execute('SELECT encrypted FROM credentials WHERE name=?', ('AIAPIROUTE_API_KEY',)).fetchone()
     return cipher().decrypt(row[0].encode()).decode() if row else fallback
 
 
 def status():
     from app.core.config import APIConfig
-    return {name: {'configured': bool(getattr(APIConfig, name))} for name in ('AIAPIROUTE_API_KEY', 'FAL_API_KEY')}
+    return {name: {'configured': bool(getattr(APIConfig, name))} for name in ('AIAPIROUTE_OPENAI_API_KEY', 'FAL_API_KEY')}
 
 
 def save(values):

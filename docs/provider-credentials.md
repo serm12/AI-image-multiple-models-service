@@ -1,9 +1,14 @@
 # Editable image generation credentials
 
-Admin settings supports AIAPIROUTE_API_KEY and FAL_API_KEY. GET returns only
+Admin settings supports AIAPIROUTE_OPENAI_API_KEY and FAL_API_KEY. GET returns only
 configured booleans; POST never returns input or validation details containing
 keys. Empty fields preserve existing credentials. Existing environment variables
 remain the fallback until a replacement is saved.
+
+Rename the OpenAI channel environment setting to `AIAPIROUTE_OPENAI_API_KEY`.
+Existing `AIAPIROUTE_API_KEY` and `SUB2API_API_KEY` environment settings remain
+readable as fallbacks. An existing encrypted AIAPIROUTE override is reused until
+an override is saved under the new name.
 
 Overrides are Fernet-encrypted in tasks/.provider-credentials.sqlite3. Encryption
 uses a purpose-separated key derived from SHOPIFY_API_SECRET (or

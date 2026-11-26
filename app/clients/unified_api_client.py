@@ -14,13 +14,13 @@ class UnifiedAPIClient:
     在调用 generate_image() 时必须传入 provider 参数，服务会按请求路由到对应服务商。
     """
 
-    def __init__(self, bfl_api_key=None, replicate_token=None, gemini_api_key=None, openrouter_api_key=None, aiapiroute_api_key=None):
+    def __init__(self, bfl_api_key=None, replicate_token=None, gemini_api_key=None, openrouter_api_key=None, aiapiroute_openai_api_key=None):
         self.bfl_api_key = bfl_api_key or APIConfig.BFL_API_KEY
         self.replicate_token = replicate_token or APIConfig.REPLICATE_API_TOKEN
         self.gemini_api_key = gemini_api_key or APIConfig.GOOGLE_GEMINI_API_KEY
         self.openrouter_api_key = openrouter_api_key or APIConfig.OPENROUTER_API_KEY
-        self._explicit_aiapiroute_api_key = aiapiroute_api_key
-        self.aiapiroute_api_key = aiapiroute_api_key or APIConfig.AIAPIROUTE_API_KEY
+        self._explicit_aiapiroute_openai_api_key = aiapiroute_openai_api_key
+        self.aiapiroute_openai_api_key = aiapiroute_openai_api_key or APIConfig.AIAPIROUTE_OPENAI_API_KEY
 
         # 延迟加载客户端缓存（不再锁定到单一 provider）
         self._flux_client = None
@@ -92,7 +92,7 @@ class UnifiedAPIClient:
         return self._fal_gpt_image2_client
 
     def _get_aiapiroute_client(self, model: str):
-        key = self._explicit_aiapiroute_api_key or APIConfig.AIAPIROUTE_API_KEY
+        key = self._explicit_aiapiroute_openai_api_key or APIConfig.AIAPIROUTE_OPENAI_API_KEY
         if model not in self._aiapiroute_clients or self._aiapiroute_clients[model].api_key != key:
             from .aiapiroute_gpt_image2_client import AIApiRouteGPTImageClient
             self._aiapiroute_clients[model] = AIApiRouteGPTImageClient(key, model=model)
@@ -167,15 +167,15 @@ class UnifiedAPIClient:
                                             sequential_image_generation=None, task_id=None):
         APIConfig.validate_aspect_ratio(effective_provider, aspect_ratio)
 
-        if effective_provider == "gemini-nanobanana_google":
+        if effective_provider == "gemini-2.5-flash-image_google":
             return await self._generate_with_gemini(
                 prompt, input_image_paths, input_image_url, seed, art_style
             )
-        elif effective_provider == "gemini-nanobanana_replicate":
+        elif effective_provider == "gemini-2.5-flash-image_replicate":
             return await self._generate_with_gemini_replicate(
                 prompt, input_image_paths, input_image_url, seed, art_style
             )
-        elif effective_provider == "gemini-nanobanana_openrouter":
+        elif effective_provider == "gemini-2.5-flash-image_openrouter":
             return await self._generate_with_gemini_openrouter(
                 prompt, input_image_paths, input_image_url, seed, art_style, task_id
             )

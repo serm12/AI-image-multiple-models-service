@@ -39,13 +39,13 @@ class AIApiRouteGPTImageClient:
     """aiapiroute GPT-image 客户端，返回项目统一的生成结果结构。"""
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None, timeout: int = None):
-        self.api_key = api_key or APIConfig.AIAPIROUTE_API_KEY
+        self.api_key = api_key or APIConfig.AIAPIROUTE_OPENAI_API_KEY
         self.base_url = (base_url or APIConfig.AIAPIROUTE_BASE_URL).rstrip("/")
         self.model = model or APIConfig.AIAPIROUTE_GPT_IMAGE2_MODEL
         self.timeout = timeout or APIConfig.AIAPIROUTE_TIMEOUT_SECONDS
 
         if not self.api_key:
-            raise ValueError("AIAPIROUTE_API_KEY is required")
+            raise ValueError("AIAPIROUTE_OPENAI_API_KEY is required")
         if not self.base_url:
             raise ValueError("AIAPIROUTE_BASE_URL is required")
 

@@ -11,10 +11,10 @@ Default groups:
   "gpt-image-2": ["gpt-image-2_aiapiroute", "gpt-image-2_fal"],
   "seedream-4": ["seedream-4_replicate", "seedream-4_fal"],
   "seedream-5-pro": ["seedream-5-pro_fal"],
-  "gemini-nanobanana": [
-    "gemini-nanobanana_google",
-    "gemini-nanobanana_replicate",
-    "gemini-nanobanana_openrouter"
+  "gemini-2.5-flash-image": [
+    "gemini-2.5-flash-image_google",
+    "gemini-2.5-flash-image_replicate",
+    "gemini-2.5-flash-image_openrouter"
   ]
 }
 ```
